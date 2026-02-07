@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2 class="mb-4">Welcome, {{ current_user.username }} 👋</h2>
+
+    <div class="row g-4">
+
+        <!-- Wallet -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Wallet Balance</h6>
+                    <h2 class="fw-bold text-success">
+                        ₦{{ "%.2f"|format(current_user.wallet_balance) }}
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <!-- Wallet -->
+        <div class="col-md-2">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">One Year Access</h6>
+                    <h2 class="fw-bold text-success">
+                        <a href="{{ url_for('subscription.start_subscription') }}"
+                        class="btn btn-primary">
+                        Subscribe Now (₦10,000)
+                        </a>
+                    </h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Referral -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-1">Invite & Earn</h5>
+                    <p class="text-muted small mb-3">
+                        Share your referral link and earn rewards when users sign up.
+                    </p>
+
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            class="form-control"
+                            value="{{ referral_link }}"
+                            readonly
+                            id="refLink"
+                        >
+                        <button
+                            class="btn btn-primary"
+                            type="button"
+                            onclick="copyRef()"
+                        >
+                            Copy
+                        </button>
+                    </div>
+
+                    <small class="text-muted d-block mt-2">
+                        Anyone who registers using your link will be connected to you.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function copyRef() {
+    const input = document.getElementById("refLink");
+    input.select();
+    input.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(input.value);
+}
+</script>
+{% endblock %}

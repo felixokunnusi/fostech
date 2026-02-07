@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h4 class="text-center mb-3">Verify Email</h4>
+
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.code.label(class="form-label") }}
+                        {{ form.code(class="form-control text-center") }}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                    
+                </form>
+            </div>
+            <p class="text-center mt-3">
+                Didn’t receive a code?
+                <a href="{{ url_for('auth.resend_confirmation') }}">Resend</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
