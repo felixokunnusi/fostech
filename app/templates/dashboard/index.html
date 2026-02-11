@@ -5,6 +5,31 @@
 
     <h2 class="mb-4">Welcome, {{ current_user.username }} 👋</h2>
 
+    <hr>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+    {% if active_session %}
+        <a href="{{ url_for('quiz.take', session_id=active_session.id, q=1) }}" class="btn btn-primary">
+        Resume Quiz
+        </a>
+        <span class="text-muted small">
+        Active: {{ active_session.mode|upper }} • {{ active_session.band }} • Started
+        {{ active_session.started_at.strftime("%Y-%m-%d %H:%M") if active_session.started_at else "" }}
+        </span>
+
+        <a href="{{ url_for('quiz.choose_level') }}" class="btn btn-outline-primary">
+        Start New Quiz
+        </a>
+    {% else %}
+        <a href="{{ url_for('quiz.choose_level') }}" class="btn btn-primary">Start Quiz</a>
+    {% endif %}
+
+    <a class="btn btn-outline-secondary" href="{{ url_for('quiz.history') }}">Exam History</a>
+    </div>
+
+    <hr>
+
+
     <div class="row g-4">
 
         <!-- Wallet -->

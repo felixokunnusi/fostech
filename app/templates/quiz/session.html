@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="mb-0">Quiz: Band {{ session.band|upper }}</h4>
+      <small class="text-muted">
+        Mode: {{ session.mode|upper }}
+        {% if session.mode == "trial" %} (Questions 11–70 locked){% endif %}
+      </small>
+    </div>
+
+    {% if session.mode == "exam" and session.expires_at %}
+      <div class="text-end">
+        <div class="fw-bold">Time left</div>
+        <div id="timer" class="fs-5"></div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="row g-3">
+
+    <!-- Question Map -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-header fw-bold">Question Map (1–70)</div>
+        <div class="card-body" style="max-height: 70vh; overflow:auto;">
+          <div class="d-flex flex-wrap gap-2">
+            {% for item in question_map %}
+              {% set cls = "btn-outline-secondary" %}
+              {% if item.state == "answered" %}{% set cls = "btn-success" %}{% endif %}
+              {% if item.state == "current" %}{% set cls = "btn-danger" %}{% endif %}
+              {% if item.state == "locked" %}{% set cls = "btn-outline-dark disabled opacity-50" %}{% endif %}
+              {% if item.state == "current_locked" %}{% set cls = "btn-dark" %}{% endif %}
+
+              {% if item.locked %}
+                <button type="button" class="btn {{ cls }} btn-sm" style="width:44px;">
+                  {{ item.index }}
+                </button>
+              {% else %}
+                <a class="btn {{ cls }} btn-sm"
+                   style="width:44px;"
+                   href="{{ url_for('quiz.session_view', session_id=session.id, q=item.index) }}">
+                  {{ item.index }}
+                </a>
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          {% if session.mode == "trial" %}
+            <div class="alert alert-info mt-3 mb-0">
+              You’re on <b>Trial Mode</b>. Only questions 1–10 are available.
+              <a href="{{ url_for('subscription.start_subscription') }}" class="btn btn-primary btn-sm mt-2 w-100">
+                Upgrade to unlock full 70 questions
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Question Panel -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div class="fw-bold">Question {{ q_index }} of {{ total }}</div>
+          <form method="POST" action="{{ url_for('quiz.submit', session_id=session.id) }}">
+            <button class="btn btn-outline-primary btn-sm" type="submit">
+              Submit Quiz
+            </button>
+          </form>
+        </div>
+
+        <div class="card-body">
+          {% if locked %}
+            <div class="text-center py-5">
+              <h5 class="mb-2">This question is locked 🔒</h5>
+              <p class="text-muted mb-3">Upgrade to unlock questions 11–70 and take full exam mode.</p>
+              <a href="{{ url_for('subscription.start_subscription') }}" class="btn btn-primary">
+                Upgrade Now
+              </a>
+            </div>
+
+          {% else %}
+            <p class="fs-5">{{ question.text }}</p>
+
+            <form method="POST" action="{{ url_for('quiz.save_answer', session_id=session.id) }}">
+              <input type="hidden" name="question_id" value="{{ question.id }}">
+
+              {% for c in question.choices %}
+                <div class="form-check my-2">
+                  <input class="form-check-input"
+                         type="radio"
+                         name="choice_id"
+                         id="choice{{ c.id }}"
+                         value="{{ c.id }}"
+                         {% if saved_choice_id == c.id %}checked{% endif %}
+                         {% if not can_answer %}disabled{% endif %}>
+                  <label class="form-check-label" for="choice{{ c.id }}">
+                    {{ c.text }}
+                  </label>
+                </div>
+              {% endfor %}
+
+              <div class="d-flex gap-2 mt-4">
+                <a class="btn btn-outline-secondary"
+                   href="{{ url_for('quiz.session_view', session_id=session.id, q=(q_index-1 if q_index>1 else 1)) }}">
+                  Prev
+                </a>
+
+                <button type="submit" class="btn btn-success" {% if not can_answer %}disabled{% endif %}>
+                  Save Answer
+                </button>
+
+                <button type="submit" name="next_q" value="{{ q_index + 1 }}" class="btn btn-primary"
+                        {% if q_index >= total or not can_answer %}disabled{% endif %}>
+                  Save & Next
+                </button>
+              </div>
+
+              {% if not can_answer %}
+                <div class="alert alert-warning mt-3 mb-0">
+                  Answering is disabled (submitted or time is up).
+                </div>
+              {% endif %}
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% if session.mode == "exam" and session.expires_at %}
+<script>
+  const expiresAt = new Date("{{ session.expires_at.isoformat() }}Z").getTime();
+
+  function tick() {
+    const now = Date.now();
+    let diff = Math.max(0, expiresAt - now);
+
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+
+    const el = document.getElementById("timer");
+    if (el) el.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+
+    if (diff <= 0) {
+      // optional: auto-refresh to force lock message
+      // location.reload();
+    }
+  }
+
+  tick();
+  setInterval(tick, 1000);
+</script>
+{% endif %}
+
+{% endblock %}

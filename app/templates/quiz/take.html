@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0">Question {{ q_index }} of {{ total }}</h4>
+
+    {% if remaining_seconds is not none %}
+      <div class="badge bg-warning text-dark">
+        Time left: <span id="timer"></span>
+      </div>
+      <script>
+        (function () {
+          let s = {{ remaining_seconds|int }};
+          const el = document.getElementById("timer");
+          function tick() {
+            const m = Math.floor(s / 60);
+            const r = s % 60;
+            el.textContent = `${m}:${String(r).padStart(2, "0")}`;
+            if (s > 0) { s -= 1; setTimeout(tick, 1000); }
+          }
+          tick();
+        })();
+      </script>
+    {% endif %}
+  </div>
+
+  <!-- Question text -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="mb-2 fw-semibold">Question</div>
+      <div style="white-space: pre-wrap;">{{ question.text }}</div>
+    </div>
+  </div>
+
+  <!-- Options -->
+  <form id="quizForm" method="POST" class="card mb-3">
+    <div class="card-body">
+      <div class="mb-2 fw-semibold">Choose an answer</div>
+
+      {% if choices and choices|length > 0 %}
+        {% for c in choices %}
+          <div class="form-check mb-2">
+            <input class="form-check-input"
+                   type="radio"
+                   name="choice_id"
+                   id="choice{{ c.id }}"
+                   value="{{ c.id }}"
+                   data-autosave="1"
+                   {% if selected_choice_id == c.id %}checked{% endif %}>
+            <label class="form-check-label" for="choice{{ c.id }}">
+              {{ c.text }}
+            </label>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="alert alert-warning mb-0">
+          No choices found for this question.
+        </div>
+      {% endif %}
+
+      <!-- submit confirmation flag + action (single source of truth) -->
+      <input type="hidden" name="confirm_submit" id="confirm_submit" value="0">
+      <input type="hidden" name="action" id="action_field" value="">
+    </div>
+
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <!-- NOTE: These are type="button" so we control submission via JS -->
+      <button id="prevBtn" class="btn btn-outline-secondary" type="button"
+              {% if q_index <= 1 %}disabled{% endif %}>
+        Prev
+      </button>
+
+      <div class="d-flex align-items-center gap-2">
+        <div id="autosave-indicator" class="text-muted" style="font-size:12px;"></div>
+
+        <button id="submitBtn" class="btn btn-success" type="button">
+          Submit
+        </button>
+
+        <button id="nextBtn" class="btn btn-primary" type="button"
+                {% if q_index >= total %}disabled{% endif %}>
+          Next
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Confirm Submit Modal (simple, no dependency) -->
+  <div id="submitModalBackdrop"
+       style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1040;"></div>
+
+  <div id="submitModal"
+       style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+              background:#fff; width:min(520px, 92vw); border-radius:12px; z-index:1050;
+              box-shadow:0 10px 30px rgba(0,0,0,.25);">
+    <div style="padding:16px 18px; border-bottom:1px solid #eee;">
+      <strong>Confirm submission</strong>
+    </div>
+
+    <div style="padding:18px;">
+      <p class="mb-0" id="unansweredMsg">You have unanswered questions. Submit anyway?</p>
+      <small class="text-muted d-block mt-2">
+        Tip: you can click any number on the Question Board to jump and answer.
+      </small>
+    </div>
+
+    <div style="padding:16px 18px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:10px;">
+      <button type="button" class="btn btn-outline-secondary" id="cancelSubmit">Go back</button>
+      <button type="button" class="btn btn-success" id="confirmSubmit">Submit anyway</button>
+    </div>
+  </div>
+
+  <!-- Question Board -->
+  <div class="card">
+    <div class="card-body">
+      <div class="mb-2 fw-semibold">Question Board</div>
+
+      <div class="d-flex flex-wrap gap-2" id="questionBoard">
+        {% for i in range(1, total + 1) %}
+          {% set qid = question_ids[i-1] %}
+          {% set answered = qid in answered_q_ids %}
+          <a href="{{ url_for('quiz.take', session_id=session.id, q=i) }}"
+             class="btn btn-sm {{ 'btn-success' if answered else 'btn-outline-secondary' }} {{ 'active' if i == q_index else '' }}"
+             data-qid="{{ qid }}">
+            {{ i }}
+          </a>
+        {% endfor %}
+      </div>
+
+      <small class="text-muted d-block mt-2">Green = answered</small>
+    </div>
+  </div>
+
+</div>
+
+<!-- Shared quiz state for JS -->
+<script>
+  window.__quiz = {
+    sessionId: {{ session.id }},
+    questionId: {{ question.id }},
+    questionIds: {{ question_ids|tojson }},
+    answeredIds: new Set({{ answered_q_ids|list|tojson }})
+  };
+</script>
+
+<!-- Autosave on click -->
+<script>
+  (function () {
+    const q = window.__quiz;
+    const url = `/quiz/autosave/${q.sessionId}/${q.questionId}`;
+    const indicator = document.getElementById("autosave-indicator");
+    const board = document.getElementById("questionBoard");
+
+    function markAnsweredOnBoard() {
+      // Update current question tile to green (if present)
+      const btn = board?.querySelector(`[data-qid="${q.questionId}"]`);
+      if (btn) {
+        btn.classList.remove("btn-outline-secondary");
+        btn.classList.add("btn-success");
+      }
+    }
+
+    document.querySelectorAll('input[data-autosave="1"][name="choice_id"]').forEach((radio) => {
+      radio.addEventListener("change", async (e) => {
+        const choiceId = e.target.value;
+        if (indicator) indicator.textContent = "Saving...";
+
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
+            body: JSON.stringify({ choice_id: parseInt(choiceId, 10) })
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok) throw new Error(data.error || "Save failed");
+
+          // Mark answered in JS state (so modal counts update immediately)
+          q.answeredIds.add(q.questionId);
+          markAnsweredOnBoard();
+
+          if (indicator) {
+            indicator.textContent = "Saved ✓";
+            setTimeout(() => { indicator.textContent = ""; }, 1200);
+          }
+        } catch (err) {
+          if (indicator) indicator.textContent = "Save failed. Try again.";
+        }
+      });
+    });
+  })();
+</script>
+
+<!-- Controlled navigation + submit warning -->
+<script>
+  (function () {
+    const q = window.__quiz;
+
+    const form = document.getElementById("quizForm");
+    const actionField = document.getElementById("action_field");
+    const confirmField = document.getElementById("confirm_submit");
+
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const submitBtn = document.getElementById("submitBtn");
+
+    const modal = document.getElementById("submitModal");
+    const backdrop = document.getElementById("submitModalBackdrop");
+    const msg = document.getElementById("unansweredMsg");
+
+    const cancel = document.getElementById("cancelSubmit");
+    const confirm = document.getElementById("confirmSubmit");
+
+    function unansweredCount() {
+      let count = 0;
+      for (const qid of q.questionIds) {
+        if (!q.answeredIds.has(qid)) count++;
+      }
+      return count;
+    }
+
+    function openModal(text) {
+      msg.textContent = text;
+      backdrop.style.display = "block";
+      modal.style.display = "block";
+    }
+    function closeModal() {
+      backdrop.style.display = "none";
+      modal.style.display = "none";
+    }
+
+    // Prev / Next submit with hidden action
+    if (prevBtn) {
+      prevBtn.addEventListener("click", () => {
+        actionField.value = "prev";
+        form.submit();
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener("click", () => {
+        actionField.value = "next";
+        form.submit();
+      });
+    }
+
+    // Submit with warning
+    if (submitBtn) {
+      submitBtn.addEventListener("click", (e) => {
+        actionField.value = "submit";
+
+        // Already confirmed => submit immediately
+        if (confirmField.value === "1") {
+          form.submit();
+          return;
+        }
+
+        const remaining = unansweredCount();
+        if (remaining > 0) {
+          e.preventDefault();
+          openModal(`You have ${remaining} unanswered question${remaining === 1 ? "" : "s"}. Submit anyway?`);
+        } else {
+          // All answered => submit immediately
+          form.submit();
+        }
+      });
+    }
+
+    cancel.addEventListener("click", closeModal);
+    backdrop.addEventListener("click", closeModal);
+
+    confirm.addEventListener("click", function () {
+      confirmField.value = "1";
+      actionField.value = "submit";
+      closeModal();
+      form.submit();
+    });
+  })();
+</script>
+
+{% endblock %}

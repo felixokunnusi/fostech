@@ -37,3 +37,11 @@ class Subscription(db.Model):
             self.paid_at = datetime.utcnow()
         self.expires_at = self.paid_at + timedelta(days=days) # 1 year
 
+    # Restrict active sub to 1
+    @property
+    def is_active(self):
+        return (
+            self.is_confirmed
+            and self.expires_at is not None
+            and self.expires_at > datetime.utcnow()
+        )

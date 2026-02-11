@@ -1,10 +1,23 @@
-from flask import current_app
+from flask import current_app, abort
 import random
 import string
 from datetime import datetime, timedelta
 import secrets
+from functools import wraps 
+from flask_login import current_user
 from . import db
 from app.models import User
+
+def admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated:
+            abort(401)
+        if not getattr(current_user, "is_admin", False):
+            abort(403)
+        return fn(*args, **kwargs)
+    return wrapper
+
 
 def generate_code():
     return "".join(random.choices(string.digits, k=6))

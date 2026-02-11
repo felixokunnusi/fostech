@@ -14,6 +14,21 @@ import hmac, hashlib
 @subscription_bp.route("/start")
 @login_required
 def start_subscription():
+    # 🔒 BLOCK if user already has active subscription
+    active_sub = (
+        Subscription.query
+        .filter_by(user_id=current_user.id, is_confirmed=True)
+        .order_by(Subscription.expires_at.desc())
+        .first()
+    )
+    if active_sub and active_sub.is_active:
+        flash(
+            f"You already have an active subscription until "
+            f"{active_sub.expires_at.strftime('%d %b %Y')}.",
+            "warning"
+        )
+        return redirect(url_for("dashboard.index"))
+
     reference = f"SUB_{uuid.uuid4().hex}"
 
     sub = Subscription(

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h3 class="mb-3">Choose Level</h3>
+
+  <div class="mb-3">
+    <a class="btn btn-outline-primary"
+       href="{{ url_for('quiz.start', level='confirmation') }}">
+      Confirmation
+    </a>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2">
+    {% for lvl in range(1, 18) %}
+      <a class="btn btn-outline-secondary"
+         href="{{ url_for('quiz.start', level=lvl|string) }}">
+        Level {{ lvl }}
+      </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

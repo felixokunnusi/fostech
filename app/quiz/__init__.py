@@ -1,5 +1,6 @@
 from flask import Blueprint
 
-subscription_bp = Blueprint("subscription", __name__, url_prefix="/subscription")
+quiz_bp = Blueprint("quiz", __name__, url_prefix="/quiz")
+
 
 from . import routes  # noqa: E402,F401  (ensures routes are imported)

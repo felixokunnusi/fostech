@@ -14,7 +14,7 @@ class User(UserMixin, db.Model):
     referral_code = db.Column(db.String(10), unique=True)
     referred_by = db.Column(db.String(10))
     wallet_balance = db.Column(db.Float, default=0.0)
-    is_admin = db.Column(db.Boolean, default=False)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
     email_code_sent_at = db.Column(db.DateTime)
     email_confirm_expires = db.Column(db.DateTime)
     last_confirmation_sent = db.Column(db.DateTime)

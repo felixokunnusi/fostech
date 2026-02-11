@@ -21,11 +21,15 @@ def paystack_webhook():
         ).first()
 
         if subscription and not subscription.is_confirmed:
-            subscription.is_confirmed = True
-            db.session.commit()
+            return jsonify({"status": "ignored"})
 
-            # 🎁 REFERRAL BONUS
-            from app.services.referral import handle_referral_bonus
-            handle_referral_bonus(subscription)
+        subscription.is_confirmed = True
+        subscription.paid_at = datetime.utcnow()
+        subscription.set_expiration(days=366)
+        db.session.commit()
+
+        # 🎁 REFERRAL BONUS
+        from app.services.referral import handle_referral_bonus
+        handle_referral_bonus(subscription)
 
     return "", 200

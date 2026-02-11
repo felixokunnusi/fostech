@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <h3>Upload Questions (CSV)</h3>
+  <p class="text-muted mb-3">
+    Upload a CSV to import questions into the database.
+  </p>
+
+  <form method="POST" enctype="multipart/form-data" class="card p-3">
+    <div class="mb-3">
+      <label class="form-label">CSV File</label>
+      <input type="file" name="file" class="form-control" accept=".csv" required>
+      <small class="text-muted">
+        Required columns: level, question_text, option_a, option_b, option_c, option_d, correct_option
+      </small>
+    </div>
+    <button class="btn btn-primary">Upload & Import</button>
+  </form>
+
+  {% if summary %}
+    <div class="card mt-4 p-3">
+      <h5>Import Summary{% if filename %} — {{ filename }}{% endif %}</h5>
+      <ul class="mb-2">
+        <li><b>Imported:</b> {{ summary.imported }}</li>
+        <li><b>Skipped (duplicates):</b> {{ summary.skipped_duplicates }}</li>
+        <li><b>Skipped (invalid rows):</b> {{ summary.skipped_invalid }}</li>
+      </ul>
+
+      {% if summary.errors and summary.errors|length > 0 %}
+        <div class="alert alert-warning">
+          <b>Errors:</b>
+          <ul class="mb-0">
+            {% for e in summary.errors %}
+              <li>{{ e }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

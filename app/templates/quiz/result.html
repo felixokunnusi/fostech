@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="m-0">Results</h3>
+    <a class="btn btn-outline-secondary" href="{{ url_for('quiz.history') }}">Back to History</a>
+  </div>
+
+  <!-- Summary -->
+  <div class="row g-2 mb-3">
+    <div class="col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted">Score</div>
+          <div class="fs-4">{{ correct }} / {{ total }}</div>
+          <div class="text-muted">{{ percent }}%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted">Correct</div>
+          <div class="fs-4">{{ correct }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted">Wrong</div>
+          <div class="fs-4">{{ wrong }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted">Unanswered</div>
+          <div class="fs-4">{{ unanswered }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="d-flex gap-2 mb-3">
+    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="setFilter('all')">All</button>
+    <button class="btn btn-outline-success btn-sm" type="button" onclick="setFilter('correct')">Correct</button>
+    <button class="btn btn-outline-danger btn-sm" type="button" onclick="setFilter('wrong')">Wrong</button>
+    <button class="btn btn-outline-warning btn-sm" type="button" onclick="setFilter('unanswered')">Unanswered</button>
+  </div>
+
+  <!-- Review -->
+  <div class="card">
+    <div class="card-body">
+      <h5 class="mb-3">Question Review</h5>
+
+      {% for r in review %}
+        <div class="mb-4 review-item" data-status="{{ r.status }}">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="fw-semibold">
+              Q{{ r.number }}. {{ r.question_text }}
+            </div>
+
+            {% if r.status == "correct" %}
+              <span class="badge bg-success">Correct</span>
+            {% elif r.status == "wrong" %}
+              <span class="badge bg-danger">Wrong</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">Unanswered</span>
+            {% endif %}
+          </div>
+
+          <div class="mt-2">
+            <ul class="list-group">
+              {% for c in r.choices %}
+                {% set is_user = (r.user_choice_id == c.id) %}
+                {% set is_correct = (r.correct_choice_id == c.id) %}
+
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    {% if is_user %}<strong>→</strong>{% endif %}
+                    {{ c.text }}
+                  </div>
+
+                  <div class="d-flex gap-2">
+                    {% if is_user %}
+                      <span class="badge bg-primary">Your choice</span>
+                    {% endif %}
+                    {% if is_correct %}
+                      <span class="badge bg-success">Correct</span>
+                    {% endif %}
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          <div class="mt-2">
+            <div class="text-muted small">
+              <strong>Correct answer:</strong> {{ r.correct_choice_text or "Not set" }}
+              {% if r.user_choice_text %}
+                • <strong>Your answer:</strong> {{ r.user_choice_text }}
+              {% endif %}
+            </div>
+
+            {% if r.explanation %}
+              <div class="alert alert-light border mt-2 mb-0">
+                <div class="fw-semibold mb-1">Explanation</div>
+                <div style="white-space: pre-wrap;">{{ r.explanation }}</div>
+              </div>
+            {% else %}
+              <div class="text-muted small mt-2">No explanation provided.</div>
+            {% endif %}
+          </div>
+
+          <hr class="mt-4">
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function setFilter(status) {
+    document.querySelectorAll(".review-item").forEach((el) => {
+      if (status === "all") {
+        el.style.display = "";
+      } else {
+        el.style.display = (el.dataset.status === status) ? "" : "none";
+      }
+    });
+  }
+</script>
+{% endblock %}

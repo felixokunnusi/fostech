@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Select Subject</h2>
+
+<ul class="list-group">
+{% for s in subjects %}
+  <li class="list-group-item">
+    <a href="{{ url_for('quiz.start_quiz', subject_id=s.id) }}">
+      {{ s.name }}
+    </a>
+  </li>
+{% endfor %}
+</ul>
+{% endblock %}

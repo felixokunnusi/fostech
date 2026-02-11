@@ -1,10 +1,14 @@
+from datetime import datetime
+
 from flask import render_template, url_for
 from flask_login import login_required, current_user
-from . import dashboard_bp
-from app.auth.decorators import email_verified_required
-from app.models import User, ReferralEarning
 from sqlalchemy import func
+
+from . import dashboard_bp
 from app.extensions import db
+from app.models import User, ReferralEarning
+from app.models.quiz import QuizSession
+
 
 @dashboard_bp.route("/")
 @login_required
@@ -40,10 +44,31 @@ def index():
         .all()
     )
 
+    # ✅ Active (unfinished) quiz session
+    active_session = (
+        QuizSession.query
+        .filter_by(user_id=current_user.id, is_submitted=False)
+        .order_by(QuizSession.started_at.desc())
+        .first()
+    )
+
+    # ✅ If active exam expired → auto-submit it
+    if (
+        active_session
+        and active_session.mode == "exam"
+        and active_session.expires_at
+        and datetime.utcnow() > active_session.expires_at
+    ):
+        active_session.is_submitted = True
+        active_session.completed_at = datetime.utcnow()
+        db.session.commit()
+        active_session = None
+
     return render_template(
         "dashboard/index.html",
         referral_link=referral_link,
         referral_count=referral_count,
         total_earnings=total_earnings,
-        referred_users=referred_users
+        referred_users=referred_users,
+        active_session=active_session,   # ✅ new
     )
