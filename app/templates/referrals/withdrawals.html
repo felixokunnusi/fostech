@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-0">Withdrawal History</h3>
+      <small class="text-muted">Track your withdrawal requests and status.</small>
+    </div>
+    <a href="{{ url_for('referrals.request_withdrawal') }}" class="btn btn-primary">
+      Request Withdrawal
+    </a>
+  </div>
+
+  {% if withdrawals and withdrawals|length > 0 %}
+
+    {# ---------- Desktop / Tablet Table ---------- #}
+    <div class="table-responsive d-none d-md-block">
+      <table class="table table-striped align-middle">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Bank</th>
+            <th>Account</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in withdrawals %}
+          <tr>
+            <td>
+              {% if w.created_at %}
+                {{ w.created_at.strftime("%Y-%m-%d %H:%M") }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td class="fw-semibold">
+              ₦{{ "{:,.2f}".format(w.amount|float) }}
+            </td>
+            <td>
+              {% set s = (w.status or '').lower() %}
+              <span class="badge
+                {% if s == 'approved' %} bg-success
+                {% elif s == 'pending' %} bg-warning text-dark
+                {% elif s == 'processing' %} bg-info text-dark
+                {% elif s == 'rejected' %} bg-danger
+                {% else %} bg-secondary
+                {% endif %}
+              ">
+                {{ w.status }}
+              </span>
+            </td>
+            <td>{{ w.bank_name or '-' }}</td>
+            <td>
+              <div class="fw-semibold">{{ w.account_name or '-' }}</div>
+              {% if w.account_number %}
+                <small class="text-muted">
+                  ****{{ w.account_number[-4:] }}
+                </small>
+              {% else %}
+                <small class="text-muted">-</small>
+              {% endif %}
+            </td>
+            <td class="text-muted">
+              {{ w.note or '-' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ---------- Mobile Cards ---------- #}
+    <div class="d-md-none">
+      {% for w in withdrawals %}
+        {% set s = (w.status or '').lower() %}
+        <div class="card mb-3 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-bold">
+                  ₦{{ "{:,.2f}".format(w.amount|float) }}
+                </div>
+                <div class="text-muted small">
+                  {% if w.created_at %}
+                    {{ w.created_at.strftime("%Y-%m-%d %H:%M") }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </div>
+              </div>
+
+              <span class="badge
+                {% if s == 'approved' %} bg-success
+                {% elif s == 'pending' %} bg-warning text-dark
+                {% elif s == 'processing' %} bg-info text-dark
+                {% elif s == 'rejected' %} bg-danger
+                {% else %} bg-secondary
+                {% endif %}
+              ">
+                {{ w.status }}
+              </span>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="small">
+              <div class="mb-1">
+                <span class="text-muted">Bank:</span>
+                <span class="fw-semibold">{{ w.bank_name or '-' }}</span>
+              </div>
+
+              <div class="mb-1">
+                <span class="text-muted">Account:</span>
+                <span class="fw-semibold">{{ w.account_name or '-' }}</span>
+                {% if w.account_number %}
+                  <span class="text-muted"> (****{{ w.account_number[-4:] }})</span>
+                {% endif %}
+              </div>
+
+              {% if w.note %}
+              <div class="mt-2">
+                <span class="text-muted">Note:</span>
+                <div class="text-muted">{{ w.note }}</div>
+              </div>
+              {% endif %}
+            </div>
+
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="alert alert-light border">
+      <div class="fw-semibold">No withdrawals yet.</div>
+      <div class="text-muted">When you request a withdrawal, it will appear here.</div>
+      <a href="{{ url_for('referrals.request_withdrawal') }}" class="btn btn-primary mt-3">
+        Make your first withdrawal
+      </a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

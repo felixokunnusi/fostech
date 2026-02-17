@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-0">Admin — Withdrawal Requests</h3>
+      <small class="text-muted">Review and update withdrawal request status.</small>
+    </div>
+  </div>
+  <hr>
+  <div class="mb-3 small">
+  <span class="badge bg-warning text-dark">Pending</span>
+  <span class="badge bg-success">Approved</span>
+  <span class="badge bg-info text-dark">Processing</span>
+  <span class="badge bg-primary">Paid</span>
+  <span class="badge bg-danger">Rejected</span>
+</div>
+
+
+  {% if withdrawals and withdrawals|length > 0 %}
+
+    {# ---------- Desktop Table ---------- #}
+    <div class="table-responsive d-none d-md-block">
+      <table class="table table-striped align-middle">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>User</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Bank</th>
+            <th>Account</th>
+            <th style="width: 420px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for w in withdrawals %}
+          {% set s = (w.status or '').lower() %}
+          {% set is_final = s in ['paid','rejected','failed'] %}
+
+          <tr>
+            <td>
+              {% if w.created_at %}
+                {{ w.created_at.strftime("%Y-%m-%d %H:%M") }}
+              {% else %}-{% endif %}
+            </td>
+
+            <td>
+              {% if w.user %}
+                <div class="fw-semibold">{{ w.user.full_name or w.user.name or w.user.email }}</div>
+                <small class="text-muted">ID: {{ w.user.id }}</small>
+              {% else %}
+                <div class="fw-semibold">User ID: {{ w.user_id }}</div>
+              {% endif %}
+            </td>
+
+            <td class="fw-semibold">
+              ₦{{ "{:,.2f}".format(w.amount|float) }}
+            </td>
+
+            <td>
+              <span class="badge
+                {% if s == 'approved' %} bg-success
+                {% elif s == 'pending' %} bg-warning text-dark
+                {% elif s == 'processing' %} bg-info text-dark
+                {% elif s == 'paid' %} bg-primary
+                {% elif s == 'rejected' %} bg-danger
+                {% elif s == 'failed' %} bg-dark
+                {% else %} bg-secondary
+                {% endif %}
+              ">
+                {{ w.status }}
+              </span>
+            </td>
+
+            <td>{{ w.bank_name or '-' }}</td>
+
+            <td>
+              <div class="fw-semibold">{{ w.account_name or '-' }}</div>
+              {% if w.account_number %}
+                <small class="text-muted">****{{ w.account_number[-4:] }}</small>
+              {% endif %}
+            </td>
+
+            <td>
+              {% if is_final %}
+                <div class="text-muted small">
+                  Final state — no actions available.
+                  {% if w.note %}<div class="mt-1">Note: {{ w.note }}</div>{% endif %}
+                </div>
+              {% else %}
+                <div class="d-flex flex-column gap-2">
+
+                  {# ---------- Pending actions ---------- #}
+                  {% if s == 'pending' %}
+                    <div class="d-flex gap-2">
+                      <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
+                        <input type="hidden" name="status" value="approved">
+                        <input type="text" class="form-control form-control-sm" name="note" placeholder="Optional note...">
+                        <button class="btn btn-sm btn-success">Approve</button>
+                      </form>
+
+                      <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
+                        <input type="hidden" name="status" value="rejected">
+                        <input type="text" class="form-control form-control-sm" name="note" placeholder="Reason...">
+                        <button class="btn btn-sm btn-danger">Reject</button>
+                      </form>
+                    </div>
+                  {% endif %}
+
+                  {# ---------- Approved actions ---------- #}
+                  {% if s == 'approved' %}
+                    <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2">
+                      <input type="hidden" name="status" value="processing">
+                      <input type="text" class="form-control form-control-sm" name="note" placeholder="Optional note...">
+                      <button class="btn btn-sm btn-outline-info">Processing</button>
+                    </form>
+
+                    <div class="d-flex gap-2">
+                      <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
+                        <input type="hidden" name="status" value="paid">
+                        <input type="text" class="form-control form-control-sm" name="note" placeholder="Paid ref / note...">
+                        <button class="btn btn-sm btn-primary">Mark Paid</button>
+                      </form>
+
+                      <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
+                        <input type="hidden" name="status" value="rejected">
+                        <input type="text" class="form-control form-control-sm" name="note" placeholder="Reason...">
+                        <button class="btn btn-sm btn-danger">Reject</button>
+                      </form>
+                    </div>
+                  {% endif %}
+
+                  {# ---------- Processing actions ---------- #}
+                  {% if s == 'processing' %}
+                    <div class="d-flex gap-2">
+                      <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
+                        <input type="hidden" name="status" value="paid">
+                        <input type="text" class="form-control form-control-sm" name="note" placeholder="Paid ref / note...">
+                        <button class="btn btn-sm btn-primary">Mark Paid</button>
+                      </form>
+
+                      <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
+                        <input type="hidden" name="status" value="failed">
+                        <input type="text" class="form-control form-control-sm" name="note" placeholder="Failure reason...">
+                        <button class="btn btn-sm btn-dark">Mark Failed</button>
+                      </form>
+                    </div>
+                  {% endif %}
+
+                </div>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ---------- Mobile Cards ---------- #}
+    <div class="d-md-none">
+      {% for w in withdrawals %}
+        {% set s = (w.status or '').lower() %}
+        {% set is_final = s in ['paid','rejected','failed'] %}
+
+        <div class="card mb-3 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-bold">₦{{ "{:,.2f}".format(w.amount|float) }}</div>
+                <div class="text-muted small">
+                  {% if w.created_at %}{{ w.created_at.strftime("%Y-%m-%d %H:%M") }}{% else %}-{% endif %}
+                </div>
+              </div>
+              <span class="badge
+                {% if s == 'approved' %} bg-success
+                {% elif s == 'pending' %} bg-warning text-dark
+                {% elif s == 'processing' %} bg-info text-dark
+                {% elif s == 'paid' %} bg-primary
+                {% elif s == 'rejected' %} bg-danger
+                {% elif s == 'failed' %} bg-dark
+                {% else %} bg-secondary
+                {% endif %}
+              ">
+                {{ w.status }}
+              </span>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="small">
+              <div class="mb-1">
+                <span class="text-muted">User:</span>
+                {% if w.user %}
+                  <span class="fw-semibold">{{ w.user.full_name or w.user.name or w.user.email }}</span>
+                {% else %}
+                  <span class="fw-semibold">ID {{ w.user_id }}</span>
+                {% endif %}
+              </div>
+
+              <div class="mb-1">
+                <span class="text-muted">Bank:</span>
+                <span class="fw-semibold">{{ w.bank_name or '-' }}</span>
+              </div>
+
+              <div class="mb-1">
+                <span class="text-muted">Account:</span>
+                <span class="fw-semibold">{{ w.account_name or '-' }}</span>
+                {% if w.account_number %}
+                  <span class="text-muted">(****{{ w.account_number[-4:] }})</span>
+                {% endif %}
+              </div>
+
+              {% if w.note %}
+                <div class="mt-2 text-muted">Note: {{ w.note }}</div>
+              {% endif %}
+            </div>
+
+            {% if is_final %}
+              <div class="alert alert-light border mt-3 mb-0 small">
+                Final state — no actions available.
+              </div>
+            {% else %}
+              <div class="mt-3 d-flex flex-column gap-2">
+
+                {% if s == 'pending' %}
+                  <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
+                    <input type="hidden" name="status" value="approved">
+                    <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Optional note...">
+                    <button class="btn btn-success w-100 btn-sm">Approve</button>
+                  </form>
+
+                  <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
+                    <input type="hidden" name="status" value="rejected">
+                    <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Reason...">
+                    <button class="btn btn-danger w-100 btn-sm">Reject</button>
+                  </form>
+                {% endif %}
+
+                {% if s == 'approved' %}
+                  <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
+                    <input type="hidden" name="status" value="processing">
+                    <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Optional note...">
+                    <button class="btn btn-outline-info w-100 btn-sm">Mark Processing</button>
+                  </form>
+
+                  <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
+                    <input type="hidden" name="status" value="paid">
+                    <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Paid ref / note...">
+                    <button class="btn btn-primary w-100 btn-sm">Mark Paid</button>
+                  </form>
+
+                  <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
+                    <input type="hidden" name="status" value="rejected">
+                    <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Reason...">
+                    <button class="btn btn-danger w-100 btn-sm">Reject</button>
+                  </form>
+                {% endif %}
+
+                {% if s == 'processing' %}
+                  <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
+                    <input type="hidden" name="status" value="paid">
+                    <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Paid ref / note...">
+                    <button class="btn btn-primary w-100 btn-sm">Mark Paid</button>
+                  </form>
+
+                  <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
+                    <input type="hidden" name="status" value="failed">
+                    <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Failure reason...">
+                    <button class="btn btn-dark w-100 btn-sm">Mark Failed</button>
+                  </form>
+                {% endif %}
+
+              </div>
+            {% endif %}
+
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="alert alert-light border">
+      <div class="fw-semibold">No withdrawal requests.</div>
+      <div class="text-muted">When users submit withdrawals, they will appear here.</div>
+    </div>
+  {% endif %}
+
+</div>
+    <script>
+    document.addEventListener("submit", function(e){
+    const btn = e.target.querySelector("button[type=submit]");
+    if(btn){
+        btn.disabled = true;
+        btn.innerText = "Processing...";
+    }
+    });
+    </script>
+
+{% endblock %}

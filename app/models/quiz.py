@@ -1,3 +1,4 @@
+import random
 from datetime import datetime
 from app.extensions import db
 
@@ -10,6 +11,7 @@ class Subject(db.Model):
 
 
 class Question(db.Model):
+    
     id = db.Column(db.Integer, primary_key=True)
 
     # NEW: difficulty band key, e.g. "1-4", "confirmation"
@@ -20,6 +22,20 @@ class Question(db.Model):
     # ✅ NEW
     question_type = db.Column(db.String(50), nullable=False, default="psr", index=True)
     explanation = db.Column(db.Text)  # optional
+
+    # NEW: stable random key for fast sampling in Postgres
+    rand_key = db.Column(
+    db.Float,
+    nullable=False,
+    default=lambda: random.random(),      # works everywhere (SQLite too)
+    server_default=db.text("random()"),   # used by Postgres
+    index=True,
+    )
+
+    __table_args__ = (
+        db.Index("ix_question_band_qtype", "band", "question_type"),
+        db.Index("ix_question_band_qtype_rand", "band", "question_type", "rand_key"),
+    )
 
     choices = db.relationship(
         "Choice",

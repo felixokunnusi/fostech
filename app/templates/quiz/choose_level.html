@@ -1,22 +1,85 @@
+<!-- app/templates/quiz/choose_level.html -->
+
 {% extends "base.html" %}
 {% block content %}
 <div class="container py-4">
   <h3 class="mb-3">Choose Level</h3>
+  <h6 class="mb-3">Education and General Knowledge will be added soon</h6>
 
+  <!-- Question Type -->
+  <div class="mb-3" style="max-width: 420px;">
+    <label class="form-label fw-semibold">Question Type</label>
+      <select id="qtSelect" class="form-select" required>
+        <option value="">-- Select --</option>
+        {% for qt in qtypes %}
+          <option value="{{ qt }}">
+            {{ labels.get(qt, qt|upper) }}
+          </option>
+        {% endfor %}
+      </select>
+
+    <div class="form-text">Select question type first, then choose a level.</div>
+  </div>
+
+  <!-- Confirmation -->
   <div class="mb-3">
-    <a class="btn btn-outline-primary"
+    <a id="confirmationLink" class="btn btn-outline-primary"
        href="{{ url_for('quiz.start', level='confirmation') }}">
       Confirmation
     </a>
   </div>
 
+  <!-- Levels -->
   <div class="d-flex flex-wrap gap-2">
     {% for lvl in range(1, 18) %}
-      <a class="btn btn-outline-secondary"
+      <a class="btn btn-outline-secondary level-link"
          href="{{ url_for('quiz.start', level=lvl|string) }}">
         Level {{ lvl }}
       </a>
     {% endfor %}
   </div>
 </div>
+
+<script>
+  const qtSelect = document.getElementById("qtSelect");
+  const levelLinks = document.querySelectorAll(".level-link");
+  const confirmationLink = document.getElementById("confirmationLink");
+
+  function preventIfNoQT(e) {
+    const qt = qtSelect.value;
+    if (!qt) {
+      e.preventDefault();
+      alert("Please select a question type first.");
+    }
+  }
+
+  // Attach once
+  levelLinks.forEach(a => a.addEventListener("click", preventIfNoQT));
+  if (confirmationLink) confirmationLink.addEventListener("click", preventIfNoQT);
+
+  function updateLinks() {
+    const qt = qtSelect.value;
+
+    levelLinks.forEach(a => {
+      const base = a.href.split("?")[0];
+      if (!qt) {
+        a.href = base;
+        a.classList.add("disabled");
+        a.setAttribute("aria-disabled", "true");
+      } else {
+        a.href = base + "?qt=" + encodeURIComponent(qt);
+        a.classList.remove("disabled");
+        a.removeAttribute("aria-disabled");
+      }
+    });
+
+    if (confirmationLink) {
+      const base = confirmationLink.href.split("?")[0];
+      confirmationLink.href = qt ? (base + "?qt=" + encodeURIComponent(qt)) : base;
+    }
+  }
+
+  qtSelect.addEventListener("change", updateLinks);
+  updateLinks();
+</script>
 {% endblock %}

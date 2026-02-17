@@ -61,6 +61,12 @@
       {% endfor %}
     </tbody>
   </table>
+    <a href="{{ url_for('referrals.request_withdrawal') }}" class="btn btn-primary">
+      Request Withdrawal
+    </a>
+    <a href="{{ url_for('referrals.withdrawal_history') }}" class="btn btn-outline-secondary">
+      Withdrawal History
+    </a>
 
 </div>
 {% endblock %}

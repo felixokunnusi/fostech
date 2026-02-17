@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-0">Withdraw</h3>
+      <small class="text-muted">Request a withdrawal to your bank account.</small>
+    </div>
+    <a href="{{ url_for('referrals.withdrawal_history') }}" class="btn btn-outline-secondary">
+      View History
+    </a>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Wallet Balance</div>
+          <div class="fs-5 fw-bold">₦{{ "{:,.2f}".format(wallet_balance|float) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Withdrawable Balance</div>
+          <div class="fs-5 fw-bold">₦{{ "{:,.2f}".format(withdrawable_balance|float) }}</div>
+          <small class="text-muted">This is what you can withdraw now.</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Minimum Withdrawal</div>
+          <div class="fs-5 fw-bold">₦{{ "{:,.2f}".format(min_withdrawal|float) }}</div>
+          <small class="text-muted">Requests below this will be rejected.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-4">
+
+      <form method="post" novalidate>
+        <div class="row g-3">
+
+          <div class="col-md-6">
+            <label class="form-label">Amount (₦)</label>
+            <input
+              name="amount"
+              type="number"
+              step="0.01"
+              min="0"
+              class="form-control"
+              placeholder="e.g. 1000"
+              required
+            >
+            <div class="form-text">
+              Minimum: ₦{{ "{:,.2f}".format(min_withdrawal|float) }}
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Bank Name</label>
+            <input
+              name="bank_name"
+              class="form-control"
+              placeholder="e.g. Ecobank"
+              required
+            >
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Account Name</label>
+            <input
+              name="account_name"
+              class="form-control"
+              placeholder="e.g. Felix Olusegun"
+              required
+            >
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Account Number</label>
+            <input
+              name="account_number"
+              class="form-control"
+              placeholder="10-digit account number"
+              inputmode="numeric"
+              maxlength="10"
+              pattern="[0-9]{10}"
+              required
+            >
+            <div class="form-text">Enter a valid 10-digit NUBAN number.</div>
+          </div>
+
+          <div class="col-12">
+            <div class="alert alert-light border mb-0">
+              <div class="fw-semibold">Note</div>
+              <div class="text-muted small">
+                Your request will be reviewed and processed. Ensure your account details are correct.
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 d-flex gap-2">
+            <button class="btn btn-success">
+              Submit Withdrawal Request
+            </button>
+            <a href="{{ url_for('referrals.withdrawal_history') }}" class="btn btn-outline-secondary">
+              Cancel
+            </a>
+          </div>
+
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

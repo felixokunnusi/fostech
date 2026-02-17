@@ -6,11 +6,11 @@ from urllib.error import URLError
 import logging
 
 def send_confirmation_email(user):
-    confirm_url = url_for(
-        "auth.confirm_email",
-        code=user.email_confirm_code,
-        _external=True
-    )
+    confirm_url = url_for("auth.confirm_email", code=user.email_confirm_code, _external=True)
+    sender = current_app.config.get("MAIL_DEFAULT_SENDER") or current_app.config.get("MAIL_USERNAME")
+    if not sender:
+        raise RuntimeError("MAIL_DEFAULT_SENDER is missing. Set it in .env")
+
 
     message = Mail(
         from_email=current_app.config["MAIL_DEFAULT_SENDER"],
@@ -27,16 +27,35 @@ def send_confirmation_email(user):
     )
 
     try:
-        sg = SendGridAPIClient(api_key=current_app.config["SENDGRID_API_KEY"])
-        sg.send(message)
+        api_key = current_app.config.get("SENDGRID_API_KEY")
+        if not api_key:
+            raise RuntimeError("SENDGRID_API_KEY is missing. Set it in .env or environment variables.")
 
-    except URLError:
-        logging.exception("SendGrid network error")
-        raise RuntimeError("Email service is temporarily unavailable.")
+        sg = SendGridAPIClient(api_key=api_key)
+        resp = sg.send(message)
 
-    except Exception:
-        logging.exception("SendGrid unknown error")
+        # SendGrid typically returns 202 on success
+        if resp.status_code not in (200, 202):
+            logging.error("SendGrid failed. Status=%s Body=%s Headers=%s", resp.status_code, resp.body, resp.headers)
+            raise RuntimeError("Failed to send confirmation email (SendGrid non-success status).")
+
+    except Exception as e:
+        # 🔥 This prints the real SendGrid error in your console/logs
+        # Many SendGrid exceptions include .body with JSON error details
+        body = getattr(e, "body", None)
+        status = getattr(e, "status_code", None)
+        logging.exception("SendGrid error: status=%s body=%s error=%s", status, body, e)
         raise RuntimeError("Failed to send confirmation email.")
+    
+    # catch success status
+    resp = sg.send(message)
+    current_app.logger.info(
+    "SendGrid send result: status=%s headers=%s body=%s",
+    resp.status_code, resp.headers, resp.body
+    )
+
+    if resp.status_code != 202:
+        raise RuntimeError(f"SendGrid rejected email. status={resp.status_code}")
 
 # Send password reset email
 def send_password_reset_email(user):

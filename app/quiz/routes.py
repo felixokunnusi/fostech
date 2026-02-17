@@ -9,6 +9,7 @@ from app.services.difficulty import level_to_band
 from . import quiz_bp
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
+from app.services.question_selector import pick_questions_fast
 
 
 EXAM_TOTAL_QUESTIONS = 70
@@ -168,45 +169,90 @@ def user_is_subscribed(user) -> bool:
     return sub is not None
 
 
-
+'''
 def get_trial_questions_for_band(band: str, limit: int = TRIAL_QUESTIONS):
     # "Fixed curated" trial set:
     # simplest: just take earliest questions (stable ordering)
     return Question.query.filter_by(band=band).order_by(Question.id.asc()).limit(limit).all()
+'''
+def get_trial_questions_for_band(band: str, qt: str, limit: int):
+    # DB-randomized selection (better than .all()+shuffle for large datasets)
+    return (
+        Question.query
+        .filter_by(band=band, question_type=qt)
+        .order_by(func.random())
+        .limit(limit)
+        .all()
+    )
 
 
 @quiz_bp.route("/")
 @login_required
 def choose_level():
-    # Page where user picks Confirmation or a numeric level
-    return render_template("quiz/choose_level.html")
+    # Distinct question_type tags (e.g. psr, fr, etc.)
+    qtypes = [
+        r[0] for r in db.session.query(Question.question_type)
+        .distinct()
+        .order_by(Question.question_type.asc())
+        .all()
+        if r[0]
+    ]
+
+    LABELS = {
+    "fr": "Financial Regulation",
+    "psr": "Public Service Rule"
+    }
+
+    return render_template("quiz/choose_level.html", qtypes=qtypes, labels=LABELS)
+
 
 
 @quiz_bp.route("/start/<level>")
 @login_required
 def start(level):
-    band = level_to_band(level)
+    # required querystring: ?qt=psr (or fr, etc.)
+    qt = request.args.get("qt", type=str)
+    if not qt:
+        flash("Please select a question type.", "warning")
+        return redirect(url_for("quiz.choose_level"))
 
     is_paid = user_is_subscribed(current_user)
+    needed = EXAM_TOTAL_QUESTIONS if is_paid else TRIAL_QUESTIONS
+
+    # band selection
+    if level == "confirmation":
+        band = "confirmation"
+    else:
+        try:
+            band = level_to_band(level)
+        except ValueError:
+            flash("Invalid level selected.", "warning")
+            return redirect(url_for("quiz.choose_level"))
 
     if is_paid:
         mode = "exam"
-        all_qs = Question.query.filter_by(band=band).all()
-        if len(all_qs) < EXAM_TOTAL_QUESTIONS:
-            flash(f"Not enough questions in this level. Found {len(all_qs)}.", "warning")
+
+        # DB-randomized exam selection
+        selected = pick_questions_fast(band, qt, needed)
+
+        if len(selected) < EXAM_TOTAL_QUESTIONS:
+            # show how many exist total for that filter
+            total = Question.query.filter_by(band=band, question_type=qt).count()
+            flash(f"Not enough questions for this selection. Found {total}.", "warning")
             return redirect(url_for("quiz.choose_level"))
 
-        random.shuffle(all_qs)
-        selected = all_qs[:EXAM_TOTAL_QUESTIONS]
         expires_at = datetime.utcnow() + timedelta(minutes=EXAM_DURATION_MINUTES)
 
     else:
         mode = "trial"
-        selected = get_trial_questions_for_band(band, TRIAL_QUESTIONS)
+        selected = get_trial_questions_for_band(band, qt, TRIAL_QUESTIONS)
+
         if len(selected) < TRIAL_QUESTIONS:
-            flash(f"Not enough trial questions for {band}.", "warning")
+            total = Question.query.filter_by(band=band, question_type=qt).count()
+            flash(f"Not enough trial questions for this selection. Found {total}.", "warning")
             return redirect(url_for("quiz.choose_level"))
-        expires_at = None  # optional timer for trial
+
+        expires_at = None
 
     session = QuizSession(
         user_id=current_user.id,
@@ -220,7 +266,6 @@ def start(level):
     db.session.add(session)
     db.session.commit()
 
-    # Start at question 1
     return redirect(url_for("quiz.take", session_id=session.id, q=1))
 
 
