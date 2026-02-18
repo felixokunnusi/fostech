@@ -231,7 +231,7 @@
         </p>
 
         <div class="d-grid d-md-flex gap-2 lp-cta-row mb-3">
-          <a href="{{ url_for('auth.register', ref=ref) if ref else url_for('auth.register') }}"
+          <a href="{{ url_for('auth.register', ref=ref) if ref is defined and ref else url_for('auth.register') }}"
              class="btn btn-primary btn-lg">
             Start Practicing Now
           </a>
@@ -577,7 +577,7 @@
         </div>
         <div class="col-12 col-lg-4">
           <div class="d-grid gap-2">
-            <a href="{{ url_for('auth.register', ref=ref) if ref else url_for('auth.register') }}"
+            <a href="{{ url_for('auth.register', ref=ref) if ref is defined and ref else url_for('auth.register') }}"
                class="btn btn-primary btn-lg">
               Create Account Now
             </a>
@@ -640,7 +640,7 @@
 
     <div class="text-center mt-4">
       <div class="lp-muted mb-2">Ready to start?</div>
-      <a href="{{ url_for('auth.register', ref=ref) if ref else url_for('auth.register') }}"
+      <a href="{{ url_for('auth.register', ref=ref) if ref is defined and ref else url_for('auth.register') }}"
          class="btn btn-success btn-lg w-100 w-md-auto">
         Start Practicing Now
       </a>
