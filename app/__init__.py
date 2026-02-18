@@ -1,8 +1,7 @@
 import os
-from flask import Flask, redirect, url_for, request
-from flask_login import current_user
-
+from flask import Flask, redirect, url_for, request, session, flash
 from .extensions import db, login_manager, migrate, mail
+from flask_login import current_user, logout_user
 
 
 
@@ -75,6 +74,27 @@ def create_app():
         # Avoid crashes if attribute missing (old sessions / stale rows)
         if not getattr(current_user, "is_email_verified", False):
             return redirect(url_for("auth.confirm_email"))
+        
+
+    @app.before_request
+    def enforce_single_session():
+
+        if not current_user.is_authenticated:
+            return
+
+    # skip auth routes to avoid loop
+        if request.endpoint and request.endpoint.startswith("auth."):
+            return
+
+        session_token = session.get("session_token")
+        db_token = current_user.current_session_token
+
+        if not session_token or session_token != db_token:
+            logout_user()
+            session.clear()
+            flash("Your account was logged in from another device.", "warning")
+            return redirect(url_for("auth.login"))
+
 
     # Blueprints
     from app.auth.routes import auth_bp
@@ -84,6 +104,8 @@ def create_app():
     from app.referrals.routes import referral_bp
     from app.quiz import quiz_bp
     from app.admin import admin_bp
+    from app.payments import payments_bp
+
     
    
 
@@ -94,5 +116,6 @@ def create_app():
     app.register_blueprint(referral_bp)
     app.register_blueprint(quiz_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(payments_bp)
 
     return app

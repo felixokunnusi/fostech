@@ -21,6 +21,8 @@
           <tr>
             <th>Date</th>
             <th>Amount</th>
+            <th>Fee</th>
+            <th>Net</th>
             <th>Status</th>
             <th>Bank</th>
             <th>Account</th>
@@ -29,6 +31,10 @@
         </thead>
         <tbody>
           {% for w in withdrawals %}
+          {% set s = (w.status or '').lower() %}
+          {% set fee_val = (w.fee if w.fee is not none else 0) %}
+          {% set net_val = (w.net_amount if w.net_amount is not none else (w.amount if w.amount is not none else 0)) %}
+
           <tr>
             <td>
               {% if w.created_at %}
@@ -37,33 +43,45 @@
                 -
               {% endif %}
             </td>
+
             <td class="fw-semibold">
-              ₦{{ "{:,.2f}".format(w.amount|float) }}
+              ₦{{ "{:,.2f}".format(w.amount or 0) }}
             </td>
+
+            <td class="text-danger">
+              ₦{{ "{:,.2f}".format(fee_val) }}
+            </td>
+
+            <td class="text-success fw-semibold">
+              ₦{{ "{:,.2f}".format(net_val) }}
+            </td>
+
             <td>
-              {% set s = (w.status or '').lower() %}
               <span class="badge
                 {% if s == 'approved' %} bg-success
                 {% elif s == 'pending' %} bg-warning text-dark
                 {% elif s == 'processing' %} bg-info text-dark
+                {% elif s == 'paid' %} bg-primary
                 {% elif s == 'rejected' %} bg-danger
+                {% elif s == 'failed' %} bg-dark
                 {% else %} bg-secondary
                 {% endif %}
               ">
                 {{ w.status }}
               </span>
             </td>
+
             <td>{{ w.bank_name or '-' }}</td>
+
             <td>
               <div class="fw-semibold">{{ w.account_name or '-' }}</div>
               {% if w.account_number %}
-                <small class="text-muted">
-                  ****{{ w.account_number[-4:] }}
-                </small>
+                <small class="text-muted">****{{ w.account_number[-4:] }}</small>
               {% else %}
                 <small class="text-muted">-</small>
               {% endif %}
             </td>
+
             <td class="text-muted">
               {{ w.note or '-' }}
             </td>
@@ -77,14 +95,24 @@
     <div class="d-md-none">
       {% for w in withdrawals %}
         {% set s = (w.status or '').lower() %}
+        {% set fee_val = (w.fee if w.fee is not none else 0) %}
+        {% set net_val = (w.net_amount if w.net_amount is not none else (w.amount if w.amount is not none else 0)) %}
+
         <div class="card mb-3 shadow-sm">
           <div class="card-body">
+
             <div class="d-flex justify-content-between align-items-start">
               <div>
                 <div class="fw-bold">
-                  ₦{{ "{:,.2f}".format(w.amount|float) }}
+                  ₦{{ "{:,.2f}".format(w.amount or 0) }}
                 </div>
-                <div class="text-muted small">
+
+                <div class="small text-muted mt-1">
+                  Fee: ₦{{ "{:,.2f}".format(fee_val) }} <br>
+                  Net: ₦{{ "{:,.2f}".format(net_val) }}
+                </div>
+
+                <div class="text-muted small mt-1">
                   {% if w.created_at %}
                     {{ w.created_at.strftime("%Y-%m-%d %H:%M") }}
                   {% else %}
@@ -97,7 +125,9 @@
                 {% if s == 'approved' %} bg-success
                 {% elif s == 'pending' %} bg-warning text-dark
                 {% elif s == 'processing' %} bg-info text-dark
+                {% elif s == 'paid' %} bg-primary
                 {% elif s == 'rejected' %} bg-danger
+                {% elif s == 'failed' %} bg-dark
                 {% else %} bg-secondary
                 {% endif %}
               ">

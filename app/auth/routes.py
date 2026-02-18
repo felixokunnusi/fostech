@@ -11,6 +11,7 @@ from app.auth.decorators import email_verified_required
 from datetime import timedelta, datetime
 import random
 from .utils import generate_reset_token
+import secrets
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
@@ -96,7 +97,13 @@ def login():
             flash("Please confirm your email to continue.", "warning")
             return redirect(url_for("auth.confirm_email"))
 
-        # ✅ Verified → login
+        # ✅ Single session per user 
+        token = secrets.token_urlsafe(32)
+        user.current_session_token = token
+        db.session.commit()
+        session["session_token"] = token
+
+         # ✅ Verified → login 
         login_user(user)
         return redirect(url_for("dashboard.index"))
 
@@ -104,6 +111,9 @@ def login():
 
 @auth_bp.route('/logout')
 def logout():
+    if current_user.is_authenticated:
+        current_user.current_session_token = None
+        db.session.commit()
     logout_user()
     return redirect(url_for('auth.login'))
 

@@ -65,14 +65,15 @@
             </div>
           </div>
 
-          <div class="col-md-6">
-            <label class="form-label">Bank Name</label>
-            <input
-              name="bank_name"
-              class="form-control"
-              placeholder="e.g. Ecobank"
-              required
-            >
+          <div class="mb-2">
+            <label>Bank</label>
+            <select name="bank_code" class="form-control" required>
+              <option value="">-- Select Bank --</option>
+              {% for bank in banks %}
+                <option value="{{ bank.code }}" data-name="{{ bank.name }}">{{ bank.name }}</option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="bank_name" id="bankNameInput">
           </div>
 
           <div class="col-md-6">
@@ -124,4 +125,22 @@
   </div>
 
 </div>
+
+<script>
+  (function () {
+    const sel = document.querySelector("select[name='bank_code']");
+    const hidden = document.getElementById("bankNameInput");
+    if (!sel || !hidden) return;
+
+    sel.addEventListener("change", function () {
+      const opt = sel.options[sel.selectedIndex];
+      hidden.value = (opt && opt.dataset && opt.dataset.name) ? opt.dataset.name : "";
+    });
+
+    // set on load (in case of form re-render)
+    const opt = sel.options[sel.selectedIndex];
+    hidden.value = (opt && opt.dataset && opt.dataset.name) ? opt.dataset.name : "";
+  })();
+</script>
+
 {% endblock %}

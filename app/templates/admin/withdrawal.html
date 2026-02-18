@@ -9,14 +9,15 @@
     </div>
   </div>
   <hr>
-  <div class="mb-3 small">
-  <span class="badge bg-warning text-dark">Pending</span>
-  <span class="badge bg-success">Approved</span>
-  <span class="badge bg-info text-dark">Processing</span>
-  <span class="badge bg-primary">Paid</span>
-  <span class="badge bg-danger">Rejected</span>
-</div>
 
+  <div class="mb-3 small">
+    <span class="badge bg-warning text-dark">Pending</span>
+    <span class="badge bg-success">Approved</span>
+    <span class="badge bg-info text-dark">Processing</span>
+    <span class="badge bg-primary">Paid</span>
+    <span class="badge bg-danger">Rejected</span>
+    <span class="badge bg-dark">Failed</span>
+  </div>
 
   {% if withdrawals and withdrawals|length > 0 %}
 
@@ -28,16 +29,21 @@
             <th>Date</th>
             <th>User</th>
             <th>Amount</th>
+            <th>Fee</th>
+            <th>Net</th>
             <th>Status</th>
             <th>Bank</th>
             <th>Account</th>
             <th style="width: 420px;">Action</th>
           </tr>
         </thead>
+
         <tbody>
         {% for w in withdrawals %}
           {% set s = (w.status or '').lower() %}
           {% set is_final = s in ['paid','rejected','failed'] %}
+          {% set fee_val = (w.fee if w.fee is not none else 0) %}
+          {% set net_val = (w.net_amount if w.net_amount is not none else (w.amount if w.amount is not none else 0)) %}
 
           <tr>
             <td>
@@ -56,7 +62,15 @@
             </td>
 
             <td class="fw-semibold">
-              ₦{{ "{:,.2f}".format(w.amount|float) }}
+              ₦{{ "{:,.2f}".format(w.amount or 0) }}
+            </td>
+
+            <td class="text-danger">
+              ₦{{ "{:,.2f}".format(fee_val) }}
+            </td>
+
+            <td class="text-success fw-semibold">
+              ₦{{ "{:,.2f}".format(net_val) }}
             </td>
 
             <td>
@@ -98,13 +112,13 @@
                       <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
                         <input type="hidden" name="status" value="approved">
                         <input type="text" class="form-control form-control-sm" name="note" placeholder="Optional note...">
-                        <button class="btn btn-sm btn-success">Approve</button>
+                        <button type="submit" class="btn btn-sm btn-success">Approve</button>
                       </form>
 
                       <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
                         <input type="hidden" name="status" value="rejected">
                         <input type="text" class="form-control form-control-sm" name="note" placeholder="Reason...">
-                        <button class="btn btn-sm btn-danger">Reject</button>
+                        <button type="submit" class="btn btn-sm btn-danger">Reject</button>
                       </form>
                     </div>
                   {% endif %}
@@ -114,20 +128,20 @@
                     <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2">
                       <input type="hidden" name="status" value="processing">
                       <input type="text" class="form-control form-control-sm" name="note" placeholder="Optional note...">
-                      <button class="btn btn-sm btn-outline-info">Processing</button>
+                      <button type="submit" class="btn btn-sm btn-outline-info">Processing</button>
                     </form>
 
                     <div class="d-flex gap-2">
                       <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
                         <input type="hidden" name="status" value="paid">
                         <input type="text" class="form-control form-control-sm" name="note" placeholder="Paid ref / note...">
-                        <button class="btn btn-sm btn-primary">Mark Paid</button>
+                        <button type="submit" class="btn btn-sm btn-primary">Mark Paid</button>
                       </form>
 
                       <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
                         <input type="hidden" name="status" value="rejected">
                         <input type="text" class="form-control form-control-sm" name="note" placeholder="Reason...">
-                        <button class="btn btn-sm btn-danger">Reject</button>
+                        <button type="submit" class="btn btn-sm btn-danger">Reject</button>
                       </form>
                     </div>
                   {% endif %}
@@ -138,15 +152,22 @@
                       <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
                         <input type="hidden" name="status" value="paid">
                         <input type="text" class="form-control form-control-sm" name="note" placeholder="Paid ref / note...">
-                        <button class="btn btn-sm btn-primary">Mark Paid</button>
+                        <button type="submit" class="btn btn-sm btn-primary">Mark Paid</button>
                       </form>
 
                       <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2 flex-grow-1">
                         <input type="hidden" name="status" value="failed">
                         <input type="text" class="form-control form-control-sm" name="note" placeholder="Failure reason...">
-                        <button class="btn btn-sm btn-dark">Mark Failed</button>
+                        <button type="submit" class="btn btn-sm btn-dark">Mark Failed</button>
                       </form>
                     </div>
+
+                    {# Optional: allow reject from processing (if your backend allows it) #}
+                    <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}" class="d-flex gap-2">
+                      <input type="hidden" name="status" value="rejected">
+                      <input type="text" class="form-control form-control-sm" name="note" placeholder="Reason...">
+                      <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+                    </form>
                   {% endif %}
 
                 </div>
@@ -163,16 +184,27 @@
       {% for w in withdrawals %}
         {% set s = (w.status or '').lower() %}
         {% set is_final = s in ['paid','rejected','failed'] %}
+        {% set fee_val = (w.fee if w.fee is not none else 0) %}
+        {% set net_val = (w.net_amount if w.net_amount is not none else (w.amount if w.amount is not none else 0)) %}
 
         <div class="card mb-3 shadow-sm">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
               <div>
-                <div class="fw-bold">₦{{ "{:,.2f}".format(w.amount|float) }}</div>
-                <div class="text-muted small">
+                <div class="fw-bold">
+                  ₦{{ "{:,.2f}".format(w.amount or 0) }}
+                </div>
+
+                <div class="small text-muted mt-1">
+                  Fee: ₦{{ "{:,.2f}".format(fee_val) }} <br>
+                  Net: ₦{{ "{:,.2f}".format(net_val) }}
+                </div>
+
+                <div class="text-muted small mt-1">
                   {% if w.created_at %}{{ w.created_at.strftime("%Y-%m-%d %H:%M") }}{% else %}-{% endif %}
                 </div>
               </div>
+
               <span class="badge
                 {% if s == 'approved' %} bg-success
                 {% elif s == 'pending' %} bg-warning text-dark
@@ -228,13 +260,13 @@
                   <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
                     <input type="hidden" name="status" value="approved">
                     <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Optional note...">
-                    <button class="btn btn-success w-100 btn-sm">Approve</button>
+                    <button type="submit" class="btn btn-success w-100 btn-sm">Approve</button>
                   </form>
 
                   <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
                     <input type="hidden" name="status" value="rejected">
                     <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Reason...">
-                    <button class="btn btn-danger w-100 btn-sm">Reject</button>
+                    <button type="submit" class="btn btn-danger w-100 btn-sm">Reject</button>
                   </form>
                 {% endif %}
 
@@ -242,19 +274,19 @@
                   <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
                     <input type="hidden" name="status" value="processing">
                     <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Optional note...">
-                    <button class="btn btn-outline-info w-100 btn-sm">Mark Processing</button>
+                    <button type="submit" class="btn btn-outline-info w-100 btn-sm">Mark Processing</button>
                   </form>
 
                   <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
                     <input type="hidden" name="status" value="paid">
                     <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Paid ref / note...">
-                    <button class="btn btn-primary w-100 btn-sm">Mark Paid</button>
+                    <button type="submit" class="btn btn-primary w-100 btn-sm">Mark Paid</button>
                   </form>
 
                   <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
                     <input type="hidden" name="status" value="rejected">
                     <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Reason...">
-                    <button class="btn btn-danger w-100 btn-sm">Reject</button>
+                    <button type="submit" class="btn btn-danger w-100 btn-sm">Reject</button>
                   </form>
                 {% endif %}
 
@@ -262,13 +294,20 @@
                   <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
                     <input type="hidden" name="status" value="paid">
                     <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Paid ref / note...">
-                    <button class="btn btn-primary w-100 btn-sm">Mark Paid</button>
+                    <button type="submit" class="btn btn-primary w-100 btn-sm">Mark Paid</button>
                   </form>
 
                   <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
                     <input type="hidden" name="status" value="failed">
                     <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Failure reason...">
-                    <button class="btn btn-dark w-100 btn-sm">Mark Failed</button>
+                    <button type="submit" class="btn btn-dark w-100 btn-sm">Mark Failed</button>
+                  </form>
+
+                  {# Optional: allow reject from processing (if backend allows it) #}
+                  <form method="post" action="{{ url_for('admin.update_withdrawal_status', withdrawal_id=w.id) }}">
+                    <input type="hidden" name="status" value="rejected">
+                    <input type="text" class="form-control form-control-sm mb-2" name="note" placeholder="Reason...">
+                    <button type="submit" class="btn btn-danger w-100 btn-sm">Reject</button>
                   </form>
                 {% endif %}
 
@@ -288,14 +327,15 @@
   {% endif %}
 
 </div>
-    <script>
-    document.addEventListener("submit", function(e){
-    const btn = e.target.querySelector("button[type=submit]");
-    if(btn){
-        btn.disabled = true;
-        btn.innerText = "Processing...";
-    }
-    });
-    </script>
+
+<script>
+document.addEventListener("submit", function(e){
+  const btn = e.target.querySelector("button[type=submit]");
+  if(btn){
+    btn.disabled = true;
+    btn.innerText = "Processing...";
+  }
+});
+</script>
 
 {% endblock %}

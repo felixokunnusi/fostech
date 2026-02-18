@@ -1,20 +1,28 @@
+# app/subscriptions/routes.py
 import uuid
-from flask import Blueprint, redirect, url_for, current_app, request, flash, jsonify
-from flask_login import login_required, current_user
+import requests
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime
+
+from flask import redirect, url_for, current_app, request, flash
+from flask_login import login_required, current_user
+
 from app.extensions import db
 from app.models.subscription import Subscription
 from app.services.paystack import verify_paystack_payment
 from app.services.referral import handle_referral_bonus
 from . import subscription_bp
-import uuid
-import requests
-import hmac, hashlib
+
+Q = Decimal("0.01")
+
+
+def _money(v) -> Decimal:
+    return Decimal(str(v or 0)).quantize(Q, rounding=ROUND_HALF_UP)
+
 
 @subscription_bp.route("/start")
 @login_required
 def start_subscription():
-    # 🔒 BLOCK if user already has active subscription
     active_sub = (
         Subscription.query
         .filter_by(user_id=current_user.id, is_confirmed=True)
@@ -23,17 +31,19 @@ def start_subscription():
     )
     if active_sub and active_sub.is_active:
         flash(
-            f"You already have an active subscription until "
-            f"{active_sub.expires_at.strftime('%d %b %Y')}.",
+            f"You already have an active subscription until {active_sub.expires_at.strftime('%d %b %Y')}.",
             "warning"
         )
         return redirect(url_for("dashboard.index"))
 
     reference = f"SUB_{uuid.uuid4().hex}"
 
+    kobo = Decimal(str(current_app.config["SUBSCRIPTION_AMOUNT"]))
+    naira = (kobo / Decimal("100")).quantize(Q, rounding=ROUND_HALF_UP)
+
     sub = Subscription(
         user_id=current_user.id,
-        amount=current_app.config["SUBSCRIPTION_AMOUNT"] / 100, # convert kobo → naira
+        amount=naira,
         reference=reference,
         is_confirmed=False
     )
@@ -47,33 +57,38 @@ def start_subscription():
 
     payload = {
         "email": current_user.email,
-        "amount": current_app.config["SUBSCRIPTION_AMOUNT"],  # kobo
+        "amount": int(current_app.config["SUBSCRIPTION_AMOUNT"]),  # kobo
         "reference": reference,
         "callback_url": url_for("subscription.verify_subscription", _external=True),
     }
 
-    response = requests.post(
+    resp = requests.post(
         "https://api.paystack.co/transaction/initialize",
         json=payload,
         headers=headers,
         timeout=15,
     ).json()
 
-    if not response.get("status"):
+    if not resp.get("status"):
         flash("Unable to start transaction", "danger")
         return redirect(url_for("dashboard.index"))
 
-    return redirect(response["data"]["authorization_url"])
+    return redirect(resp["data"]["authorization_url"])
 
 
 @subscription_bp.route("/verify")
 @login_required
 def verify_subscription():
-    reference = request.args.get("reference")
+    reference = request.args.get("reference") or ""
 
     subscription = Subscription.query.filter_by(reference=reference).first()
     if not subscription:
         flash("Invalid payment reference.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    # if webhook already confirmed
+    if subscription.is_confirmed:
+        flash("Subscription already confirmed.", "info")
         return redirect(url_for("dashboard.index"))
 
     result = verify_paystack_payment(reference)
@@ -81,52 +96,18 @@ def verify_subscription():
         flash("Payment verification failed.", "danger")
         return redirect(url_for("dashboard.index"))
 
-    if subscription.is_confirmed:
-        flash("Payment already confirmed.", "info")
-        return redirect(url_for("dashboard.index"))
-
-    # ✅ Convert Paystack datetime string → Python datetime
     paid_at_str = result.get("paid_at")
     if paid_at_str:
-        subscription.paid_at = datetime.fromisoformat(
-            paid_at_str.replace("Z", "+00:00")
-        )
+        subscription.paid_at = datetime.fromisoformat(paid_at_str.replace("Z", "+00:00"))
     else:
         subscription.paid_at = datetime.utcnow()
 
     subscription.is_confirmed = True
-    subscription.set_expiration(days=366)  # 366-day subscription (1 year)
+    subscription.set_expiration(days=366)
     db.session.commit()
 
-    # 🎁 Referral reward
+    # safe: ReferralEarning blocks duplicates
     handle_referral_bonus(subscription)
 
     flash("Subscription activated successfully!", "success")
     return redirect(url_for("dashboard.index"))
-
-# app/subscriptions/routes.py
-@subscription_bp.route("/paystack/webhook", methods=["POST"])
-def paystack_webhook():
-    payload = request.get_data()
-    signature = request.headers.get("x-paystack-signature")
-    
-    # Verify signature
-    secret = current_app.config["PAYSTACK_SECRET_KEY"].encode()
-    hash = hmac.new(secret, payload, hashlib.sha512).hexdigest()
-    if hash != signature:
-        return jsonify({"status": "error", "message": "Invalid signature"}), 400
-
-    data = request.get_json()
-    event = data.get("event")
-
-    if event == "charge.success":
-        ref = data["data"]["reference"]
-        subscription = Subscription.query.filter_by(reference=ref).first()
-        if subscription and not subscription.is_confirmed:
-            subscription.is_confirmed = True
-            subscription.paid_at = datetime.utcnow()
-            subscription.set_expiration(days=30)
-            db.session.commit()
-            handle_referral_bonus(subscription)
-
-    return jsonify({"status": "success"})

@@ -1,45 +1,38 @@
 # app/services/referral.py
+from decimal import Decimal, ROUND_HALF_UP
 from app.models import User, ReferralEarning
 from app.extensions import db
 
-REFERRAL_PERCENT = 0.05  # 5%
+Q = Decimal("0.01")
+REFERRAL_PERCENT = Decimal("0.05")  # 5%
+
+def _money(v) -> Decimal:
+    return Decimal(str(v or 0)).quantize(Q, rounding=ROUND_HALF_UP)
 
 def handle_referral_bonus(subscription):
     """
     Give referral bonus when a subscription payment is confirmed.
-    Bonus is paid ONCE per subscription.
+    Bonus is paid ONCE per subscription (enforced by ReferralEarning check).
     """
 
-    # The user who paid
-    user = User.query.get(subscription.user_id)
+    user = db.session.get(User, subscription.user_id)
     if not user:
         return
 
-    # User was not referred by anyone
     if not user.referred_by:
         return
 
-    # Find the referrer using referral_code
     referrer = User.query.filter_by(referral_code=user.referred_by).first()
-
-    # Safety checks
-    if not referrer:
-        return
-    if referrer.id == user.id:  # self-referral protection
+    if not referrer or referrer.id == user.id:
         return
 
-    # Prevent duplicate bonus for same subscription
-    already_earned = ReferralEarning.query.filter_by(
-        subscription_id=subscription.id
-    ).first()
-
+    already_earned = ReferralEarning.query.filter_by(subscription_id=subscription.id).first()
     if already_earned:
         return
 
-    # Calculate bonus
-    bonus = round(subscription.amount * REFERRAL_PERCENT, 2)
+    amount = _money(subscription.amount)
+    bonus = (amount * REFERRAL_PERCENT).quantize(Q, rounding=ROUND_HALF_UP)
 
-    # Record earning
     earning = ReferralEarning(
         referrer_id=referrer.id,
         referred_user_id=user.id,
@@ -47,8 +40,10 @@ def handle_referral_bonus(subscription):
         amount=bonus,
     )
 
-    # Update wallet
-    referrer.wallet_balance += bonus
+    if referrer.wallet_balance is None:
+        referrer.wallet_balance = Decimal("0.00")
+
+    referrer.wallet_balance = _money(referrer.wallet_balance) + bonus
 
     db.session.add(earning)
     db.session.commit()

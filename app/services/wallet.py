@@ -1,7 +1,8 @@
-# app/referrals/utils.py (or app/services/wallet.py)
+from decimal import Decimal
 from sqlalchemy import func
 from app.extensions import db
 from app.models.withdrawal import WithdrawalRequest
+
 
 def get_withdrawable_balance(user_id: int, wallet_balance):
     pending_sum = db.session.query(
@@ -11,4 +12,7 @@ def get_withdrawable_balance(user_id: int, wallet_balance):
         WithdrawalRequest.status.in_(["pending", "approved", "processing"])
     ).scalar()
 
-    return float(wallet_balance) - float(pending_sum)
+    wallet = Decimal(str(wallet_balance or 0))
+    pending = Decimal(str(pending_sum or 0))
+
+    return wallet - pending

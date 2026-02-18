@@ -9,6 +9,7 @@ from . import referral_bp
 from app.models.withdrawal import WithdrawalRequest
 from app.services.wallet import get_withdrawable_balance
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from app.services.paystack_banks import fetch_banks  # ✅ NEW
 
 
 @referral_bp.route("/stats")
@@ -51,14 +52,21 @@ def _money(v) -> Decimal:
 @login_required
 def request_withdrawal():
     # ✅ pull minimum from config (expects NAIRA Decimal/number like 1000 or 1000.00)
-    MIN_WITHDRAWAL = _money(current_app.config.get("MIN_WITHDRAWAL_AMOUNT", ""))
+    MIN_WITHDRAWAL = _money(current_app.config.get("MIN_WITHDRAWAL_AMOUNT", "1000"))
 
     # compute withdrawable (wallet - pending)
     withdrawable = _money(get_withdrawable_balance(current_user.id, current_user.wallet_balance))
 
+    # ✅ Fetch banks for dropdown (GET and POST so template can re-render on errors)
+    banks = fetch_banks(current_app.config.get("PAYSTACK_SECRET_KEY", ""))
+
     if request.method == "POST":
         raw_amount = (request.form.get("amount") or "").strip()
+
+        # ✅ NEW: bank_code comes from dropdown; bank_name comes from hidden field
+        bank_code = (request.form.get("bank_code") or "").strip()
         bank_name = (request.form.get("bank_name") or "").strip()
+
         account_name = (request.form.get("account_name") or "").strip()
         account_number = (request.form.get("account_number") or "").strip()
 
@@ -67,21 +75,56 @@ def request_withdrawal():
             amount = _money(raw_amount)
         except (InvalidOperation, TypeError):
             flash("Enter a valid withdrawal amount.", "danger")
-            return redirect(url_for("referrals.request_withdrawal"))
+            return render_template(
+                "referrals/withdraw.html",
+                wallet_balance=current_user.wallet_balance,
+                withdrawable_balance=withdrawable,
+                min_withdrawal=MIN_WITHDRAWAL,
+                banks=banks,
+            )
 
         if amount <= Decimal("0.00"):
             flash("Amount must be greater than ₦0.", "danger")
-            return redirect(url_for("referrals.request_withdrawal"))
+            return render_template(
+                "referrals/withdraw.html",
+                wallet_balance=current_user.wallet_balance,
+                withdrawable_balance=withdrawable,
+                min_withdrawal=MIN_WITHDRAWAL,
+                banks=banks,
+            )
 
         # ✅ Minimum withdrawal enforcement
         if amount < MIN_WITHDRAWAL:
             flash(f"Minimum withdrawal is ₦{MIN_WITHDRAWAL:,.2f}.", "warning")
-            return redirect(url_for("referrals.request_withdrawal"))
+            return render_template(
+                "referrals/withdraw.html",
+                wallet_balance=current_user.wallet_balance,
+                withdrawable_balance=withdrawable,
+                min_withdrawal=MIN_WITHDRAWAL,
+                banks=banks,
+            )
 
-        # Optional: validate bank fields
-        if not (bank_name and account_name and account_number):
-            flash("Please fill in your bank details.", "danger")
-            return redirect(url_for("referrals.request_withdrawal"))
+        # ✅ Validate bank fields (bank_code is required for Paystack)
+        if not (bank_code and bank_name and account_name and account_number):
+            flash("Please select your bank and fill in your account details.", "danger")
+            return render_template(
+                "referrals/withdraw.html",
+                wallet_balance=current_user.wallet_balance,
+                withdrawable_balance=withdrawable,
+                min_withdrawal=MIN_WITHDRAWAL,
+                banks=banks,
+            )
+
+        # Optional: basic account number validation
+        if not account_number.isdigit() or len(account_number) != 10:
+            flash("Account number must be 10 digits.", "danger")
+            return render_template(
+                "referrals/withdraw.html",
+                wallet_balance=current_user.wallet_balance,
+                withdrawable_balance=withdrawable,
+                min_withdrawal=MIN_WITHDRAWAL,
+                banks=banks,
+            )
 
         # --- ATOMIC SECTION ---
         try:
@@ -104,18 +147,32 @@ def request_withdrawal():
                     "danger",
                 )
                 db.session.rollback()
-                return redirect(url_for("referrals.request_withdrawal"))
+                return render_template(
+                    "referrals/withdraw.html",
+                    wallet_balance=current_user.wallet_balance,
+                    withdrawable_balance=withdrawable,
+                    min_withdrawal=MIN_WITHDRAWAL,
+                    banks=banks,
+                )
+            fee = (amount * Decimal("0.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            net_amount = _money(amount - fee)
 
-            # Create request
+            if net_amount <= Decimal("0.00"):
+                flash("Amount too small after processing fee.", "danger")
+                db.session.rollback()
+                return render_template(...)
+
             wr = WithdrawalRequest(
                 user_id=user_row.id,
                 amount=amount,
+                fee=fee,
+                net_amount=net_amount,
+                bank_code=bank_code,
                 bank_name=bank_name,
                 account_name=account_name,
                 account_number=account_number,
                 status="pending",
             )
-
             # Reserve funds immediately
             user_row.wallet_balance = _money(user_row.wallet_balance) - amount
 
@@ -135,8 +192,8 @@ def request_withdrawal():
         wallet_balance=current_user.wallet_balance,
         withdrawable_balance=withdrawable,
         min_withdrawal=MIN_WITHDRAWAL,
+        banks=banks,  # ✅ NEW
     )
-
 
 @referral_bp.route("/withdrawals")
 @login_required
@@ -146,40 +203,3 @@ def withdrawal_history():
 
     return render_template("referrals/withdrawals.html", withdrawals=withdrawals)
 
-
-MIN_WITHDRAWAL = 1000
-
-@referral_bp.route("/withdraw", methods=["GET","POST"])
-@login_required
-def withdraw():
-
-    if request.method == "POST":
-        amount = Decimal(request.form.get("amount", "0"))
-
-        if amount < MIN_WITHDRAWAL:
-            flash("Minimum withdrawal is ₦1000", "warning")
-            return redirect(url_for("referrals.withdraw"))
-
-        # 🔒 lock row to prevent double-withdraw race condition
-        user = User.query.filter_by(id=current_user.id).with_for_update().first()
-
-        if user.wallet_balance < amount:
-            flash("Insufficient balance", "danger")
-            return redirect(url_for("referrals.withdraw"))
-
-        # reserve funds immediately
-        user.wallet_balance -= amount
-
-        req = WithdrawalRequest(
-            user_id=user.id,
-            amount=amount,
-            status="pending"
-        )
-
-        db.session.add(req)
-        db.session.commit()
-
-        flash("Withdrawal request submitted", "success")
-        return redirect(url_for("referrals.withdraw_history"))
-
-    return render_template("referrals/withdraw.html")

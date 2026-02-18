@@ -26,6 +26,7 @@ class User(UserMixin, db.Model):
     reset_token = db.Column(db.String(255), index=True)
     reset_token_expires = db.Column(db.DateTime)
     wallet_balance = db.Column(Numeric(12,2), default=Decimal("0.00"))
+    current_session_token = db.Column(db.String(128), nullable=True)
 
     __table_args__ = (
     CheckConstraint("wallet_balance >= 0", name="wallet_balance_non_negative"),
