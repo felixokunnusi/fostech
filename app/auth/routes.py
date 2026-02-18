@@ -13,6 +13,7 @@ import random
 from .utils import generate_reset_token
 import secrets
 
+
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
@@ -21,7 +22,7 @@ def register():
     form = RegisterForm()
 
     # Referral via link only (?ref=CODE)
-    referral_code = request.args.get("ref")
+    referral_code = request.args.get("ref") or session.get("ref")
 
     if not referral_code:
         referral_code = current_app.config.get("DEFAULT_REFERRAL_CODE")
@@ -59,6 +60,8 @@ def register():
 
         db.session.add(user)
         db.session.commit()
+
+        session.pop("ref", None)  # ✅ prevent referral carrying over to future signups
 
         # Send verification email
         send_confirmation_email(user)
