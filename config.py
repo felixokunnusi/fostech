@@ -90,9 +90,6 @@ class BaseConfig:
     WITHDRAW_FEE_MIN = _as_float(_getenv("WITHDRAW_FEE_MIN"), default=0.00)   # optional (e.g. "50.00")
     WITHDRAW_FEE_MAX = None         # optional (e.g. "2000.00")
 
-    
-
-
 class DevelopmentConfig(BaseConfig):
     ENV = "development"
     DEBUG = True
@@ -101,26 +98,9 @@ class DevelopmentConfig(BaseConfig):
     # Keeping these here for clarity:
     REQUIRE_EMAIL_CONFIG = _as_bool(_getenv("REQUIRE_EMAIL_CONFIG"), default=False)
 
-
 class ProductionConfig(BaseConfig):
     ENV = "production"
     DEBUG = False
 
     # Tighten cookie security for HTTPS deployments
     SESSION_COOKIE_SECURE = True
-    '''
-    # Fail fast if critical settings are missing (prevents broken deployments)
-    if not _getenv("SECRET_KEY"):
-        raise RuntimeError("SECRET_KEY is required in production")
-
-    if not _getenv("DATABASE_URL"):
-        raise RuntimeError("DATABASE_URL is required in production")
-
-    # If your production requires email confirmations to work, enforce:
-    if not _getenv("SENDGRID_API_KEY") or not _getenv("MAIL_DEFAULT_SENDER"):
-        raise RuntimeError("SENDGRID_API_KEY and MAIL_DEFAULT_SENDER are required in production")
-
-    # If payments are required in production, enforce:
-    if not _getenv("PAYSTACK_SECRET_KEY") or not _getenv("PAYSTACK_PUBLIC_KEY"):
-        raise RuntimeError("Paystack keys are required in production")
-    '''
