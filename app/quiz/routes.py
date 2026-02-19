@@ -200,7 +200,9 @@ def choose_level():
 
     LABELS = {
     "fr": "Financial Regulation",
-    "psr": "Public Service Rule"
+    "psr": "Public Service Rule",
+    "edu": "Education",
+    "gk": "General Knowledge",
     }
 
     return render_template("quiz/choose_level.html", qtypes=qtypes, labels=LABELS)
