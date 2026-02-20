@@ -6,7 +6,7 @@ from sqlalchemy import func
 
 from . import dashboard_bp
 from app.extensions import db
-from app.models import User, ReferralEarning, Subscription
+from app.models import User, ReferralEarning
 from app.models.quiz import QuizSession
 
 
@@ -65,6 +65,7 @@ def index():
         active_session = None
 
     # ✅ Admin-only: confirmed subscribers list
+    from app.models import Subscription  # ✅ local import avoids circular import
     subscribers = []
     if getattr(current_user, "is_admin", False):
         subscribers = (
