@@ -118,4 +118,10 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(payments_bp)
 
+      # ✅ ADD THIS BLOCK HERE
+    @app.context_processor
+    def inject_globals():
+        from flask import request
+        return dict(endpoint=request.endpoint)
+    
     return app

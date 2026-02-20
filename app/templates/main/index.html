@@ -125,6 +125,9 @@
   .lp-faq .accordion-item { border: 1px solid rgba(0,0,0,.08); border-radius: 1rem; overflow:hidden; }
   .lp-faq .accordion-button { font-weight: 800; }
 
+  .accordion-button { padding: 1rem; }
+  .accordion-body { line-height: 1.55; }
+
   /* Mobile: show infographic first, then text */
   @media (max-width: 991.98px){
     .lp-hero-graphic { order: -1; }
@@ -169,11 +172,11 @@
 
             <rect x="280" y="200" width="420" height="16" rx="8" fill="rgba(255,193,7,.16)"/>
             <rect x="280" y="200" width="250" height="16" rx="8" fill="rgba(255,193,7,.55)"/>
-            <text x="280" y="196" font-size="12" font-weight="700" fill="rgba(33,37,41,.6)">Current Affairs</text>
+            <text x="280" y="196" font-size="12" font-weight="700" fill="rgba(33,37,41,.6)">Professional Focus</text>
 
             <rect x="280" y="245" width="420" height="16" rx="8" fill="rgba(220,53,69,.12)"/>
             <rect x="280" y="245" width="190" height="16" rx="8" fill="rgba(220,53,69,.55)"/>
-            <text x="280" y="241" font-size="12" font-weight="700" fill="rgba(33,37,41,.6)">Numerical Reasoning</text>
+            <text x="280" y="241" font-size="12" font-weight="700" fill="rgba(33,37,41,.6)">Financial Regulations</text>
 
             <!-- Bottom chips -->
             <rect x="60" y="278" width="200" height="40" rx="12" fill="rgba(13,110,253,.08)" stroke="rgba(13,110,253,.18)"/>
@@ -296,7 +299,7 @@
               <span class="fw-semibold">Before</span><span class="lp-muted">High stress</span>
             </div>
             <div class="progress" style="height: 12px;">
-              <div class="progress-bar" style="width: 82%"></div>
+              <div class="progress-bar bg-warning" style="width: 82%"></div>
             </div>
           </div>
 
@@ -305,7 +308,7 @@
               <span class="fw-semibold">With FOTMASTech CBT</span><span class="lp-muted">High confidence</span>
             </div>
             <div class="progress" style="height: 12px;">
-              <div class="progress-bar bg-success" style="width: 76%"></div>
+              <div class="progress-bar bg-success" style="width: 95%"></div>
             </div>
           </div>
 
@@ -591,61 +594,196 @@
   </section>
 
   <!-- FAQ -->
-  <section class="lp-section pt-0 lp-faq">
-    <div class="text-center mb-3 mb-lg-4">
-      <h2 class="fw-bold mb-1">Frequently Asked Questions</h2>
-      <p class="lp-muted mb-0">Quick answers before you get started.</p>
-    </div>
+  <!-- FAQ -->
+<section class="lp-section pt-0 lp-faq">
+  <div class="text-center mb-3 mb-lg-4">
+    <h2 class="fw-bold mb-1">Frequently Asked Questions</h2>
+    <p class="lp-muted mb-0">Quick answers before you get started.</p>
+  </div>
 
-    <div class="accordion" id="faqAcc">
-      <div class="accordion-item mb-3">
-        <h2 class="accordion-header">
-          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-            Is this platform only for civil service exams?
-          </button>
-        </h2>
-        <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAcc">
-          <div class="accordion-body lp-muted">
-            It’s built for civil service recruitment, promotion, and qualifying exams — and works for any CBT-style practice.
-          </div>
-        </div>
-      </div>
+  <div class="accordion" id="faqAcc">
 
-      <div class="accordion-item mb-3">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-            Can I use it on my phone?
-          </button>
-        </h2>
-        <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAcc">
-          <div class="accordion-body lp-muted">
-            Yes. The interface is mobile-optimized and designed for quick daily practice.
-          </div>
-        </div>
-      </div>
-
-      <div class="accordion-item mb-3">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
-            How do referral rewards work?
-          </button>
-        </h2>
-        <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAcc">
-          <div class="accordion-body lp-muted">
-            Share your referral code. When someone joins using it, you earn bonuses that show in your wallet.
-          </div>
+    <!-- Existing -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading1">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1"
+                aria-expanded="true" aria-controls="faq1">
+          Is this platform only for civil service exams?
+        </button>
+      </h2>
+      <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAcc" aria-labelledby="faqHeading1">
+        <div class="accordion-body lp-muted">
+          It’s built for civil service recruitment, promotion, and qualifying exams — and works for any CBT-style practice.
         </div>
       </div>
     </div>
 
-    <div class="text-center mt-4">
-      <div class="lp-muted mb-2">Ready to start?</div>
-      <a href="{{ url_for('auth.register', ref=ref) if ref is defined and ref else url_for('auth.register') }}"
-         class="btn btn-success btn-lg w-100 w-md-auto">
-        Start Practicing Now
-      </a>
+    <!-- Existing -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading2">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2"
+                aria-expanded="false" aria-controls="faq2">
+          Can I use it on my phone?
+        </button>
+      </h2>
+      <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAcc" aria-labelledby="faqHeading2">
+        <div class="accordion-body lp-muted">
+          Yes. The interface is mobile-optimized and designed for quick daily practice.
+        </div>
+      </div>
     </div>
-  </section>
+
+    <!-- New -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading4">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4"
+                aria-expanded="false" aria-controls="faq4">
+          Can I use it offline?
+        </button>
+      </h2>
+      <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAcc" aria-labelledby="faqHeading4">
+        <div class="accordion-body lp-muted">
+          No. The app requires an internet connection to function because questions, results, and progress are stored securely online.
+          This ensures your data is always safe and accessible.
+        </div>
+      </div>
+    </div>
+
+    <!-- New -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading5">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5"
+                aria-expanded="false" aria-controls="faq5">
+          Why should I prefer a web app to a desktop offline app?
+        </button>
+      </h2>
+      <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAcc" aria-labelledby="faqHeading5">
+        <div class="accordion-body lp-muted">
+          A web app works instantly on any device without installation, updates automatically, saves your progress online,
+          and allows you to switch devices anytime. Offline desktop apps are limited to one device and require manual updates.
+        </div>
+      </div>
+    </div>
+
+    <!-- New -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading6">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq6"
+                aria-expanded="false" aria-controls="faq6">
+          Is it free to use?
+        </button>
+      </h2>
+      <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAcc" aria-labelledby="faqHeading6">
+        <div class="accordion-body lp-muted">
+          Yes, the app is free to register and explore. But advanced features or premium practice options require payment.
+        </div>
+      </div>
+    </div>
+
+    <!-- New -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading7">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq7"
+                aria-expanded="false" aria-controls="faq7">
+          Can I use it on any device or is it bound to one particular device?
+        </button>
+      </h2>
+      <div id="faq7" class="accordion-collapse collapse" data-bs-parent="#faqAcc" aria-labelledby="faqHeading7">
+        <div class="accordion-body lp-muted">
+          You can use it on any device — phone, tablet, or computer. Your account is cloud-based,
+          so you can log in anywhere and continue from where you stopped.
+        </div>
+      </div>
+    </div>
+
+    <!-- New -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading8">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq8"
+                aria-expanded="false" aria-controls="faq8">
+          Does it consume much data?
+        </button>
+      </h2>
+      <div id="faq8" class="accordion-collapse collapse" data-bs-parent="#faqAcc" aria-labelledby="faqHeading8">
+        <div class="accordion-body lp-muted">
+          No. The app is optimized for low data usage. Most sessions consume only a small amount of data because it mainly loads text-based questions.
+          It is like not using any data extra compared to what you already use.
+        </div>
+      </div>
+    </div>
+
+    <!-- Existing (moved down so referral FAQs are together) -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading3">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3"
+                aria-expanded="false" aria-controls="faq3">
+          How do referral rewards work?
+        </button>
+      </h2>
+      <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAcc" aria-labelledby="faqHeading3">
+        <div class="accordion-body lp-muted">
+          Share your referral code. When someone joins using it, you earn bonuses that show in your wallet.
+        </div>
+      </div>
+    </div>
+
+    <!-- New -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading9">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq9"
+                aria-expanded="false" aria-controls="faq9">
+          Can I withdraw my money earned from referral into my bank account?
+        </button>
+      </h2>
+      <div id="faq9" class="accordion-collapse collapse" data-bs-parent="#faqAcc" aria-labelledby="faqHeading9">
+        <div class="accordion-body lp-muted">
+          Yes. Referral earnings can be withdrawn to your bank account once you reach the minimum withdrawal amount and submit a request through your dashboard.
+          Minimum withdrawal amount is ₦ 1,000.
+        </div>
+      </div>
+    </div>
+
+    <!-- New -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading10">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq10"
+                aria-expanded="false" aria-controls="faq10">
+          How much do I earn per referral?
+        </button>
+      </h2>
+      <div id="faq10" class="accordion-collapse collapse" data-bs-parent="#faqAcc" aria-labelledby="faqHeading10">
+        <div class="accordion-body lp-muted">
+          You earn a fixed referral bonus for each successful signup using your referral link or code.
+          The exact amount is displayed on your referral dashboard.
+        </div>
+      </div>
+    </div>
+
+    <!-- New -->
+    <div class="accordion-item mb-3">
+      <h2 class="accordion-header" id="faqHeading11">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq11"
+                aria-expanded="false" aria-controls="faq11">
+          Do I need a functional email address to register?
+        </button>
+      </h2>
+      <div id="faq11" class="accordion-collapse collapse" data-bs-parent="#faqAcc" aria-labelledby="faqHeading11">
+        <div class="accordion-body lp-muted">
+          Yes. A valid email address is required for account verification, password recovery, and important notifications.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="text-center mt-4">
+    <div class="lp-muted mb-2">Ready to start?</div>
+    <a href="{{ url_for('auth.register', ref=ref) if ref is defined and ref else url_for('auth.register') }}"
+       class="btn btn-success btn-lg w-100 w-md-auto">
+      Start Practicing Now
+    </a>
+  </div>
+</section>
 
   <!-- Footer -->
   <footer class="py-4 text-center lp-muted">

@@ -7,73 +7,107 @@
   <title>{% block title %}FOTMASTech CBT App{% endblock %}</title>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-  <style>
-    /* Prevent accidental horizontal scroll on mobile */
-    html, body { overflow-x: hidden; }
-
-    /* Better tap targets for mobile */
-    .btn, .form-control, .form-select { min-height: 44px; }
-
-    /* Make navbar buttons wrap nicely on small screens */
-    @media (max-width: 576px) {
-      .navbar .btn { width: 100%; }
-      .navbar-nav { width: 100%; }
-      .navbar-nav .nav-item { width: 100%; }
-    }
-  </style>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body class="bg-light">
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+{% set path = request.path %}
+
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top" style="background:#062e6b;">
   <div class="container">
-    <a class="navbar-brand fw-bold text-truncate" style="max-width: 75%;" href="{{ url_for('main.index') }}">
-      FOTMASTech CBT App
+
+    <!-- Brand -->
+    <a class="navbar-brand fw-bold text-truncate" style="max-width: 78%;" href="{{ url_for('main.index') }}">
+      FOTMASTech CBT
     </a>
 
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain"
+    <!-- Toggler -->
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain"
             aria-controls="navMain" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
 
-    <div class="collapse navbar-collapse mt-3 mt-lg-0" id="navMain">
-      <ul class="navbar-nav ms-auto gap-2">
+    <div class="collapse navbar-collapse" id="navMain">
+
+      <!-- Left links -->
+      <ul class="navbar-nav me-auto mt-3 mt-lg-0 gap-lg-1">
+
+        <li class="nav-item">
+          <a class="nav-link {% if endpoint == 'main.index' %}active fw-semibold{% endif %}"
+             href="{{ url_for('main.index') }}">
+            Home
+          </a>
+        </li>
 
         {% if current_user.is_authenticated %}
-          <li class="nav-item">
-            <a href="{{ url_for('referrals.referral_stats') }}" class="btn btn-outline-light btn-sm w-100 w-lg-auto">
-              Referrals
-            </a>
-          </li>
-
-          {% if current_user.is_admin %}
-            <li class="nav-item dropdown">
-              <a class="btn btn-success btn-sm dropdown-toggle w-100 w-lg-auto" href="#"
-                 role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                Admin
-              </a>
-              <ul class="dropdown-menu dropdown-menu-end w-100 w-lg-auto">
-                <li><a class="dropdown-item" href="{{ url_for('admin.upload_questions') }}">Upload Questions</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.withdrawals') }}">Withdrawals</a></li>
-              </ul>
-            </li>
-          {% endif %}
-
-          <li class="nav-item">
-            <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-light btn-sm w-100 w-lg-auto">
-              Logout
-            </a>
-          </li>
-        {% else %}
-          <li class="nav-item">
-            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-sm w-100 w-lg-auto">
-              Login
-            </a>
-          </li>
+        <li class="nav-item">
+          <a class="nav-link {% if endpoint.startswith('quiz.') %}active fw-semibold{% endif %}"
+             href="{{ url_for('quiz.history') }}">
+            History
+          </a>
+        </li>
         {% endif %}
 
+        <li class="nav-item">
+          <!-- Ensure footer has id="contact" -->
+          <a class="nav-link" href="#contact">Contact</a>
+        </li>
       </ul>
+
+      <!-- Right actions (mobile first: full width, desktop: inline) -->
+      <div class="d-grid gap-2 d-lg-flex align-items-center mt-3 mt-lg-0">
+
+        {% if current_user.is_authenticated %}
+
+          <a class="btn btn-outline-light {% if endpoint.startswith('referrals.') %}fw-semibold{% endif %}"
+             href="{{ url_for('referrals.referral_stats') }}">
+            Referrals
+          </a>
+
+          {% if current_user.is_admin %}
+          <div class="dropdown">
+            <button class="btn btn-success dropdown-toggle w-100 w-lg-auto {% if endpoint.startswith('admin.') %}fw-semibold{% endif %}"
+                    type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Admin
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <a class="dropdown-item {% if endpoint == 'admin.upload_questions' %}active{% endif %}"
+                   href="{{ url_for('admin.upload_questions') }}">
+                  Upload Questions
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item {% if endpoint == 'admin.withdrawals' %}active{% endif %}"
+                   href="{{ url_for('admin.withdrawals') }}">
+                  Withdrawals
+                </a>
+              </li>
+            </ul>
+          </div>
+          {% endif %}
+
+          <a class="btn btn-outline-light" href="{{ url_for('auth.logout') }}">
+            Logout
+          </a>
+
+        {% else %}
+
+          <a class="btn btn-outline-light {% if endpoint == 'auth.login' %}fw-semibold{% endif %}"
+             href="{{ url_for('auth.login') }}">
+            Login
+          </a>
+
+          <a class="btn btn-success {% if endpoint == 'auth.register' %}fw-semibold{% endif %}"
+             href="{{ url_for('auth.register', ref=ref) if ref is defined and ref else url_for('auth.register') }}">
+            Register
+          </a>
+
+        {% endif %}
+
+      </div>
     </div>
   </div>
 </nav>
@@ -92,7 +126,94 @@
 
   {% block content %}{% endblock %}
 </main>
+<footer id="contact"  class="bg-white border-top mt-5">
+  <div class="container py-4">
+
+    <div class="row text-center text-md-start g-3">
+
+      <!-- Brand -->
+      <div class="col-12 col-md-4">
+        <h6 class="fw-bold mb-2">FOTMASTech CBT App</h6>
+        <small class="text-muted">Practice smarter. Perform better.</small>
+      </div>
+
+      <!-- Contact -->
+      <div class="col-12 col-md-4">
+        <h6 class="fw-bold mb-2">Contact</h6>
+
+        <div class="d-grid gap-2">
+
+          <!-- Phone -->
+          <a href="tel:09023373671"
+             class="btn btn-outline-primary d-flex align-items-center justify-content-center justify-content-md-start gap-2">
+
+            <span><i class="bi bi-telephone-fill"></i></span>
+            <span>09023373671</span>
+          </a>
+
+          <!-- Email -->
+          <a href="mailto:admin@fotmas.site"
+             class="btn btn-outline-success d-flex align-items-center justify-content-center justify-content-md-start gap-2">
+
+            <span><i class="bi bi-envelope-fill"></i></span>
+            <span>admin@fotmas.site</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- Quick Links -->
+      <div class="col-12 col-md-4">
+        <h6 class="fw-bold mb-2">Quick Links</h6>
+        <div class="d-grid gap-2">
+          <a href="{{ url_for('main.index') }}" class="btn btn-light border">Home</a>
+          {% if current_user.is_authenticated %}
+          <a href="{{ url_for('quiz.history') }}" class="btn btn-light border">My History</a>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+
+    <hr class="my-4">
+
+    <div class="text-center small text-muted">
+      © {{ now().year if now else 2026 }} FOTMASTech. All rights reserved.
+    </div>
+
+  </div>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Auto-collapse navbar on mobile after clicking a link/button inside it
+  document.addEventListener("DOMContentLoaded", function () {
+    const nav = document.querySelector(".navbar");
+    const navCollapseEl = document.getElementById("navMain");
+
+    if (!nav || !navCollapseEl) return;
+
+    navCollapseEl.addEventListener("click", function (e) {
+      const clicked = e.target.closest("a, button");
+      if (!clicked) return;
+
+      // If navbar is expanded (mobile), collapse after click
+      const isShown = navCollapseEl.classList.contains("show");
+      const isToggler = clicked.classList.contains("navbar-toggler");
+      if (isShown && !isToggler) {
+        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(navCollapseEl);
+        bsCollapse.hide();
+      }
+    });
+
+    // Optional: shrink navbar when scrolling down a bit
+    const onScroll = () => {
+      if (window.scrollY > 20) nav.classList.add("nav--shrink");
+      else nav.classList.remove("nav--shrink");
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+  });
+</script>
 </body>
 </html>

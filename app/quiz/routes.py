@@ -32,6 +32,9 @@ def history():
     page = max(1, int(request.args.get("page", 1)))
     per_page = 20
 
+    # ✅ define your allowed bands (single source of truth)
+    bands = ["1-4", "5-7", "8-10", "12-14", "15-16", "17", "confirmation"]
+
     base = QuizSession.query.filter(QuizSession.user_id == current_user.id)
 
     if mode:
@@ -107,6 +110,7 @@ def history():
         trend_points=trend_points,
         mode=mode,
         band=band,
+        bands=bands,
         overall_count=overall_count,
         overall_avg=overall_avg,
         overall_best=overall_best,

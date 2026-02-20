@@ -26,10 +26,14 @@
 
       <div style="min-width: 240px;">
         <label class="form-label mb-1">Band</label>
-        <input class="form-control"
-               name="band"
-               value="{{ band }}"
-               placeholder="e.g. 1-4 or confirmation">
+        <select class="form-select" name="band">
+          <option value="">All bands</option>
+          {% for b in bands %}
+            <option value="{{ b }}" {{ 'selected' if band == b else '' }}>
+              {{ b }}
+            </option>
+          {% endfor %}
+        </select>
       </div>
 
       <div class="d-flex gap-2">

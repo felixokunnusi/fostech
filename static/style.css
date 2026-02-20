@@ -1,0 +1,115 @@
+/* =========================
+   GLOBAL
+========================= */
+
+html, body {
+  overflow-x: hidden;
+}
+
+/* tap targets */
+.btn, .form-control, .form-select, .nav-link {
+  min-height: 44px;
+}
+
+
+/* =========================
+   NAVBAR
+========================= */
+
+.navbar {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+}
+
+.navbar .nav-link {
+  color: rgba(255,255,255,0.92) !important;
+  font-weight: 500;
+  border-radius: 10px;
+  padding: 10px 12px;
+  position: relative;
+  transition: transform .12s ease, background .15s ease, color .15s ease;
+}
+
+.navbar .nav-link::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 6px;
+  height: 2px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 999px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .15s ease;
+}
+
+.navbar .nav-link:hover {
+  color: #fff !important;
+  background: rgba(223, 219, 226, 0.479);
+  transform: translateY(-1px);
+}
+
+.navbar .nav-link:hover::after {
+  transform: scaleX(1);
+}
+
+.navbar .nav-link.active {
+  color: #fff !important;
+  background: rgba(255,255,255,0.22);
+  font-weight: 700;
+}
+
+.navbar .nav-link.active::after {
+  transform: scaleX(1);
+}
+
+.navbar-brand {
+  letter-spacing: .3px;
+}
+
+/* dropdown */
+.dropdown-menu {
+  border-radius: 14px;
+  padding: 8px;
+  border: 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+}
+
+.dropdown-item {
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.dropdown-item.active,
+.dropdown-item:active {
+  background-color: #0d6efd;
+  color: #fff;
+}
+
+
+/* =========================
+   MOBILE NAV PANEL
+========================= */
+
+@media (max-width: 991.98px) {
+  .navbar-collapse {
+    background: rgba(0,0,0,0.08);
+    border-radius: 14px;
+    padding: 12px;
+    margin-top: 10px;
+  }
+}
+
+
+/* =========================
+   NAV SHRINK ON SCROLL
+========================= */
+
+.nav--shrink {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  transition: padding .15s ease;
+}
+/*
+#test {background-color: #062e6b;}
+*/
