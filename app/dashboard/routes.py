@@ -6,7 +6,7 @@ from sqlalchemy import func
 
 from . import dashboard_bp
 from app.extensions import db
-from app.models import User, ReferralEarning
+from app.models import User, ReferralEarning, Subscription
 from app.models.quiz import QuizSession
 
 
@@ -64,11 +64,23 @@ def index():
         db.session.commit()
         active_session = None
 
+    # ✅ Admin-only: confirmed subscribers list
+    subscribers = []
+    if getattr(current_user, "is_admin", False):
+        subscribers = (
+            db.session.query(User, Subscription)
+            .join(Subscription, Subscription.user_id == User.id)
+            .filter(Subscription.is_confirmed.is_(True))
+            .order_by(Subscription.id.desc())
+            .all()
+        )
+
     return render_template(
         "dashboard/index.html",
         referral_link=referral_link,
         referral_count=referral_count,
         total_earnings=total_earnings,
         referred_users=referred_users,
-        active_session=active_session,   # ✅ new
+        active_session=active_session,
+        subscribers=subscribers,  # ✅ add this
     )

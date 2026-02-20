@@ -7,6 +7,43 @@
 
     <hr>
 
+    {% if current_user.is_admin %}
+        <div class="card mt-4">
+            <div class="card-header">
+            <strong>Confirmed Subscribers</strong>
+            </div>
+
+            <div class="card-body">
+            {% if subscribers %}
+                <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Paid at</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for user, sub in subscribers %}
+                        <tr>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ sub.paid_at }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            {% else %}
+                <p class="mb-0">No confirmed subscribers yet.</p>
+            {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    <hr>
+
     <div class="d-flex flex-wrap gap-2 align-items-center">
     {% if active_session %}
         <a href="{{ url_for('quiz.take', session_id=active_session.id, q=1) }}" class="btn btn-primary">
