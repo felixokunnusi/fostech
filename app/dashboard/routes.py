@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from flask import render_template, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import func
@@ -13,20 +12,20 @@ from app.models.quiz import QuizSession
 @dashboard_bp.route("/")
 @login_required
 def index():
-    referral_link = url_for(
-        "auth.register",
-        ref=current_user.referral_code,
-        _external=True
-    )
+    referral_link = url_for("auth.register", ref=current_user.referral_code, _external=True)
 
-    referral_count = User.query.filter_by(
-        referred_by=current_user.referral_code
-    ).count()
+    referral_count = (
+        db.session.query(func.count(User.id))
+        .filter(User.referred_by == current_user.referral_code)
+        .scalar()
+        or 0
+    )
 
     total_earnings = (
         db.session.query(func.coalesce(func.sum(ReferralEarning.amount), 0))
         .filter(ReferralEarning.referrer_id == current_user.id)
         .scalar()
+        or 0
     )
 
     referred_users = (
@@ -35,16 +34,14 @@ def index():
             User.email,
             func.coalesce(func.sum(ReferralEarning.amount), 0).label("earned")
         )
-        .outerjoin(
-            ReferralEarning,
-            ReferralEarning.referred_user_id == User.id
-        )
+        .outerjoin(ReferralEarning, ReferralEarning.referred_user_id == User.id)
         .filter(User.referred_by == current_user.referral_code)
-        .group_by(User.id)
+        .group_by(User.id, User.username, User.email)
+        .order_by(func.coalesce(func.sum(ReferralEarning.amount), 0).desc())
+        .limit(200)
         .all()
     )
 
-    # ✅ Active (unfinished) quiz session
     active_session = (
         QuizSession.query
         .filter_by(user_id=current_user.id, is_submitted=False)
@@ -52,7 +49,6 @@ def index():
         .first()
     )
 
-    # ✅ If active exam expired → auto-submit it
     if (
         active_session
         and active_session.mode == "exam"
@@ -61,22 +57,35 @@ def index():
     ):
         active_session.is_submitted = True
         active_session.completed_at = datetime.utcnow()
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         active_session = None
 
-    # ✅ Admin-only: confirmed subscribers list
-    from app.models import Subscription  # local import avoids circular import
+    # Admin data (LIMITED)
+    from app.models import Subscription
     subscribers = []
     active_users = []
 
     if getattr(current_user, "is_admin", False):
-            active_users = (
+        subscribers = (
+            db.session.query(User.username, User.email, Subscription.paid_at)
+            .join(Subscription, Subscription.user_id == User.id)
+            .filter(Subscription.is_confirmed.is_(True))
+            .order_by(Subscription.id.desc())
+            .limit(200)
+            .all()
+        )
+
+        active_users = (
             db.session.query(User.username, User.email)
             .filter(User.is_email_verified.is_(True))
             .order_by(User.id.desc())
             .limit(200)
             .all()
         )
+
     return render_template(
         "dashboard/index.html",
         referral_link=referral_link,
@@ -84,6 +93,6 @@ def index():
         total_earnings=total_earnings,
         referred_users=referred_users,
         active_session=active_session,
-        active_users = active_users,
-        subscribers=subscribers,  # ✅ add this
+        active_users=active_users,
+        subscribers=subscribers,
     )

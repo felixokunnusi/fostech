@@ -175,13 +175,13 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {% for user, sub in subscribers %}
+                   {% for username, email, paid_at in subscribers %}
                       <tr>
-                        <td class="fw-semibold">{{ user.username }}</td>
-                        <td class="text-muted">{{ user.email }}</td>
+                        <td class="fw-semibold">{{ username }}</td>
+                        <td class="text-muted">{{ email }}</td>
                         <td class="text-muted text-nowrap">
-                          {% if sub.paid_at %}
-                            {{ sub.paid_at.strftime("%Y-%m-%d %H:%M") if sub.paid_at.strftime is defined else sub.paid_at }}
+                          {% if paid_at %}
+                            {{ paid_at.strftime("%Y-%m-%d %H:%M") if paid_at.strftime is defined else paid_at }}
                           {% else %}
                             —
                           {% endif %}
