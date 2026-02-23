@@ -1,170 +1,233 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container py-4">
 
-    <h2 class="mb-4">Welcome, {{ current_user.username }} 👋</h2>
+  <!-- Header -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h2 class="mb-0">Welcome, {{ current_user.username }} 👋</h2>
+      <div class="text-muted small">Dashboard</div>
+    </div>
 
-    <hr>
-
-    {% if current_user.is_admin %}
-        <div class="card-header">
-            <strong>Active Users</strong>
-            </div>
-
-            <div class="card-body">
-            {% if active_users %}
-                <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                    <tr>
-                        <th>Username</th>
-                        <th>Email</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for ac_user in active_users %}
-                        <tr>
-                        <td>{{ ac_user.username }}</td>
-                        <td>{{ ac_user.email }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-                </div>
-            {% else %}
-                <p class="mb-0">No confirmed subscribers yet.</p>
-            {% endif %}
-            </div>
-        <div class="card mt-4">
-            <div class="card-header">
-            <strong>Confirmed Subscribers</strong>
-            </div>
-
-            <div class="card-body">
-            {% if subscribers %}
-                <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                    <tr>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>Paid at</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for user, sub in subscribers %}
-                        <tr>
-                        <td>{{ user.username }}</td>
-                        <td>{{ user.email }}</td>
-                        <td>{{ sub.paid_at }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-                </div>
-            {% else %}
-                <p class="mb-0">No confirmed subscribers yet.</p>
-            {% endif %}
-            </div>
-        </div>
-        {% endif %}
-
-    <hr>
-
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-    {% if active_session %}
+    <div class="d-flex flex-wrap gap-2">
+      {% if active_session %}
         <a href="{{ url_for('quiz.take', session_id=active_session.id, q=1) }}" class="btn btn-primary">
-        Resume Quiz
+          Resume Quiz
         </a>
-        <span class="text-muted small">
-        Active: {{ active_session.mode|upper }} • {{ active_session.band }} • Started
-        {{ active_session.started_at.strftime("%Y-%m-%d %H:%M") if active_session.started_at else "" }}
-        </span>
-
         <a href="{{ url_for('quiz.choose_level') }}" class="btn btn-outline-primary">
-        Start New Quiz
+          Start New Quiz
         </a>
-    {% else %}
-        <a href="{{ url_for('quiz.choose_level') }}" class="btn btn-primary">Start Quiz</a>
-    {% endif %}
+      {% else %}
+        <a href="{{ url_for('quiz.choose_level') }}" class="btn btn-primary">
+          Start Quiz
+        </a>
+      {% endif %}
+      <a class="btn btn-outline-secondary" href="{{ url_for('quiz.history') }}">
+        Exam History
+      </a>
+    </div>
+  </div>
 
-    <a class="btn btn-outline-secondary" href="{{ url_for('quiz.history') }}">Exam History</a>
+  {% if active_session %}
+    <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="alert">
+      <div class="small">
+        <strong>Active session:</strong>
+        {{ active_session.mode|upper }} • {{ active_session.band }}
+        {% if active_session.started_at %}
+          • Started {{ active_session.started_at.strftime("%Y-%m-%d %H:%M") }}
+        {% endif %}
+      </div>
+      <a href="{{ url_for('quiz.take', session_id=active_session.id, q=1) }}" class="btn btn-sm btn-outline-primary">
+        Continue
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <!-- Wallet -->
+    <div class="col-12 col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="text-muted small mb-1">Wallet Balance</div>
+          <div class="d-flex align-items-end justify-content-between">
+            <div class="display-6 mb-0 fw-bold">
+              ₦{{ "%.2f"|format(current_user.wallet_balance) }}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <hr>
-
-
-    <div class="row g-4">
-
-        <!-- Wallet -->
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Wallet Balance</h6>
-                    <h2 class="fw-bold text-success">
-                        ₦{{ "%.2f"|format(current_user.wallet_balance) }}
-                    </h2>
-                </div>
-            </div>
+    <!-- Subscription -->
+    <div class="col-12 col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="text-muted small mb-1">One Year Access</div>
+          <div class="mb-2 fw-semibold">Unlock premium practice</div>
+          <a href="{{ url_for('subscription.start_subscription') }}" class="btn btn-primary w-100">
+            Subscribe Now (₦10,000)
+          </a>
         </div>
-        <!-- Wallet -->
-        <div class="col-md-2">
-            <div class="card shadow-sm h-100">
-                <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">One Year Access</h6>
-                    <h2 class="fw-bold text-success">
-                        <a href="{{ url_for('subscription.start_subscription') }}"
-                        class="btn btn-primary">
-                        Subscribe Now (₦10,000)
-                        </a>
-                    </h2>
-                </div>
-            </div>
-        </div>
-
-        <!-- Referral -->
-        <div class="col-md-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title mb-1">Invite & Earn</h5>
-                    <p class="text-muted small mb-3">
-                        Share your referral link and earn rewards when users sign up.
-                    </p>
-
-                    <div class="input-group">
-                        <input
-                            type="text"
-                            class="form-control"
-                            value="{{ referral_link }}"
-                            readonly
-                            id="refLink"
-                        >
-                        <button
-                            class="btn btn-primary"
-                            type="button"
-                            onclick="copyRef()"
-                        >
-                            Copy
-                        </button>
-                    </div>
-
-                    <small class="text-muted d-block mt-2">
-                        Anyone who registers using your link will be connected to you.
-                    </small>
-                </div>
-            </div>
-        </div>
-
+      </div>
     </div>
+
+    <!-- Referral -->
+    <div class="col-12 col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <div class="text-muted small">Invite & Earn</div>
+              <div class="fw-semibold">Share your referral link</div>
+            </div>
+          </div>
+
+          <p class="text-muted small mb-3">
+            Share your referral link and earn rewards when users sign up.
+          </p>
+
+          <div class="input-group">
+            <input
+              type="text"
+              class="form-control"
+              value="{{ referral_link }}"
+              readonly
+              id="refLink"
+            >
+            <button class="btn btn-outline-primary" type="button" onclick="copyRef()">
+              Copy
+            </button>
+          </div>
+
+          <div id="copyHint" class="text-success small mt-2 d-none">
+            Copied!
+          </div>
+
+          <small class="text-muted d-block mt-2">
+            Anyone who registers using your link will be connected to you.
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Section -->
+  {% if current_user.is_admin %}
+    <div class="row g-3">
+      <!-- Active Users -->
+      <div class="col-12 col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>Active Users</strong>
+            <span class="badge text-bg-light">
+              {{ active_users|length if active_users else 0 }}
+            </span>
+          </div>
+
+          <div class="card-body">
+            {% if active_users %}
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Email</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for ac_user in active_users %}
+                      <tr>
+                        <td class="fw-semibold">{{ ac_user.username }}</td>
+                        <td class="text-muted">{{ ac_user.email }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="text-muted small">No active users found.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirmed Subscribers -->
+      <div class="col-12 col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>Confirmed Subscribers</strong>
+            <span class="badge text-bg-light">
+              {{ subscribers|length if subscribers else 0 }}
+            </span>
+          </div>
+
+          <div class="card-body">
+            {% if subscribers %}
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Email</th>
+                      <th class="text-nowrap">Paid at</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for user, sub in subscribers %}
+                      <tr>
+                        <td class="fw-semibold">{{ user.username }}</td>
+                        <td class="text-muted">{{ user.email }}</td>
+                        <td class="text-muted text-nowrap">
+                          {% if sub.paid_at %}
+                            {{ sub.paid_at.strftime("%Y-%m-%d %H:%M") if sub.paid_at.strftime is defined else sub.paid_at }}
+                          {% else %}
+                            —
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="text-muted small">No confirmed subscribers yet.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
 </div>
 
 <script>
 function copyRef() {
-    const input = document.getElementById("refLink");
-    input.select();
-    input.setSelectionRange(0, 99999);
-    navigator.clipboard.writeText(input.value);
+  const input = document.getElementById("refLink");
+  const hint = document.getElementById("copyHint");
+
+  // Clipboard API (best)
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(input.value).then(() => {
+      if (hint) {
+        hint.classList.remove("d-none");
+        setTimeout(() => hint.classList.add("d-none"), 1200);
+      }
+    });
+    return;
+  }
+
+  // Fallback
+  input.focus();
+  input.select();
+  input.setSelectionRange(0, 99999);
+  document.execCommand("copy");
+
+  if (hint) {
+    hint.classList.remove("d-none");
+    setTimeout(() => hint.classList.add("d-none"), 1200);
+  }
 }
 </script>
 {% endblock %}
