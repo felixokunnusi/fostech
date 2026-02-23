@@ -67,6 +67,7 @@ def index():
     # ✅ Admin-only: confirmed subscribers list
     from app.models import Subscription  # ✅ local import avoids circular import
     subscribers = []
+    active_users = []
     if getattr(current_user, "is_admin", False):
         subscribers = (
             db.session.query(User, Subscription)
@@ -75,7 +76,13 @@ def index():
             .order_by(Subscription.id.desc())
             .all()
         )
-
+        active_users = (
+        db.session.query(User)
+        .filter(User.is_email_verified.is_(True))
+        .order_by(User.id.desc())
+        .all()
+        )
+    
     return render_template(
         "dashboard/index.html",
         referral_link=referral_link,
@@ -83,5 +90,6 @@ def index():
         total_earnings=total_earnings,
         referred_users=referred_users,
         active_session=active_session,
+        active_users = active_users,
         subscribers=subscribers,  # ✅ add this
     )
