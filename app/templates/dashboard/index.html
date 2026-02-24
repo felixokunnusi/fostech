@@ -115,6 +115,44 @@
 
   <!-- Admin Section -->
   {% if current_user.is_admin %}
+    <!-- Send Mesage Button-->
+        <div class="card mt-4">
+          <div class="card-header">
+            <strong>Email Campaigns</strong>
+          </div>
+          <div class="card-body d-flex flex-wrap gap-2">
+
+            <form method="post" action="{{ url_for('admin.send_campaigns') }}">
+              <input type="hidden" name="target" value="subscribers">
+              <button type="submit" class="btn btn-sm btn-success"
+                      onclick="return confirm('Send to ACTIVE subscribers (max 200)?');">
+                Email Active Subscribers
+              </button>
+            </form>
+
+            <form method="post" action="{{ url_for('admin.send_campaigns') }}">
+              <input type="hidden" name="target" value="non_subscribers">
+              <button type="submit" class="btn btn-sm btn-primary"
+                      onclick="return confirm('Send to ACTIVE verified users who are NOT subscribers (max 200)?');">
+                Email Active Non-Subscribers
+              </button>
+            </form>
+
+            <form method="post" action="{{ url_for('admin.send_campaigns') }}">
+              <input type="hidden" name="target" value="both">
+              <button type="submit" class="btn btn-sm btn-outline-dark"
+                      onclick="return confirm('Send BOTH campaigns (max 200 each)?');">
+                Send Both
+              </button>
+            </form>
+
+            <div class="text-muted small w-100 mt-2">
+              Runs immediately on the server. Keep batches small to avoid timeouts.
+            </div>
+
+          </div>
+        </div>
+     <!-- end Message-->
     <div class="row g-3">
       <!-- Active Users -->
       <div class="col-12 col-lg-6">

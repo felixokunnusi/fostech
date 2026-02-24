@@ -66,6 +66,14 @@ class BaseConfig:
     MAIL_DEFAULT_SENDER = _getenv("MAIL_DEFAULT_SENDER", MAIL_USERNAME or "")
     SENDGRID_API_KEY = _getenv("SENDGRID_API_KEY", "")
 
+    SENDGRID_TMPL_ACTIVE_SUBSCRIBERS = _getenv("SENDGRID_TMPL_ACTIVE_SUBSCRIBERS", "")
+
+    SENDGRID_TMPL_ACTIVE_NON_SUBSCRIBERS = _getenv("SENDGRID_TMPL_ACTIVE_NON_SUBSCRIBERS", "")
+    APP_NAME = _getenv("APP_NAME", "FOTMASTech CBT App")
+    SENDER_NAME = _getenv("SENDER_NAME", "Admin")
+    BASE_URL = _getenv("BASE_URL", "https://fotmas.site") # ✅ important for links inside CLI emails
+    WEEKLY_EMAIL_LIMIT = _as_int(_getenv("WEEKLY_EMAIL_LIMIT"), default=200)
+
     # -------------------
     # Referrals / Verification
     # -------------------
@@ -86,9 +94,10 @@ class BaseConfig:
     SUBSCRIPTION_AMOUNT = _as_int(_getenv("SUBSCRIPTION_AMOUNT"), default=1_000_000)
     MIN_WITHDRAWAL_AMOUNT = _as_int(_getenv("MIN_WITHDRAWAL_AMOUNT"), default=1_000)
 
-    WITHDRAW_FEE_PERCENT =_as_float(_getenv("REFERRAL_BONUS"), default=100.00)   # 10%
-    WITHDRAW_FEE_MIN = _as_float(_getenv("WITHDRAW_FEE_MIN"), default=0.00)   # optional (e.g. "50.00")
+    WITHDRAW_FEE_PERCENT = _as_float(_getenv("WITHDRAW_FEE_PERCENT"), default=10.00)
+    WITHDRAW_FEE_MIN = _as_float(_getenv("WITHDRAW_FEE_MIN"), default=100.00)
     WITHDRAW_FEE_MAX = None         # optional (e.g. "2000.00")
+
 
 class DevelopmentConfig(BaseConfig):
     ENV = "development"

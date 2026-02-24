@@ -105,6 +105,8 @@ def create_app():
     from app.quiz import quiz_bp
     from app.admin import admin_bp
     from app.payments import payments_bp
+    from .cli import register_cli
+
 
     
    
@@ -117,6 +119,7 @@ def create_app():
     app.register_blueprint(quiz_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(payments_bp)
+    register_cli(app)
 
       # ✅ ADD THIS BLOCK HERE
     @app.context_processor
