@@ -1,29 +1,27 @@
-import random
+from sqlalchemy import func, case
+from app.extensions import db
 from app.models.quiz import Question
 
-
-def pick_questions_fast(band, qt, limit):
-    t = random.random()
-
-    base = Question.query.filter_by(band=band, question_type=qt)
-
-    q1 = (
-        base.filter(Question.rand_key >= t)
-        .order_by(Question.rand_key)
-        .limit(limit)
+def pick_questions_fast(band: str, qt: str, needed: int):
+    # 1) Pick random unique IDs
+    id_rows = (
+        db.session.query(Question.id)
+        .filter(Question.band == band, Question.question_type == qt)
+        .distinct(Question.id)
+        .order_by(func.random())
+        .limit(needed)
         .all()
     )
+    ids = [r[0] for r in id_rows]
 
-    if len(q1) == limit:
-        return q1
+    if not ids:
+        return []
 
-    remaining = limit - len(q1)
-
-    q2 = (
-        base.filter(Question.rand_key < t)
-        .order_by(Question.rand_key)
-        .limit(remaining)
+    # 2) Load questions in the SAME order as ids
+    ordering = case({qid: i for i, qid in enumerate(ids)}, value=Question.id)
+    return (
+        Question.query
+        .filter(Question.id.in_(ids))
+        .order_by(ordering)
         .all()
     )
-
-    return q1 + q2

@@ -6,7 +6,7 @@ from sqlalchemy import func
 from . import dashboard_bp
 from app.extensions import db
 from app.models import User, ReferralEarning
-from app.models.quiz import QuizSession
+from app.models.quiz import QuizSession, Question
 
 
 @dashboard_bp.route("/")
@@ -49,6 +49,7 @@ def index():
         .first()
     )
 
+    # expire timed-out exams
     if (
         active_session
         and active_session.mode == "exam"
@@ -63,12 +64,21 @@ def index():
             db.session.rollback()
         active_session = None
 
-    # Admin data (LIMITED)
+    # Admin data
     from app.models import Subscription
     subscribers = []
     active_users = []
 
-    if getattr(current_user, "is_admin", False):
+    # ✅ inventory defaults (not shown unless admin)
+    inv_bands = []
+    inv_qtypes = []
+    inv_table = []
+    inv_totals_by_qt = {}
+    inv_grand_total = 0
+
+    is_admin = bool(getattr(current_user, "is_admin", False))
+
+    if is_admin:
         subscribers = (
             db.session.query(User.username, User.email, Subscription.paid_at)
             .join(Subscription, Subscription.user_id == User.id)
@@ -86,6 +96,37 @@ def index():
             .all()
         )
 
+        # ✅ Question Inventory (Band × Question Type)
+        stats_rows = (
+            db.session.query(
+                Question.band.label("band"),
+                Question.question_type.label("qt"),
+                func.count(Question.id).label("count"),
+            )
+            .group_by(Question.band, Question.question_type)
+            .all()
+        )
+
+        # fixed ordering for bands (always show these rows)
+        inv_bands = ["l1-4", "l5-7", "l8-10", "l12-14", "l15-16", "l17", "confirmation"]
+
+        # dynamic set of qtypes found in DB (columns)
+        inv_qtypes = sorted({r.qt for r in stats_rows if r.qt})
+
+        stats_map = {(r.band, r.qt): int(r.count) for r in stats_rows if r.band and r.qt}
+
+        inv_table = []
+        for b in inv_bands:
+            row = {"band": b, "total": 0}
+            for qt in inv_qtypes:
+                c = stats_map.get((b, qt), 0)
+                row[qt] = c
+                row["total"] += c
+            inv_table.append(row)
+
+        inv_totals_by_qt = {qt: sum(r.get(qt, 0) for r in inv_table) for qt in inv_qtypes}
+        inv_grand_total = sum(inv_totals_by_qt.values())
+
     return render_template(
         "dashboard/index.html",
         referral_link=referral_link,
@@ -95,4 +136,12 @@ def index():
         active_session=active_session,
         active_users=active_users,
         subscribers=subscribers,
+
+        # ✅ admin-only inventory context
+        is_admin=is_admin,
+        inv_bands=inv_bands,
+        inv_qtypes=inv_qtypes,
+        inv_table=inv_table,
+        inv_totals_by_qt=inv_totals_by_qt,
+        inv_grand_total=inv_grand_total,
     )

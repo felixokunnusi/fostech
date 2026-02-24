@@ -152,6 +152,57 @@
 
           </div>
         </div>
+            <!-- Question Inventory -->
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>Question Inventory (Band × Question Type)</strong>
+          <span class="badge text-bg-primary">
+            Total: {{ inv_grand_total }}
+          </span>
+        </div>
+
+        <div class="card-body">
+          {% if inv_qtypes and inv_table %}
+            <div class="table-responsive">
+              <table class="table table-sm table-striped align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Band</th>
+                    {% for qt in inv_qtypes %}
+                      <th class="text-center text-nowrap">{{ qt|upper }}</th>
+                    {% endfor %}
+                    <th class="text-center">Total</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {% for row in inv_table %}
+                    <tr>
+                      <td class="fw-semibold">{{ row.band }}</td>
+                      {% for qt in inv_qtypes %}
+                        <td class="text-center">{{ row[qt] }}</td>
+                      {% endfor %}
+                      <td class="text-center fw-semibold">{{ row.total }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+
+                <tfoot>
+                  <tr>
+                    <th>Total</th>
+                    {% for qt in inv_qtypes %}
+                      <th class="text-center">{{ inv_totals_by_qt[qt] }}</th>
+                    {% endfor %}
+                    <th class="text-center">{{ inv_grand_total }}</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-muted small">No questions found yet.</div>
+          {% endif %}
+        </div>
+      </div>
      <!-- end Message-->
     <div class="row g-3">
       <!-- Active Users -->

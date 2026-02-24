@@ -184,10 +184,11 @@ def get_trial_questions_for_band(band: str, qt: str, limit: int):
     return (
         Question.query
         .filter_by(band=band, question_type=qt)
+        .distinct(Question.id)
         .order_by(func.random())
         .limit(limit)
         .all()
-    )
+        )
 
 
 @quiz_bp.route("/")
@@ -223,6 +224,7 @@ def start(level):
         return redirect(url_for("quiz.choose_level"))
 
     is_paid = user_is_subscribed(current_user)
+    mode = "exam" if is_paid else "trial"
     needed = EXAM_TOTAL_QUESTIONS if is_paid else TRIAL_QUESTIONS
 
     # band selection
@@ -235,36 +237,45 @@ def start(level):
             flash("Invalid level selected.", "warning")
             return redirect(url_for("quiz.choose_level"))
 
+    # pick questions (paid uses fast picker; trial uses DB random)
     if is_paid:
-        mode = "exam"
-
-        # DB-randomized exam selection
         selected = pick_questions_fast(band, qt, needed)
-
-        if len(selected) < EXAM_TOTAL_QUESTIONS:
-            # show how many exist total for that filter
-            total = Question.query.filter_by(band=band, question_type=qt).count()
-            flash(f"Not enough questions for this selection. Found {total}.", "warning")
-            return redirect(url_for("quiz.choose_level"))
-
         expires_at = datetime.utcnow() + timedelta(minutes=EXAM_DURATION_MINUTES)
-
     else:
-        mode = "trial"
-        selected = get_trial_questions_for_band(band, qt, TRIAL_QUESTIONS)
-
-        if len(selected) < TRIAL_QUESTIONS:
-            total = Question.query.filter_by(band=band, question_type=qt).count()
-            flash(f"Not enough trial questions for this selection. Found {total}.", "warning")
-            return redirect(url_for("quiz.choose_level"))
-
+        selected = get_trial_questions_for_band(band, qt, needed)
         expires_at = None
+
+    # ✅ hard dedupe (preserve order) - prevents repeats in a session even if picker misbehaves
+    seen = set()
+    unique_selected = []
+    for q in selected:
+        qid = q.id if hasattr(q, "id") else int(q)
+        if qid not in seen:
+            seen.add(qid)
+            unique_selected.append(q)
+
+    selected = unique_selected
+
+    # ✅ validate availability
+    if len(selected) < needed:
+        total = Question.query.filter_by(band=band, question_type=qt).count()
+        flash(
+            f"Not enough UNIQUE questions for this selection. Needed {needed}, found {total}.",
+            "warning"
+        )
+        return redirect(url_for("quiz.choose_level"))
+
+    # (optional) extra sanity check
+    ids = [q.id for q in selected]
+    if len(ids) != len(set(ids)):
+        flash("Internal error: duplicate questions detected in selection.", "danger")
+        return redirect(url_for("quiz.choose_level"))
 
     session = QuizSession(
         user_id=current_user.id,
         band=band,
         mode=mode,
-        total_questions=len(selected),
+        total_questions=needed,
         question_ids_csv=",".join(str(q.id) for q in selected),
         expires_at=expires_at,
     )
