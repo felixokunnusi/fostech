@@ -59,6 +59,14 @@ class BaseConfig:
         "pool_pre_ping": True,
     }
 
+    # --------------
+    # Quiz Variables
+    # --------------
+    EXAM_QUESTION_COUNT = 70
+    EXAM_DURATION_MINUTES = 40
+    TRIAL_QUESTION_COUNT = 10
+    GRID_QUESTION_COUNT = 70
+
     # -------------------
     # Mail / SendGrid
     # -------------------
@@ -113,3 +121,5 @@ class ProductionConfig(BaseConfig):
 
     # Tighten cookie security for HTTPS deployments
     SESSION_COOKIE_SECURE = True
+
+    

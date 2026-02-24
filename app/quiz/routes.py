@@ -1,37 +1,149 @@
-import random
+# app/quiz/routes.py
+from __future__ import annotations
+
 from datetime import datetime, timedelta
-from flask import render_template, redirect, url_for, request, flash, jsonify
+from typing import Any
+
+from flask import (
+    render_template,
+    redirect,
+    url_for,
+    request,
+    flash,
+    jsonify,
+    current_app,
+)
 from flask_login import login_required, current_user
-from app.models.subscription import Subscription  # adjust import path to your real one
+from sqlalchemy import desc, func
+from sqlalchemy.orm import joinedload
+
 from app.extensions import db
+from app.models.subscription import Subscription
 from app.models.quiz import Question, Choice, QuizSession, UserAnswer
 from app.services.difficulty import level_to_band
-from . import quiz_bp
-from sqlalchemy import desc
-from sqlalchemy.orm import joinedload
 from app.services.question_selector import pick_questions_fast
+from . import quiz_bp
 
 
-EXAM_QUESTION_COUNT = 70
-EXAM_DURATION_MINUTES = 40
-TRIAL_QUESTION_COUNT = 10
-GRID_QUESTION_COUNT = EXAM_QUESTION_COUNT  # UI display only
+# -------------------- constants --------------------
 
-# Exam History 
-from sqlalchemy import desc, func
-from flask import render_template, request, redirect, url_for
-from flask_login import login_required, current_user
+LABELS = {
+    "fr": "Financial Regulation",
+    "psr": "Public Service Rule",
+    "edu": "Education",
+    "gk": "General Knowledge",
+}
+
+# ✅ DB truth
+ALLOWED_BANDS = ["l1-4", "l5-7", "l8-10", "l12-14", "l15-16", "l17", "confirmation"]
+
+
+# -------------------- helpers --------------------
+
+def user_is_subscribed(user) -> bool:
+    """Active subscription = confirmed + not expired."""
+    now = datetime.utcnow()
+    sub = (
+        Subscription.query
+        .filter(
+            Subscription.user_id == user.id,
+            Subscription.is_confirmed.is_(True),
+            Subscription.expires_at.isnot(None),
+            Subscription.expires_at > now,
+        )
+        .order_by(Subscription.expires_at.desc())
+        .first()
+    )
+    return sub is not None
+
+
+def needed_count(is_paid: bool) -> int:
+    return (
+        current_app.config["EXAM_QUESTION_COUNT"]
+        if is_paid
+        else current_app.config["TRIAL_QUESTION_COUNT"]
+    )
+
+
+def exam_expires_at() -> datetime:
+    return datetime.utcnow() + timedelta(
+        minutes=current_app.config["EXAM_DURATION_MINUTES"]
+    )
+
+
+def get_trial_questions_for_band(band: str, qt: str, limit: int) -> list[Question]:
+    """
+    Trial = random questions from DB.
+    IMPORTANT: no .distinct(Question.id) here (Postgres DISTINCT ON + random() issue).
+    """
+    return (
+        Question.query
+        .filter_by(band=band, question_type=qt)
+        .order_by(func.random())
+        .limit(limit)
+        .all()
+    )
+
+
+def dedupe_keep_order(selected: list[Any]) -> list[Any]:
+    """Hard de-dupe while preserving order."""
+    seen: set[int] = set()
+    out: list[Any] = []
+    for q in selected:
+        qid = q.id if hasattr(q, "id") else int(q)
+        if qid not in seen:
+            seen.add(qid)
+            out.append(q)
+    return out
+
+
+def resolve_band(level: str) -> str | None:
+    """
+    Convert /start/<level> to DB band values (l1-4..l17).
+    Handles:
+      - level == "confirmation"
+      - numeric levels ("1", "2", ...)
+      - already-normalized ("l1-4") if you ever pass it
+    """
+    if level == "confirmation":
+        return "confirmation"
+
+    # if someone hits /start/l1-4 directly
+    if level.startswith("l") and level in ALLOWED_BANDS:
+        return level
+
+    try:
+        # Your level_to_band MUST return one of: l1-4, l5-7, ...
+        band = level_to_band(level)
+    except ValueError:
+        return None
+
+    return band if band in ALLOWED_BANDS else None
+
+
+# -------------------- routes --------------------
+
+@quiz_bp.route("/")
+@login_required
+def choose_level():
+    qtypes = [
+        r[0]
+        for r in db.session.query(Question.question_type)
+        .distinct()
+        .order_by(Question.question_type.asc())
+        .all()
+        if r[0]
+    ]
+    return render_template("quiz/choose_level.html", qtypes=qtypes, labels=LABELS)
+
 
 @quiz_bp.route("/history")
 @login_required
 def history():
-    mode = request.args.get("mode", "").strip()      # "exam" / "trial"
+    mode = request.args.get("mode", "").strip()  # "exam" / "trial"
     band = request.args.get("band", "").strip()
     page = max(1, int(request.args.get("page", 1)))
     per_page = 20
-
-    # ✅ define your allowed bands (single source of truth)
-    bands = ["1-4", "5-7", "8-10", "12-14", "15-16", "17", "confirmation"]
 
     base = QuizSession.query.filter(QuizSession.user_id == current_user.id)
 
@@ -40,11 +152,9 @@ def history():
     if band:
         base = base.filter(QuizSession.band == band)
 
-    # Overall stats across ALL filtered attempts (submitted only)
     submitted = base.filter(QuizSession.is_submitted.is_(True))
 
     overall_count = submitted.count()
-    # Percent = score/total*100; do average in Python for simplicity
     all_rows = submitted.with_entities(QuizSession.score, QuizSession.total_questions).all()
     percents = [
         round((s or 0) / (t or 1) * 100, 2) if (t and t > 0) else 0.0
@@ -53,7 +163,6 @@ def history():
     overall_avg = round(sum(percents) / len(percents), 2) if percents else 0.0
     overall_best = max(percents) if percents else 0.0
 
-    # Page list (show in-progress too)
     q = base.order_by(desc(QuizSession.started_at), desc(QuizSession.id))
     pagination = q.paginate(page=page, per_page=per_page, error_out=False)
     sessions = pagination.items
@@ -64,7 +173,6 @@ def history():
         score = s.score or 0
         percent = round((score / total) * 100, 2) if total else 0.0
 
-        # Duration
         duration_min = None
         if s.is_submitted and s.completed_at and s.started_at:
             delta = s.completed_at - s.started_at
@@ -83,7 +191,6 @@ def history():
             "duration_min": duration_min,
         })
 
-    # Trend (last 12 submitted, completed)
     trend_q = (
         submitted
         .filter(QuizSession.completed_at.isnot(None))
@@ -108,17 +215,16 @@ def history():
         trend_points=trend_points,
         mode=mode,
         band=band,
-        bands=bands,
+        bands=ALLOWED_BANDS,
         overall_count=overall_count,
         overall_avg=overall_avg,
         overall_best=overall_best,
     )
 
 
-# Autosave selected options
 @quiz_bp.post("/autosave/<int:session_id>/<int:question_id>")
 @login_required
-def autosave(session_id, question_id):
+def autosave(session_id: int, question_id: int):
     session = QuizSession.query.get_or_404(session_id)
 
     if session.user_id != current_user.id:
@@ -133,7 +239,6 @@ def autosave(session_id, question_id):
     if not choice_id:
         return jsonify({"ok": False, "error": "Missing choice_id"}), 400
 
-    # Optional: ensure the choice belongs to this question
     choice = Choice.query.get(int(choice_id))
     if not choice or choice.question_id != question_id:
         return jsonify({"ok": False, "error": "Invalid choice"}), 400
@@ -152,68 +257,9 @@ def autosave(session_id, question_id):
     return jsonify({"ok": True})
 
 
-def user_is_subscribed(user) -> bool:
-    # Adjust this to your real subscription logic:
-    # e.g. user.has_active_subscription() if you already have it
-    now = datetime.utcnow()
-
-    sub = (
-        Subscription.query
-        .filter(
-            Subscription.user_id == user.id,
-            Subscription.is_confirmed.is_(True),
-            Subscription.expires_at.isnot(None),
-            Subscription.expires_at > now,
-        )
-        .order_by(Subscription.expires_at.desc())
-        .first()
-    )
-    return sub is not None
-
-
-'''
-def get_trial_questions_for_band(band: str, limit: int = TRIAL_QUESTIONS):
-    # "Fixed curated" trial set:
-    # simplest: just take earliest questions (stable ordering)
-    return Question.query.filter_by(band=band).order_by(Question.id.asc()).limit(limit).all()
-'''
-def get_trial_questions_for_band(band: str, qt: str, limit: int):
-    return (
-        Question.query
-        .filter_by(band=band, question_type=qt)
-        .order_by(func.random())
-        .limit(limit)
-        .all()
-    )
-
-
-@quiz_bp.route("/")
-@login_required
-def choose_level():
-    # Distinct question_type tags (e.g. psr, fr, etc.)
-    qtypes = [
-        r[0] for r in db.session.query(Question.question_type)
-        .distinct()
-        .order_by(Question.question_type.asc())
-        .all()
-        if r[0]
-    ]
-
-    LABELS = {
-    "fr": "Financial Regulation",
-    "psr": "Public Service Rule",
-    "edu": "Education",
-    "gk": "General Knowledge",
-    }
-
-    return render_template("quiz/choose_level.html", qtypes=qtypes, labels=LABELS)
-
-
-
 @quiz_bp.route("/start/<level>")
 @login_required
-def start(level):
-    # required querystring: ?qt=psr (or fr, etc.)
+def start(level: str):
     qt = request.args.get("qt", type=str)
     if not qt:
         flash("Please select a question type.", "warning")
@@ -221,50 +267,29 @@ def start(level):
 
     is_paid = user_is_subscribed(current_user)
     mode = "exam" if is_paid else "trial"
-    needed = EXAM_TOTAL_QUESTIONS if is_paid else TRIAL_QUESTIONS
+    needed = needed_count(is_paid)
 
-    # band selection
-    if level == "confirmation":
-        band = "confirmation"
-    else:
-        try:
-            band = level_to_band(level)
-        except ValueError:
-            flash("Invalid level selected.", "warning")
-            return redirect(url_for("quiz.choose_level"))
+    band = resolve_band(level)
+    if not band:
+        flash("Invalid level selected.", "warning")
+        return redirect(url_for("quiz.choose_level"))
 
     # pick questions (paid uses fast picker; trial uses DB random)
     if is_paid:
         selected = pick_questions_fast(band, qt, needed)
-        expires_at = datetime.utcnow() + timedelta(minutes=EXAM_DURATION_MINUTES)
+        expires_at = exam_expires_at()
     else:
         selected = get_trial_questions_for_band(band, qt, needed)
         expires_at = None
 
-    # ✅ hard dedupe (preserve order) - prevents repeats in a session even if picker misbehaves
-    seen = set()
-    unique_selected = []
-    for q in selected:
-        qid = q.id if hasattr(q, "id") else int(q)
-        if qid not in seen:
-            seen.add(qid)
-            unique_selected.append(q)
+    selected = dedupe_keep_order(selected)
 
-    selected = unique_selected
-
-    # ✅ validate availability
     if len(selected) < needed:
         total = Question.query.filter_by(band=band, question_type=qt).count()
         flash(
-            f"Not enough UNIQUE questions for this selection. Needed {needed}, found {total}.",
+            f"Not enough UNIQUE questions for this selection. Needed {needed}, available {total}.",
             "warning"
         )
-        return redirect(url_for("quiz.choose_level"))
-
-    # (optional) extra sanity check
-    ids = [q.id for q in selected]
-    if len(ids) != len(set(ids)):
-        flash("Internal error: duplicate questions detected in selection.", "danger")
         return redirect(url_for("quiz.choose_level"))
 
     session = QuizSession(
@@ -284,15 +309,13 @@ def start(level):
 
 @quiz_bp.route("/take/<int:session_id>", methods=["GET", "POST"])
 @login_required
-def take(session_id):
+def take(session_id: int):
     session = QuizSession.query.get_or_404(session_id)
 
-    # Security: make sure owner
     if session.user_id != current_user.id:
         flash("Unauthorized.", "danger")
         return redirect(url_for("dashboard.index"))
 
-    # prevent re-taking after submission
     if session.is_submitted:
         return redirect(url_for("quiz.result", session_id=session.id))
 
@@ -304,6 +327,10 @@ def take(session_id):
         return redirect(url_for("quiz.result", session_id=session.id))
 
     question_ids = session.get_question_ids()
+    if not question_ids:
+        flash("This session has no questions.", "warning")
+        return redirect(url_for("quiz.choose_level"))
+
     q_index = int(request.args.get("q", 1))
     q_index = max(1, min(q_index, len(question_ids)))
 
@@ -313,7 +340,6 @@ def take(session_id):
     if request.method == "POST":
         chosen_id = request.form.get("choice_id")
 
-        # save answer if provided
         if chosen_id:
             existing = UserAnswer.query.filter_by(session_id=session.id, question_id=question.id).first()
             if existing:
@@ -340,29 +366,29 @@ def take(session_id):
         if action == "prev":
             return redirect(url_for("quiz.take", session_id=session.id, q=q_index - 1))
 
-        # jump
         jump_to = request.form.get("jump_to")
         if jump_to:
             return redirect(url_for("quiz.take", session_id=session.id, q=int(jump_to)))
 
-    # build answered map for the icon grid
     answered_q_ids = {
         a.question_id for a in UserAnswer.query.filter_by(session_id=session.id).all()
     }
 
-    # Keep selected options intact when question is revisited
     existing_answer = UserAnswer.query.filter_by(
-    session_id=session.id,
-    question_id=question.id
+        session_id=session.id,
+        question_id=question.id
     ).first()
 
     selected_choice_id = existing_answer.choice_id if existing_answer else None
 
-
-    # remaining time
     remaining_seconds = None
     if session.mode == "exam" and session.expires_at:
-        remaining_seconds = max(0, int((session.expires_at - datetime.utcnow()).total_seconds()))
+        remaining_seconds = max(
+            0,
+            int((session.expires_at - datetime.utcnow()).total_seconds())
+        )
+
+    grid_count = current_app.config.get("GRID_QUESTION_COUNT", len(question_ids))
 
     return render_template(
         "quiz/take.html",
@@ -375,13 +401,13 @@ def take(session_id):
         answered_q_ids=answered_q_ids,
         selected_choice_id=selected_choice_id,
         remaining_seconds=remaining_seconds,
+        grid_count=grid_count,
     )
 
 
-# Result route
 @quiz_bp.route("/result/<int:session_id>")
 @login_required
-def result(session_id):
+def result(session_id: int):
     session = QuizSession.query.get_or_404(session_id)
 
     if session.user_id != current_user.id:
@@ -389,8 +415,10 @@ def result(session_id):
         return redirect(url_for("dashboard.index"))
 
     q_ids = session.get_question_ids()
+    if not q_ids:
+        flash("No questions found for this session.", "warning")
+        return redirect(url_for("quiz.choose_level"))
 
-    # Load questions + choices in one go
     questions = (
         Question.query
         .options(joinedload(Question.choices))
@@ -399,18 +427,17 @@ def result(session_id):
     )
     q_map = {q.id: q for q in questions}
 
-    # All answers for this session
     answers = UserAnswer.query.filter_by(session_id=session.id).all()
     ans_map = {a.question_id: a.choice_id for a in answers}
 
-    total = len([qid for qid in q_ids if qid])  # ignore blanks if any
+    total = len([qid for qid in q_ids if qid])
     answered = len(ans_map)
     unanswered = max(0, total - answered)
 
     correct = 0
     wrong = 0
-
     review = []
+
     for idx, qid in enumerate(q_ids, start=1):
         q = q_map.get(qid)
         if not q:
@@ -420,7 +447,6 @@ def result(session_id):
         user_choice_id = ans_map.get(q.id)
         user_choice = next((c for c in q.choices if c.id == user_choice_id), None)
 
-        status = "unanswered"
         if user_choice_id is None:
             status = "unanswered"
         elif correct_choice and user_choice_id == correct_choice.id:
@@ -443,7 +469,6 @@ def result(session_id):
             "status": status,
         })
 
-    # Persist score for session
     session.score = correct
     db.session.commit()
 
