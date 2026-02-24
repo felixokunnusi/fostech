@@ -12,12 +12,10 @@ from sqlalchemy.orm import joinedload
 from app.services.question_selector import pick_questions_fast
 
 
-EXAM_TOTAL_QUESTIONS = 70
-EXAM_DURATION_MINUTES = 40
-TRIAL_QUESTIONS = 10
 EXAM_QUESTION_COUNT = 70
+EXAM_DURATION_MINUTES = 40
 TRIAL_QUESTION_COUNT = 10
-GRID_QUESTION_COUNT = 70  # always show 70 in UI
+GRID_QUESTION_COUNT = EXAM_QUESTION_COUNT  # UI display only
 
 # Exam History 
 from sqlalchemy import desc, func
@@ -180,15 +178,13 @@ def get_trial_questions_for_band(band: str, limit: int = TRIAL_QUESTIONS):
     return Question.query.filter_by(band=band).order_by(Question.id.asc()).limit(limit).all()
 '''
 def get_trial_questions_for_band(band: str, qt: str, limit: int):
-    # DB-randomized selection (better than .all()+shuffle for large datasets)
     return (
         Question.query
         .filter_by(band=band, question_type=qt)
-        .distinct(Question.id)
         .order_by(func.random())
         .limit(limit)
         .all()
-        )
+    )
 
 
 @quiz_bp.route("/")
