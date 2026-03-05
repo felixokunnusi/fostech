@@ -64,7 +64,11 @@ def register():
         session.pop("ref", None)  # ✅ prevent referral carrying over to future signups
 
         # Send verification email
-        send_confirmation_email(user)
+        try:
+            send_confirmation_email(user)
+        except Exception:
+            current_app.logger.exception("Failed to send confirmation email")
+            flash("Account created, but we couldn't send the confirmation email now. Please try 'Resend confirmation'.", "warning")
 
         # Store email for verification step
         session["verify_email"] = user.email

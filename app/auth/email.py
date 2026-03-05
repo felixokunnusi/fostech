@@ -1,3 +1,4 @@
+import logging
 import os
 from flask import current_app, url_for
 from sendgrid import SendGridAPIClient
