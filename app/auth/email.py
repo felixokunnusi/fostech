@@ -1,11 +1,12 @@
 import logging
-import os
-from flask import current_app, url_for, render_template
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
-from urllib.error import URLError
 from datetime import datetime
-from app.email_service import send_email  # the SMTP-chain sender we created earlier
+
+from flask import current_app, render_template, url_for
+
+from app.email_service import send_email  # SMTP sender
+
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------
@@ -13,50 +14,57 @@ from app.email_service import send_email  # the SMTP-chain sender we created ear
 # ---------------------------
 
 def _get_sender() -> str:
-    sender = current_app.config.get("MAIL_DEFAULT_SENDER") or current_app.config.get("MAIL_USERNAME")
+    sender = (
+        current_app.config.get("MAIL_DEFAULT_SENDER")
+        or current_app.config.get("MAIL_USERNAME")
+    )
     if not sender:
-        raise RuntimeError("MAIL_DEFAULT_SENDER is missing. Set it in .env / Render env vars.")
+        raise RuntimeError(
+            "MAIL_DEFAULT_SENDER is missing. Set it in .env / Render env vars."
+        )
     return sender
 
 
-def _get_sendgrid_client() -> SendGridAPIClient:
-    api_key = current_app.config.get("SENDGRID_API_KEY")
-    if not api_key:
-        raise RuntimeError("SENDGRID_API_KEY is missing. Set it in .env / Render env vars.")
-    return SendGridAPIClient(api_key)
-
-
-def _send_message(message: Mail) -> None:
+def _send_message(to_email: str, subject: str, html_content: str, text_content: str | None = None) -> None:
     """
-    Sends a SendGrid Mail message. Logs useful error details.
+    Sends an email through the SMTP-based send_email helper.
     Raises on failure.
     """
     try:
-        sg = _get_sendgrid_client()
-        resp = sg.send(message)
+        sender = _get_sender()
+
+        # Assumes app.email_service.send_email signature:
+        # send_email(to_email, subject, html_content, text_content=None, from_email=None)
+        try:
+            send_email(
+                to_email=to_email,
+                subject=subject,
+                html_content=html_content,
+                text_content=text_content,
+                from_email=sender,
+            )
+        except TypeError:
+            # Fallback in case your helper only accepts 4 args
+            send_email(to_email, subject, html_content, text_content)
 
         current_app.logger.info(
-            "SendGrid send result: status=%s headers=%s body=%s",
-            resp.status_code, resp.headers, resp.body
+            "Email sent successfully via SMTP. to=%s subject=%s",
+            to_email,
+            subject,
         )
 
-        # SendGrid typically returns 202 on success
-        if resp.status_code not in (200, 202):
-            logging.error(
-                "SendGrid failed. Status=%s Body=%s Headers=%s",
-                resp.status_code, resp.body, resp.headers
-            )
-            raise RuntimeError(f"SendGrid rejected email. status={resp.status_code}")
-
     except Exception as e:
-        body = getattr(e, "body", None)
-        status = getattr(e, "status_code", None)
-        logging.exception("SendGrid error: status=%s body=%s error=%s", status, body, e)
+        logger.exception(
+            "SMTP email send failed. to=%s subject=%s error=%s",
+            to_email,
+            subject,
+            e,
+        )
         raise
 
 
 # ---------------------------
-# 1) Existing emails (fixed)
+# 1) Existing emails
 # ---------------------------
 
 def send_confirmation_email(user) -> None:
@@ -64,23 +72,29 @@ def send_confirmation_email(user) -> None:
     Sends email confirmation code + link.
     """
     confirm_url = url_for("auth.confirm_email", code=user.email_confirm_code, _external=True)
-    sender = _get_sender()
 
-    message = Mail(
-        from_email=sender,
-        to_emails=user.email,
-        subject="Confirm your email",
-        html_content=f"""
-        <p>Hello {user.username},</p>
-        <p>Your confirmation code is:</p>
-        <h2>{user.email_confirm_code}</h2>
-        <p>Or click the link below:</p>
-        <p><a href="{confirm_url}">Confirm Email</a></p>
-        <p>This code expires in 10 minutes.</p>
-        """
+    html_content = f"""
+    <p>Hello {user.username},</p>
+    <p>Your confirmation code is:</p>
+    <h2>{user.email_confirm_code}</h2>
+    <p>Or click the link below:</p>
+    <p><a href="{confirm_url}">Confirm Email</a></p>
+    <p>This code expires in 10 minutes.</p>
+    """
+
+    text_content = (
+        f"Hello {user.username},\n\n"
+        f"Your confirmation code is: {user.email_confirm_code}\n\n"
+        f"Confirm your email here: {confirm_url}\n\n"
+        f"This code expires in 10 minutes."
     )
 
-    _send_message(message)
+    _send_message(
+        to_email=user.email,
+        subject="Confirm your email",
+        html_content=html_content,
+        text_content=text_content,
+    )
 
 
 def send_password_reset_email(user) -> None:
@@ -88,44 +102,45 @@ def send_password_reset_email(user) -> None:
     Sends password reset link.
     """
     reset_url = url_for("auth.reset_password", token=user.reset_token, _external=True)
-    sender = _get_sender()
 
-    message = Mail(
-        from_email=sender,
-        to_emails=user.email,
-        subject="Reset your password",
-        html_content=f"""
-        <p>Hello {user.username},</p>
-        <p>You requested a password reset.</p>
-        <p><a href="{reset_url}">Click here to reset your password</a></p>
-        <p>This link expires in 30 minutes.</p>
-        """
+    html_content = f"""
+    <p>Hello {user.username},</p>
+    <p>You requested a password reset.</p>
+    <p><a href="{reset_url}">Click here to reset your password</a></p>
+    <p>This link expires in 30 minutes.</p>
+    """
+
+    text_content = (
+        f"Hello {user.username},\n\n"
+        f"You requested a password reset.\n"
+        f"Reset your password here: {reset_url}\n\n"
+        f"This link expires in 30 minutes."
     )
 
-    _send_message(message)
+    _send_message(
+        to_email=user.email,
+        subject="Reset your password",
+        html_content=html_content,
+        text_content=text_content,
+    )
 
 
 # ---------------------------
 # 2) Reusable campaign senders
 # ---------------------------
 
-def send_html_email(to_email: str, subject: str, html_content: str) -> None:
+def send_html_email(to_email: str, subject: str, html_content: str, text_content: str | None = None) -> None:
     """
     Simple HTML email sender (no templates).
     """
-    sender = _get_sender()
-
-    message = Mail(
-        from_email=sender,
-        to_emails=to_email,
+    _send_message(
+        to_email=to_email,
         subject=subject,
-        html_content=html_content
+        html_content=html_content,
+        text_content=text_content,
     )
 
-    _send_message(message)
 
-
-#
 TEMPLATE_MAP = {
     "active_subscribers": "email/active_subscribers.html",
     "active_non_subscribers": "email/active_non_subscribers.html",
@@ -136,20 +151,29 @@ SUBJECT_MAP = {
     "active_non_subscribers": "Unlock premium practice",
 }
 
+
 def send_dynamic_template_email(to_email: str, template_id: str, dynamic_data: dict) -> None:
     """
-    Interchangeable provider version:
-    'template_id' is now a LOCAL key, not SendGrid template id.
+    Local-template email sender.
+    'template_id' is a local key, not a SendGrid template id.
     """
     template_path = TEMPLATE_MAP.get(template_id)
     if not template_path:
-        raise RuntimeError(f"Unknown template_id '{template_id}'. Expected one of: {list(TEMPLATE_MAP)}")
+        raise RuntimeError(
+            f"Unknown template_id '{template_id}'. Expected one of: {list(TEMPLATE_MAP)}"
+        )
 
     subject = dynamic_data.get("subject") or SUBJECT_MAP.get(template_id, "Notification")
     html = render_template(template_path, **dynamic_data)
-    text = dynamic_data.get("text_fallback")  # optional
+    text = dynamic_data.get("text_fallback")
 
-    send_email(to_email, subject, html, text)
+    _send_message(
+        to_email=to_email,
+        subject=subject,
+        html_content=html,
+        text_content=text,
+    )
+
 
 # ---------------------------
 # 3) Segment queries + campaigns
@@ -170,7 +194,7 @@ def get_active_subscribers(db, User, Subscription, now=None, limit=500):
             Subscription.expires_at.isnot(None),
             Subscription.expires_at > now,
         )
-        .distinct(User.id)
+        .distinct()
         .order_by(User.id.desc())
         .limit(limit)
         .all()
@@ -182,8 +206,6 @@ def get_active_users_not_subscribers(db, User, Subscription, now=None, limit=500
     Active users (email verified) who do NOT have an active subscription.
     Returns a list of User objects.
     """
-    from sqlalchemy import exists
-
     now = now or datetime.utcnow()
 
     active_sub_exists = (
@@ -211,10 +233,9 @@ def get_active_users_not_subscribers(db, User, Subscription, now=None, limit=500
 
 def send_campaign_to_active_subscribers(db, User, Subscription, template_id: str, app_name: str, sender_name: str):
     """
-    Sends a dynamic template email to all active subscribers.
+    Sends a template email to all active subscribers.
     """
     users = get_active_subscribers(db, User, Subscription)
-
     dashboard_link = url_for("dashboard.index", _external=True)
 
     for u in users:
@@ -226,16 +247,15 @@ def send_campaign_to_active_subscribers(db, User, Subscription, template_id: str
                 "app_name": app_name,
                 "dashboard_link": dashboard_link,
                 "sender_name": sender_name,
-            }
+            },
         )
 
 
 def send_campaign_to_active_users_not_subscribers(db, User, Subscription, template_id: str, app_name: str, sender_name: str):
     """
-    Sends a dynamic template email to verified users who are not active subscribers.
+    Sends a template email to verified users who are not active subscribers.
     """
     users = get_active_users_not_subscribers(db, User, Subscription)
-
     subscribe_link = url_for("subscription.start_subscription", _external=True)
 
     for u in users:
@@ -247,5 +267,5 @@ def send_campaign_to_active_users_not_subscribers(db, User, Subscription, templa
                 "app_name": app_name,
                 "subscribe_link": subscribe_link,
                 "sender_name": sender_name,
-            }
+            },
         )
