@@ -1,5 +1,5 @@
 import os
-from flask import Flask, redirect, url_for, request, session, flash, has_request_context
+from flask import Flask, redirect, url_for, request, session, flash, has_request_context, send_from_directory
 from .extensions import db, login_manager, migrate, mail
 from flask_login import current_user, logout_user
 
@@ -118,6 +118,16 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(payments_bp)
     register_cli(app)
+
+
+    #
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory(
+            os.path.join(app.root_path, 'static'),
+            'favicon.ico',
+            mimetype='image/vnd.microsoft.icon'
+        )
 
       # ✅ ADD THIS BLOCK HERE
     @app.context_processor
