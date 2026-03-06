@@ -1,6 +1,7 @@
 from flask import current_app, abort
 import random
 import string
+import threading
 from datetime import datetime, timedelta
 import secrets
 from functools import wraps 
@@ -73,3 +74,19 @@ def generate_unique_referral_code(length=8):
         code = "".join(random.choices(chars, k=length))
         if not User.query.filter_by(referral_code=code).first():
             return code
+
+
+#--------------------#
+# Background Helper
+#--------------------#
+def run_in_background(func, *args, **kwargs):
+    app = current_app._get_current_object()
+
+    def task():
+        with app.app_context():
+            try:
+                func(*args, **kwargs)
+            except Exception:
+                app.logger.exception("Background task failed")
+
+    threading.Thread(target=task, daemon=True).start()

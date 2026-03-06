@@ -1,12 +1,13 @@
 import os
-from flask import Flask, redirect, url_for, request, session, flash
+from flask import Flask, redirect, url_for, request, session, flash, has_request_context
 from .extensions import db, login_manager, migrate, mail
 from flask_login import current_user, logout_user
 
-
+flask_app = None  # ✅ add this
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
+    flask_app = app  # ✅ add this
 
     # ensure instance folder exists (Flask-managed)
     os.makedirs(app.instance_path, exist_ok=True)
@@ -108,9 +109,6 @@ def create_app():
     from .cli import register_cli
 
 
-    
-   
-
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(dashboard_bp)
@@ -124,7 +122,7 @@ def create_app():
       # ✅ ADD THIS BLOCK HERE
     @app.context_processor
     def inject_globals():
-        from flask import request
-        return dict(endpoint=request.endpoint)
+        endpoint = request.endpoint if has_request_context() else None
+        return dict(endpoint=endpoint)
     
     return app

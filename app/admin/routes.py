@@ -1,20 +1,21 @@
 # app/admin/routes.py
 
+import time
+from datetime import datetime, timedelta
+
 from flask import render_template, request, flash, redirect, url_for, current_app, session
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from app.models import User
-from app.models.subscription import Subscription  # adjust import if needed
+from sqlalchemy import exists
+
 from app.extensions import db
-from app.utils import admin_required
+from app.models import User
+from app.models.subscription import Subscription  # adjust if needed
+from app.models.campaign_log import CampaignLog
+from app.utils import admin_required, run_in_background
+from app.auth.email import send_dynamic_template_email
 from . import admin_bp
 from .importer import import_questions_from_csv_file
-from datetime import datetime, timedelta
-from app.auth.email import send_dynamic_template_email  # from the email.py we updated
-from app.auth.email import (
-    send_campaign_to_active_subscribers,
-    send_campaign_to_active_users_not_subscribers
-)
 
 
 ALLOWED_EXTENSIONS = {"csv"}
@@ -56,118 +57,255 @@ def upload_questions():
     return render_template("admin/upload_questions.html", summary=summary, filename=filename)
 
 
-### Send Campaign ###
+def _send_campaign_job(
+    campaign_id: int,
+    target: str,
+    limit: int,
+    app_name: str,
+    sender_name: str,
+    dashboard_link: str,
+    subscribe_link: str,
+) -> None:
+    """
+    Background worker for campaigns.
+    Uses local template IDs:
+      - active_subscribers
+      - active_non_subscribers
+    """
+    log = CampaignLog.query.get(campaign_id)
+    if not log:
+        current_app.logger.error("CampaignLog not found: id=%s", campaign_id)
+        return
+
+    try:
+        current_app.logger.info(
+            "Campaign %s thread started. target=%s limit=%s",
+            campaign_id, target, limit
+        )
+
+        log.status = "running"
+        log.started_at = datetime.utcnow()
+        log.last_error = None
+        db.session.commit()
+
+        now = datetime.utcnow()
+        total_sent = 0
+        total_failed = 0
+        total_targeted = 0
+
+        def flush(force: bool = False) -> None:
+            if force or (total_sent + total_failed) % 10 == 0:
+                log.total_sent = total_sent
+                log.total_failed = total_failed
+                log.total_targeted = total_targeted
+                db.session.commit()
+
+        # Segment A: Active subscribers
+        if target in ("subscribers", "both"):
+            subs_users = (
+                db.session.query(User)
+                .join(Subscription, Subscription.user_id == User.id)
+                .filter(
+                    Subscription.is_confirmed.is_(True),
+                    Subscription.expires_at.isnot(None),
+                    Subscription.expires_at > now,
+                )
+                .distinct(User.id)
+                .order_by(User.id.desc())
+                .limit(limit)
+                .all()
+            )
+
+            current_app.logger.info("Campaign %s: subs_users=%s", campaign_id, len(subs_users))
+
+            total_targeted += len(subs_users)
+            flush(force=True)
+
+            for u in subs_users:
+                try:
+                    send_dynamic_template_email(
+                        to_email=u.email,
+                        template_id="active_subscribers",
+                        dynamic_data={
+                            "first_name": u.username,
+                            "app_name": app_name,
+                            "dashboard_link": dashboard_link,
+                            "sender_name": sender_name,
+                            "subject": f"{app_name}: Your premium access is active",
+                            "text_fallback": f"Hello {u.username}\nDashboard: {dashboard_link}\n— {sender_name}",
+                        },
+                    )
+                    total_sent += 1
+                except Exception as e:
+                    current_app.logger.exception(
+                        "Subscriber campaign failed: user_id=%s email=%s",
+                        u.id, u.email
+                    )
+                    total_failed += 1
+                    log.last_error = str(e)
+
+                flush()
+                time.sleep(0.15)
+
+        # Segment B: Verified users who are NOT active subscribers
+        if target in ("non_subscribers", "both"):
+            active_sub_exists = (
+                db.session.query(Subscription.id)
+                .filter(
+                    Subscription.user_id == User.id,
+                    Subscription.is_confirmed.is_(True),
+                    Subscription.expires_at.isnot(None),
+                    Subscription.expires_at > now,
+                )
+                .exists()
+            )
+
+            non_sub_users = (
+                db.session.query(User)
+                .filter(
+                    User.is_email_verified.is_(True),
+                    ~active_sub_exists,
+                )
+                .order_by(User.id.desc())
+                .limit(limit)
+                .all()
+            )
+
+            current_app.logger.info("Campaign %s: non_sub_users=%s", campaign_id, len(non_sub_users))
+
+            total_targeted += len(non_sub_users)
+            flush(force=True)
+
+            for u in non_sub_users:
+                try:
+                    send_dynamic_template_email(
+                        to_email=u.email,
+                        template_id="active_non_subscribers",
+                        dynamic_data={
+                            "first_name": u.username,
+                            "app_name": app_name,
+                            "subscribe_link": subscribe_link,
+                            "sender_name": sender_name,
+                            "subject": f"{app_name}: Unlock premium practice",
+                            "text_fallback": f"Hello {u.username}\nSubscribe: {subscribe_link}\n— {sender_name}",
+                        },
+                    )
+                    total_sent += 1
+                except Exception as e:
+                    current_app.logger.exception(
+                        "Non-subscriber campaign failed: user_id=%s email=%s",
+                        u.id, u.email
+                    )
+                    total_failed += 1
+                    log.last_error = str(e)
+
+                flush()
+                time.sleep(0.15)
+
+        log.total_sent = total_sent
+        log.total_failed = total_failed
+        log.total_targeted = total_targeted
+        log.status = "completed"
+        log.finished_at = datetime.utcnow()
+        db.session.commit()
+
+        current_app.logger.info(
+            "Campaign %s finished: status=%s sent=%s failed=%s targeted=%s last_error=%s",
+            campaign_id, log.status, log.total_sent, log.total_failed, log.total_targeted, log.last_error
+        )
+
+    except Exception as e:
+        current_app.logger.exception("Campaign job crashed: %s", e)
+        log.status = "failed"
+        log.last_error = str(e)
+        log.finished_at = datetime.utcnow()
+        db.session.commit()
+    finally:
+        db.session.remove()
+
+
 @admin_bp.route("/campaigns/send", methods=["POST"])
 @login_required
 @admin_required
 def send_campaigns():
-     # 🔒 Prevent accidental double send (5 min cooldown)
+    # Prevent accidental double send (5 min cooldown)
     last_sent = session.get("last_campaign_sent")
     now = datetime.utcnow()
 
     if last_sent:
-        last_sent_dt = datetime.fromisoformat(last_sent)
-        if now - last_sent_dt < timedelta(minutes=5):
-            flash("Campaign was sent recently. Please wait before sending again.", "warning")
-            return redirect(url_for("dashboard.index"))
+        try:
+            last_sent_dt = datetime.fromisoformat(last_sent)
+            if now - last_sent_dt < timedelta(minutes=5):
+                flash("Campaign was sent recently. Please wait before sending again.", "warning")
+                return redirect(url_for("dashboard.index"))
+        except ValueError:
+            session.pop("last_campaign_sent", None)
 
-    # Save timestamp BEFORE sending
     session["last_campaign_sent"] = now.isoformat()
 
-    target = request.form.get("target", "both")  # subscribers | non_subscribers | both
-    limit = 200
-    now = datetime.utcnow()
+    target = request.form.get("target", "both")
+    if target not in ("subscribers", "non_subscribers", "both"):
+        target = "both"
 
-    tmpl_subs = current_app.config.get("SENDGRID_TMPL_ACTIVE_SUBSCRIBERS")
-    tmpl_non = current_app.config.get("SENDGRID_TMPL_ACTIVE_NON_SUBSCRIBERS")
+    cfg_limit = current_app.config.get("WEEKLY_EMAIL_LIMIT", 200)
+    try:
+        cfg_limit = int(cfg_limit)
+    except Exception:
+        cfg_limit = 200
+    limit = min(max(cfg_limit, 1), 500)
 
     app_name = current_app.config.get("APP_NAME", "FOTMASTech CBT App")
     sender_name = current_app.config.get("SENDER_NAME", "Felix")
 
-    # --- Segment A: Active subscribers (confirmed + not expired) ---
-    if target in ("subscribers", "both"):
-        if not tmpl_subs:
-            flash("Missing SENDGRID_TMPL_ACTIVE_SUBSCRIBERS in config.", "danger")
-            return redirect(url_for("dashboard.index"))
+    # Build links here while request context is active
+    dashboard_link = url_for("dashboard.index", _external=True)
+    subscribe_link = url_for("subscription.start_subscription", _external=True)
 
-        subs_users = (
-            db.session.query(User)
-            .join(Subscription, Subscription.user_id == User.id)
-            .filter(
-                Subscription.is_confirmed.is_(True),
-                Subscription.expires_at.isnot(None),
-                Subscription.expires_at > now,
-            )
-            .distinct(User.id)
-            .order_by(User.id.desc())
-            .limit(limit)
-            .all()
-        )
+    log = CampaignLog(
+        created_by_user_id=getattr(current_user, "id", None),
+        target=target,
+        status="queued",
+        limit_each=limit,
+        created_at=datetime.utcnow(),
+    )
+    db.session.add(log)
+    db.session.commit()
 
-        dashboard_link = url_for("dashboard.index", _external=True)
+    run_in_background(
+        _send_campaign_job,
+        log.id,
+        target,
+        limit,
+        app_name,
+        sender_name,
+        dashboard_link,
+        subscribe_link,
+    )
 
-        sent = 0
-        for u in subs_users:
-            send_dynamic_template_email(
-                to_email=u.email,
-                template_id=tmpl_subs,
-                dynamic_data={
-                    "first_name": u.username,
-                    "app_name": app_name,
-                    "dashboard_link": dashboard_link,
-                    "sender_name": sender_name,
-                },
-            )
-            sent += 1
+    flash(f"Campaign queued (ID #{log.id}). Sending in background…", "success")
+    return redirect(url_for("dashboard.index"))
 
-        flash(f"Subscriber campaign sent to {sent} user(s).", "success")
 
-    # --- Segment B: Verified users who are NOT active subscribers ---
-    if target in ("non_subscribers", "both"):
-        if not tmpl_non:
-            flash("Missing SENDGRID_TMPL_ACTIVE_NON_SUBSCRIBERS in config.", "danger")
-            return redirect(url_for("dashboard.index"))
+@admin_bp.route("/campaigns/test", methods=["POST"])
+@login_required
+@admin_required
+def test_email():
+    app_name = current_app.config.get("APP_NAME", "FOTMASTech CBT App")
+    sender_name = current_app.config.get("SENDER_NAME", "Admin")
+    dashboard_link = url_for("dashboard.index", _external=True)
 
-        from sqlalchemy import exists
+    send_dynamic_template_email(
+        to_email=current_user.email,
+        template_id="active_subscribers",
+        dynamic_data={
+            "first_name": current_user.username,
+            "app_name": app_name,
+            "dashboard_link": dashboard_link,
+            "sender_name": sender_name,
+            "subject": "Test Email",
+            "text_fallback": "Test Email",
+        },
+    )
 
-        active_sub_exists = (
-            db.session.query(Subscription.id)
-            .filter(
-                Subscription.user_id == User.id,
-                Subscription.is_confirmed.is_(True),
-                Subscription.expires_at.isnot(None),
-                Subscription.expires_at > now,
-            )
-            .exists()
-        )
-
-        non_sub_users = (
-            db.session.query(User)
-            .filter(
-                User.is_email_verified.is_(True),
-                ~active_sub_exists,
-            )
-            .order_by(User.id.desc())
-            .limit(limit)
-            .all()
-        )
-
-        subscribe_link = url_for("subscription.start_subscription", _external=True)
-
-        sent = 0
-        for u in non_sub_users:
-            send_dynamic_template_email(
-                to_email=u.email,
-                template_id=tmpl_non,
-                dynamic_data={
-                    "first_name": u.username,
-                    "app_name": app_name,
-                    "subscribe_link": subscribe_link,
-                    "sender_name": sender_name,
-                },
-            )
-            sent += 1
-
-        flash(f"Non-subscriber campaign sent to {sent} user(s).", "success")
-
+    flash("Test email attempted. Check inbox/spam and logs.", "info")
     return redirect(url_for("dashboard.index"))

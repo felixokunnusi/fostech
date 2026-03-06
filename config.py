@@ -67,19 +67,41 @@ class BaseConfig:
     TRIAL_QUESTION_COUNT = 10
     GRID_QUESTION_COUNT = 70
 
-    # -------------------
-    # Mail / SendGrid
+   # -------------------
+    # Mail (SMTP providers: Brevo / Mailgun / MailerSend)
     # -------------------
     MAIL_USERNAME = _getenv("MAIL_USERNAME", "")
     MAIL_DEFAULT_SENDER = _getenv("MAIL_DEFAULT_SENDER", MAIL_USERNAME or "")
-    SENDGRID_API_KEY = _getenv("SENDGRID_API_KEY", "")
 
-    SENDGRID_TMPL_ACTIVE_SUBSCRIBERS = _getenv("SENDGRID_TMPL_ACTIVE_SUBSCRIBERS", "")
+    # Choose one provider OR a failover chain
+    # Example: "brevo"  OR  "brevo,mailgun,mailersend"
+    EMAIL_PROVIDER = _getenv("EMAIL_PROVIDER", "brevo")
+    EMAIL_PROVIDER_CHAIN = _getenv("EMAIL_PROVIDER_CHAIN", "")  # takes priority if set
 
-    SENDGRID_TMPL_ACTIVE_NON_SUBSCRIBERS = _getenv("SENDGRID_TMPL_ACTIVE_NON_SUBSCRIBERS", "")
+    # --- Brevo SMTP ---
+    BREVO_SMTP_HOST = _getenv("BREVO_SMTP_HOST", "smtp-relay.brevo.com")
+    BREVO_SMTP_PORT = _as_int(_getenv("BREVO_SMTP_PORT", "587"), default=587)
+    BREVO_SMTP_USERNAME = _getenv("BREVO_SMTP_USERNAME", "")
+    BREVO_SMTP_PASSWORD = _getenv("BREVO_SMTP_PASSWORD", "")
+
+    # --- Mailgun SMTP ---
+    ZOHO_SMTP_HOST = _getenv("ZOHO_SMTP_HOST", "smtppro.zoho.com")
+    ZOHO_SMTP_PORT = _as_int(_getenv("ZOHO_SMTP_PORT", "587"), default=587)
+    ZOHO_SMTP_USERNAME = _getenv("ZOHO_SMTP_USERNAME", "")
+    ZOHO_SMTP_PASSWORD = _getenv("ZOHO_SMTP_PASSWORD", "")
+
+    # --- MailerSend SMTP ---
+    MAILERSEND_SMTP_HOST = _getenv("MAILERSEND_SMTP_HOST", "smtp.mailersend.net")
+    MAILERSEND_SMTP_PORT = _as_int(_getenv("MAILERSEND_SMTP_PORT", "587"), default=587)
+    MAILERSEND_SMTP_USERNAME = _getenv("MAILERSEND_SMTP_USERNAME", "")
+    MAILERSEND_SMTP_PASSWORD = _getenv("MAILERSEND_SMTP_PASSWORD", "")
+
+    # -------------------
+    # App / Campaign settings
+    # -------------------
     APP_NAME = _getenv("APP_NAME", "FOTMASTech CBT App")
     SENDER_NAME = _getenv("SENDER_NAME", "Admin")
-    BASE_URL = _getenv("BASE_URL", "https://fotmas.site") # ✅ important for links inside CLI emails
+    BASE_URL = _getenv("BASE_URL", "https://fotmas.site")  # important for links inside CLI emails
     WEEKLY_EMAIL_LIMIT = _as_int(_getenv("WEEKLY_EMAIL_LIMIT"), default=200)
 
     # -------------------

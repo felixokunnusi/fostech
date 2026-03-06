@@ -115,96 +115,216 @@
 
   <!-- Admin Section -->
   {% if current_user.is_admin %}
-    <!-- Send Mesage Button-->
-        <div class="card mt-4">
-          <div class="card-header">
-            <strong>Email Campaigns</strong>
-          </div>
-          <div class="card-body d-flex flex-wrap gap-2">
 
-            <form method="post" action="{{ url_for('admin.send_campaigns') }}">
-              <input type="hidden" name="target" value="subscribers">
-              <button type="submit" class="btn btn-sm btn-success"
-                      onclick="return confirm('Send to ACTIVE subscribers (max 200)?');">
-                Email Active Subscribers
-              </button>
-            </form>
+    <!-- Email Campaigns -->
+    <div class="card mt-4">
+      <div class="card-header">
+        <strong>Email Campaigns</strong>
+      </div>
+      <div class="card-body d-flex flex-wrap gap-2">
 
-            <form method="post" action="{{ url_for('admin.send_campaigns') }}">
-              <input type="hidden" name="target" value="non_subscribers">
-              <button type="submit" class="btn btn-sm btn-primary"
-                      onclick="return confirm('Send to ACTIVE verified users who are NOT subscribers (max 200)?');">
-                Email Active Non-Subscribers
-              </button>
-            </form>
+        <form method="post" action="{{ url_for('admin.send_campaigns') }}">
+          <input type="hidden" name="target" value="subscribers">
+          <button type="submit" class="btn btn-sm btn-success"
+                  onclick="return confirm('Send to ACTIVE subscribers (max 200)?');">
+            Email Active Subscribers
+          </button>
+        </form>
 
-            <form method="post" action="{{ url_for('admin.send_campaigns') }}">
-              <input type="hidden" name="target" value="both">
-              <button type="submit" class="btn btn-sm btn-outline-dark"
-                      onclick="return confirm('Send BOTH campaigns (max 200 each)?');">
-                Send Both
-              </button>
-            </form>
+        <form method="post" action="{{ url_for('admin.send_campaigns') }}">
+          <input type="hidden" name="target" value="non_subscribers">
+          <button type="submit" class="btn btn-sm btn-primary"
+                  onclick="return confirm('Send to ACTIVE verified users who are NOT subscribers (max 200)?');">
+            Email Active Non-Subscribers
+          </button>
+        </form>
 
-            <div class="text-muted small w-100 mt-2">
-              Runs immediately on the server. Keep batches small to avoid timeouts.
-            </div>
+        <form method="post" action="{{ url_for('admin.send_campaigns') }}">
+          <input type="hidden" name="target" value="both">
+          <button type="submit" class="btn btn-sm btn-outline-dark"
+                  onclick="return confirm('Send BOTH campaigns (max 200 each)?');">
+            Send Both
+          </button>
+        </form>
 
-          </div>
-        </div>
-            <!-- Question Inventory -->
-      <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <strong>Question Inventory (Band × Question Type)</strong>
-          <span class="badge text-bg-primary">
-            Total: {{ inv_grand_total }}
-          </span>
-        </div>
+        <form method="post" action="{{ url_for('admin.test_email') }}">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">
+            Send Test Email
+          </button>
+        </form>
 
-        <div class="card-body">
-          {% if inv_qtypes and inv_table %}
-            <div class="table-responsive">
-              <table class="table table-sm table-striped align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>Band</th>
-                    {% for qt in inv_qtypes %}
-                      <th class="text-center text-nowrap">{{ qt|upper }}</th>
-                    {% endfor %}
-                    <th class="text-center">Total</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {% for row in inv_table %}
-                    <tr>
-                      <td class="fw-semibold">{{ row.band }}</td>
-                      {% for qt in inv_qtypes %}
-                        <td class="text-center">{{ row[qt] }}</td>
-                      {% endfor %}
-                      <td class="text-center fw-semibold">{{ row.total }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-
-                <tfoot>
-                  <tr>
-                    <th>Total</th>
-                    {% for qt in inv_qtypes %}
-                      <th class="text-center">{{ inv_totals_by_qt[qt] }}</th>
-                    {% endfor %}
-                    <th class="text-center">{{ inv_grand_total }}</th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          {% else %}
-            <div class="text-muted small">No questions found yet.</div>
-          {% endif %}
+        <div class="text-muted small w-100 mt-2">
+          Campaigns run in the background. Progress updates automatically while a campaign is running.
         </div>
       </div>
-     <!-- end Message-->
-    <div class="row g-3">
+    </div>
+
+    <!-- Campaign Monitor -->
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Campaign Monitor</strong>
+        <span class="text-muted small">Last 10</span>
+      </div>
+
+      <div class="card-body">
+        {% if recent_campaigns %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Campaign ID</th>
+                  <th>Target</th>
+                  <th>Status</th>
+                  <th style="min-width: 220px;">Progress</th>
+                  <th class="text-center">Sent</th>
+                  <th class="text-center">Failed</th>
+                  <th class="text-center">Targeted</th>
+                  <th class="text-nowrap">Started</th>
+                  <th class="text-nowrap">Finished</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in recent_campaigns %}
+                  {% set targeted = c.total_targeted or 0 %}
+                  {% set sent = c.total_sent or 0 %}
+                  {% set failed = c.total_failed or 0 %}
+                  {% set processed = sent + failed %}
+                  {% set progress = ((processed / targeted) * 100) if targeted > 0 else 0 %}
+                  {% if progress > 100 %}
+                    {% set progress = 100 %}
+                  {% endif %}
+
+                  <tr>
+                    <td class="fw-semibold">#{{ c.id }}</td>
+
+                    <td>
+                      {% if c.target == "subscribers" %}
+                        <span class="badge text-bg-success">Subscribers</span>
+                      {% elif c.target == "non_subscribers" %}
+                        <span class="badge text-bg-warning">Non-Subscribers</span>
+                      {% else %}
+                        <span class="badge text-bg-dark">Both</span>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if c.status == "running" %}
+                        <span class="badge text-bg-primary js-campaign-running">Running</span>
+                      {% elif c.status == "completed" %}
+                        <span class="badge text-bg-success">Completed</span>
+                      {% elif c.status == "failed" %}
+                        <span class="badge text-bg-danger">Failed</span>
+                      {% else %}
+                        <span class="badge text-bg-secondary">Queued</span>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      <div class="d-flex justify-content-between small mb-1">
+                        <span>{{ processed }} / {{ targeted if targeted > 0 else "0" }}</span>
+                        <span>{{ "%.0f"|format(progress) }}%</span>
+                      </div>
+                      <div class="progress" role="progressbar" aria-valuenow="{{ "%.0f"|format(progress) }}" aria-valuemin="0" aria-valuemax="100" style="height: 10px;">
+                        {% if c.status == "completed" %}
+                          <div class="progress-bar bg-success" style="width: {{ progress }}%;"></div>
+                        {% elif c.status == "failed" %}
+                          <div class="progress-bar bg-danger" style="width: {{ progress }}%;"></div>
+                        {% elif c.status == "running" %}
+                          <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: {{ progress }}%;"></div>
+                        {% else %}
+                          <div class="progress-bar bg-secondary" style="width: {{ progress }}%;"></div>
+                        {% endif %}
+                      </div>
+                    </td>
+
+                    <td class="text-center">{{ sent }}</td>
+                    <td class="text-center">{{ failed }}</td>
+                    <td class="text-center">{{ targeted }}</td>
+
+                    <td class="text-muted text-nowrap">
+                      {{ c.started_at.strftime("%Y-%m-%d %H:%M") if c.started_at else "—" }}
+                    </td>
+
+                    <td class="text-muted text-nowrap">
+                      {{ c.finished_at.strftime("%Y-%m-%d %H:%M") if c.finished_at else "—" }}
+                    </td>
+                  </tr>
+
+                  {% if c.last_error %}
+                    <tr>
+                      <td></td>
+                      <td colspan="8" class="text-danger small">
+                        <strong>Last error:</strong> {{ c.last_error }}
+                      </td>
+                    </tr>
+                  {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="text-muted small mt-2">
+            The page refreshes automatically every 15 seconds while any campaign is running.
+          </div>
+        {% else %}
+          <div class="text-muted small">No campaigns yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Question Inventory -->
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Question Inventory (Band × Question Type)</strong>
+        <span class="badge text-bg-primary">
+          Total: {{ inv_grand_total }}
+        </span>
+      </div>
+
+      <div class="card-body">
+        {% if inv_qtypes and inv_table %}
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Band</th>
+                  {% for qt in inv_qtypes %}
+                    <th class="text-center text-nowrap">{{ qt|upper }}</th>
+                  {% endfor %}
+                  <th class="text-center">Total</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {% for row in inv_table %}
+                  <tr>
+                    <td class="fw-semibold">{{ row.band }}</td>
+                    {% for qt in inv_qtypes %}
+                      <td class="text-center">{{ row[qt] }}</td>
+                    {% endfor %}
+                    <td class="text-center fw-semibold">{{ row.total }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+
+              <tfoot>
+                <tr>
+                  <th>Total</th>
+                  {% for qt in inv_qtypes %}
+                    <th class="text-center">{{ inv_totals_by_qt[qt] }}</th>
+                  {% endfor %}
+                  <th class="text-center">{{ inv_grand_total }}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-muted small">No questions found yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row g-3 mt-1">
       <!-- Active Users -->
       <div class="col-12 col-lg-6">
         <div class="card shadow-sm h-100">
@@ -264,7 +384,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                   {% for username, email, paid_at in subscribers %}
+                    {% for username, email, paid_at in subscribers %}
                       <tr>
                         <td class="fw-semibold">{{ username }}</td>
                         <td class="text-muted">{{ email }}</td>
@@ -287,8 +407,8 @@
         </div>
       </div>
     </div>
-  {% endif %}
 
+  {% endif %}
 </div>
 
 <script>
@@ -296,7 +416,6 @@ function copyRef() {
   const input = document.getElementById("refLink");
   const hint = document.getElementById("copyHint");
 
-  // Clipboard API (best)
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(input.value).then(() => {
       if (hint) {
@@ -307,7 +426,6 @@ function copyRef() {
     return;
   }
 
-  // Fallback
   input.focus();
   input.select();
   input.setSelectionRange(0, 99999);
@@ -317,6 +435,14 @@ function copyRef() {
     hint.classList.remove("d-none");
     setTimeout(() => hint.classList.add("d-none"), 1200);
   }
+}
+
+// Auto-refresh only while a campaign is running
+const runningCampaign = document.querySelector('.js-campaign-running');
+if (runningCampaign) {
+  setTimeout(function () {
+    window.location.reload();
+  }, 15000);
 }
 </script>
 {% endblock %}

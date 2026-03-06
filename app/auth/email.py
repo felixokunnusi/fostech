@@ -1,12 +1,11 @@
 import logging
 import os
-from flask import current_app, url_for
+from flask import current_app, url_for, render_template
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from urllib.error import URLError
 from datetime import datetime
-
-
+from app.email_service import send_email  # the SMTP-chain sender we created earlier
 
 
 # ---------------------------
@@ -126,20 +125,31 @@ def send_html_email(to_email: str, subject: str, html_content: str) -> None:
     _send_message(message)
 
 
+#
+TEMPLATE_MAP = {
+    "active_subscribers": "email/active_subscribers.html",
+    "active_non_subscribers": "email/active_non_subscribers.html",
+}
+
+SUBJECT_MAP = {
+    "active_subscribers": "Your premium access is active",
+    "active_non_subscribers": "Unlock premium practice",
+}
+
 def send_dynamic_template_email(to_email: str, template_id: str, dynamic_data: dict) -> None:
     """
-    SendGrid Dynamic Template sender.
-    template_id like: 'd-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-    dynamic_data dict keys should match your SendGrid template placeholders.
+    Interchangeable provider version:
+    'template_id' is now a LOCAL key, not SendGrid template id.
     """
-    sender = _get_sender()
+    template_path = TEMPLATE_MAP.get(template_id)
+    if not template_path:
+        raise RuntimeError(f"Unknown template_id '{template_id}'. Expected one of: {list(TEMPLATE_MAP)}")
 
-    message = Mail(from_email=sender, to_emails=to_email)
-    message.template_id = template_id
-    message.dynamic_template_data = dynamic_data
+    subject = dynamic_data.get("subject") or SUBJECT_MAP.get(template_id, "Notification")
+    html = render_template(template_path, **dynamic_data)
+    text = dynamic_data.get("text_fallback")  # optional
 
-    _send_message(message)
-
+    send_email(to_email, subject, html, text)
 
 # ---------------------------
 # 3) Segment queries + campaigns

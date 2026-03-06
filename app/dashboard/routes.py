@@ -7,6 +7,7 @@ from . import dashboard_bp
 from app.extensions import db
 from app.models import User, ReferralEarning
 from app.models.quiz import QuizSession, Question
+from app.models.campaign_log import CampaignLog
 
 
 @dashboard_bp.route("/")
@@ -68,8 +69,9 @@ def index():
     from app.models import Subscription
     subscribers = []
     active_users = []
+    recent_campaigns = []
 
-    # ✅ inventory defaults (not shown unless admin)
+    # inventory defaults
     inv_bands = []
     inv_qtypes = []
     inv_table = []
@@ -96,7 +98,14 @@ def index():
             .all()
         )
 
-        # ✅ Question Inventory (Band × Question Type)
+        recent_campaigns = (
+            CampaignLog.query
+            .order_by(CampaignLog.id.desc())
+            .limit(10)
+            .all()
+        )
+
+        # Question Inventory (Band × Question Type)
         stats_rows = (
             db.session.query(
                 Question.band.label("band"),
@@ -107,10 +116,7 @@ def index():
             .all()
         )
 
-        # fixed ordering for bands (always show these rows)
         inv_bands = ["l1-4", "l5-7", "l8-10", "l12-14", "l15-16", "l17", "confirmation"]
-
-        # dynamic set of qtypes found in DB (columns)
         inv_qtypes = sorted({r.qt for r in stats_rows if r.qt})
 
         stats_map = {(r.band, r.qt): int(r.count) for r in stats_rows if r.band and r.qt}
@@ -136,8 +142,8 @@ def index():
         active_session=active_session,
         active_users=active_users,
         subscribers=subscribers,
+        recent_campaigns=recent_campaigns,
 
-        # ✅ admin-only inventory context
         is_admin=is_admin,
         inv_bands=inv_bands,
         inv_qtypes=inv_qtypes,
