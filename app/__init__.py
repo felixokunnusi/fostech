@@ -23,8 +23,8 @@ def create_app():
             missing.append("SECRET_KEY")
         if not os.getenv("DATABASE_URL"):
             missing.append("DATABASE_URL")
-        if not os.getenv("SENDGRID_API_KEY") or not os.getenv("MAIL_DEFAULT_SENDER"):
-            missing.append("SENDGRID_API_KEY/MAIL_DEFAULT_SENDER")
+        if not os.getenv("MAIL_DEFAULT_SENDER"):
+            missing.append("MAIL_DEFAULT_SENDER")
         if not os.getenv("PAYSTACK_SECRET_KEY") or not os.getenv("PAYSTACK_PUBLIC_KEY"):
             missing.append("PAYSTACK_SECRET_KEY/PAYSTACK_PUBLIC_KEY")
 
