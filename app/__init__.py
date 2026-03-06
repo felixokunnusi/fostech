@@ -121,6 +121,13 @@ def create_app():
 
 
     #
+    # ✅ ADD THIS BLOCK HERE
+    @app.context_processor
+    def inject_globals():
+        endpoint = request.endpoint if has_request_context() else None
+        return dict(endpoint=endpoint)
+    
+    
     @app.route('/favicon.ico')
     def favicon():
         return send_from_directory(
@@ -129,10 +136,12 @@ def create_app():
             mimetype='image/vnd.microsoft.icon'
         )
 
-      # ✅ ADD THIS BLOCK HERE
-    @app.context_processor
-    def inject_globals():
-        endpoint = request.endpoint if has_request_context() else None
-        return dict(endpoint=endpoint)
-    
+    @app.route('/robots.txt')
+    def robots():
+        return send_from_directory(
+            os.path.join(app.root_path, 'static'),
+            'robots.txt',
+            mimetype='text/plain'
+        )
+        
     return app
