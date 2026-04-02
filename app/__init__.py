@@ -2,6 +2,8 @@ import os
 from flask import Flask, redirect, url_for, request, session, flash, has_request_context, send_from_directory
 from .extensions import db, login_manager, migrate, mail
 from flask_login import current_user, logout_user
+from app.models.subscription import Subscription
+from app.models.quiz import Question
 
 flask_app = None  # ✅ add this
 
@@ -95,6 +97,27 @@ def create_app():
             session.clear()
             flash("Your account was logged in from another device.", "warning")
             return redirect(url_for("auth.login"))
+        
+ 
+    # Include subscription CTA globally
+    @app.context_processor
+    def inject_subscription_cta():
+        show_subscribe_cta = False
+        total_questions = Question.query.count()
+
+        if current_user.is_authenticated and not getattr(current_user, "is_admin", False):
+            active_sub = (
+                Subscription.query
+                .filter_by(user_id=current_user.id, is_confirmed=True)
+                .order_by(Subscription.expires_at.desc())
+                .first()
+            )
+            show_subscribe_cta = not (active_sub and active_sub.is_active)
+
+        return {
+            "show_subscribe_cta": show_subscribe_cta,
+            "total_questions": total_questions,
+        }
 
 
     # Blueprints

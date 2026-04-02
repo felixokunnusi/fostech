@@ -1,0 +1,12 @@
+<!-- templates/partials/_subscribe_cta.html -->
+{% if show_subscribe_cta %}
+<div class="alert alert-warning d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+  <div>
+    <strong>Go Premium</strong><br>
+    <span class="small text-muted">You are on trial mode. Promotion is getting more competitive. Subscribe to unlock premium practice, full timed exam simulation, access more than {{ total_questions }} questions.</span>
+  </div>
+  <a href="{{ url_for('subscription.start_subscription') }}" class="btn btn-success">
+    Subscribe Now
+  </a>
+</div>
+{% endif %}
