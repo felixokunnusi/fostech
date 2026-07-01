@@ -1,6 +1,8 @@
 # app/admin/routes.py
 
 import time
+import uuid
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
 
 from flask import render_template, request, flash, redirect, url_for, current_app, session
@@ -23,6 +25,210 @@ ALLOWED_EXTENSIONS = {"csv"}
 
 def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+Q = Decimal("0.01")
+
+
+def _money(v) -> Decimal:
+    return Decimal(str(v or 0)).quantize(Q, rounding=ROUND_HALF_UP)
+
+
+def _default_subscription_amount_naira() -> Decimal:
+    """Return configured subscription amount in naira.
+
+    SUBSCRIPTION_AMOUNT is currently stored in kobo in your payment flow.
+    """
+    amount_kobo = current_app.config.get("SUBSCRIPTION_AMOUNT", 1000000)
+    return _money(Decimal(str(amount_kobo)) / Decimal("100"))
+
+
+def _parse_days(value, default: int = 366) -> int:
+    try:
+        days = int(value or default)
+    except (TypeError, ValueError):
+        days = default
+    return max(1, min(days, 3660))
+
+
+@admin_bp.route("/subscriptions", methods=["GET"])
+@login_required
+@admin_required
+def manage_subscriptions():
+    """Admin page for finding users and manually updating subscription access."""
+    q = (request.args.get("q") or "").strip()
+    now = datetime.utcnow()
+
+    users = []
+    if q:
+        like = f"%{q}%"
+        users = (
+            User.query
+            .filter((User.email.ilike(like)) | (User.username.ilike(like)))
+            .order_by(User.id.desc())
+            .limit(50)
+            .all()
+        )
+    else:
+        users = (
+            User.query
+            .order_by(User.id.desc())
+            .limit(50)
+            .all()
+        )
+
+    latest_sub_by_user = {}
+    active_sub_by_user = {}
+
+    if users:
+        user_ids = [u.id for u in users]
+        subs = (
+            Subscription.query
+            .filter(Subscription.user_id.in_(user_ids))
+            .order_by(Subscription.user_id.asc(), Subscription.id.desc())
+            .all()
+        )
+
+        for sub in subs:
+            latest_sub_by_user.setdefault(sub.user_id, sub)
+            if sub.is_confirmed and sub.expires_at and sub.expires_at > now:
+                active_sub_by_user.setdefault(sub.user_id, sub)
+
+    return render_template(
+        "admin/subscriptions.html",
+        q=q,
+        users=users,
+        latest_sub_by_user=latest_sub_by_user,
+        active_sub_by_user=active_sub_by_user,
+        default_amount=_default_subscription_amount_naira(),
+        default_days=366,
+        now=now,
+    )
+
+
+@admin_bp.route("/subscriptions/<int:user_id>/activate", methods=["POST"])
+@login_required
+@admin_required
+def manually_activate_subscription(user_id: int):
+    """Manually grant premium access after a verified payment or admin approval."""
+    user = db.session.get(User, user_id)
+    if not user:
+        flash("User not found.", "danger")
+        return redirect(url_for("admin.manage_subscriptions"))
+
+    days = _parse_days(request.form.get("days"), default=366)
+    amount = _money(request.form.get("amount") or _default_subscription_amount_naira())
+    payment_reference = (request.form.get("payment_reference") or "").strip()
+    now = datetime.utcnow()
+
+    existing_active = (
+        Subscription.query
+        .filter(
+            Subscription.user_id == user.id,
+            Subscription.is_confirmed.is_(True),
+            Subscription.expires_at.isnot(None),
+            Subscription.expires_at > now,
+        )
+        .order_by(Subscription.expires_at.desc())
+        .first()
+    )
+    if existing_active:
+        flash(
+            f"{user.email} already has active access until {existing_active.expires_at.strftime('%Y-%m-%d')}.",
+            "warning",
+        )
+        return redirect(url_for("admin.manage_subscriptions", q=user.email))
+
+    # Prefer activating the latest pending Paystack subscription, because this fixes failed redirects.
+    subscription = (
+        Subscription.query
+        .filter_by(user_id=user.id, is_confirmed=False)
+        .order_by(Subscription.id.desc())
+        .first()
+    )
+
+    if not subscription:
+        manual_reference = payment_reference or f"MANUAL_{uuid.uuid4().hex}"
+        subscription = Subscription(
+            user_id=user.id,
+            amount=float(amount),
+            currency="NGN",
+            payment_provider="manual",
+            reference=manual_reference,
+            payment_reference=payment_reference or manual_reference,
+        )
+        db.session.add(subscription)
+    else:
+        subscription.amount = float(amount)
+        if not subscription.currency:
+            subscription.currency = "NGN"
+        if not subscription.payment_provider:
+            subscription.payment_provider = "manual"
+        if payment_reference and not subscription.payment_reference:
+            subscription.payment_reference = payment_reference
+
+    subscription.is_confirmed = True
+    subscription.paid_at = now
+    subscription.set_expiration(days=days)
+
+    try:
+        db.session.commit()
+
+        # Give referral bonus once. The service already prevents duplicate earning per subscription.
+        from app.services.referral import handle_referral_bonus
+        handle_referral_bonus(subscription)
+
+        flash(
+            f"Premium access activated for {user.email} until {subscription.expires_at.strftime('%Y-%m-%d')}.",
+            "success",
+        )
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Manual subscription activation failed")
+        flash(f"Could not activate subscription: {e}", "danger")
+
+    return redirect(url_for("admin.manage_subscriptions", q=user.email))
+
+
+@admin_bp.route("/subscriptions/<int:user_id>/deactivate", methods=["POST"])
+@login_required
+@admin_required
+def manually_deactivate_subscription(user_id: int):
+    """Remove active premium access if it was granted by mistake."""
+    user = db.session.get(User, user_id)
+    if not user:
+        flash("User not found.", "danger")
+        return redirect(url_for("admin.manage_subscriptions"))
+
+    now = datetime.utcnow()
+    active_sub = (
+        Subscription.query
+        .filter(
+            Subscription.user_id == user.id,
+            Subscription.is_confirmed.is_(True),
+            Subscription.expires_at.isnot(None),
+            Subscription.expires_at > now,
+        )
+        .order_by(Subscription.expires_at.desc())
+        .first()
+    )
+
+    if not active_sub:
+        flash(f"{user.email} has no active subscription to deactivate.", "warning")
+        return redirect(url_for("admin.manage_subscriptions", q=user.email))
+
+    active_sub.is_confirmed = False
+    active_sub.expires_at = now
+
+    try:
+        db.session.commit()
+        flash(f"Premium access deactivated for {user.email}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Manual subscription deactivation failed")
+        flash(f"Could not deactivate subscription: {e}", "danger")
+
+    return redirect(url_for("admin.manage_subscriptions", q=user.email))
 
 
 @admin_bp.route("/upload-questions", methods=["GET", "POST"])
