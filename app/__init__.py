@@ -105,14 +105,34 @@ def create_app():
         show_subscribe_cta = False
         total_questions = Question.query.count()
 
-        if current_user.is_authenticated and not getattr(current_user, "is_admin", False):
+        # Background jobs, including campaign email rendering,
+        # may have an app context but no browser request/login session.
+        if not has_request_context():
+            return {
+                "show_subscribe_cta": False,
+                "total_questions": total_questions,
+            }
+
+        # Safely check the logged-in user.
+        if (
+            current_user is not None
+            and getattr(current_user, "is_authenticated", False)
+            and not getattr(current_user, "is_admin", False)
+        ):
             active_sub = (
                 Subscription.query
-                .filter_by(user_id=current_user.id, is_confirmed=True)
+                .filter_by(
+                    user_id=current_user.id,
+                    is_confirmed=True,
+                )
                 .order_by(Subscription.expires_at.desc())
                 .first()
             )
-            show_subscribe_cta = not (active_sub and active_sub.is_active)
+
+            show_subscribe_cta = not (
+                active_sub
+                and active_sub.is_active
+            )
 
         return {
             "show_subscribe_cta": show_subscribe_cta,
