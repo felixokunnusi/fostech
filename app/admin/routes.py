@@ -263,6 +263,16 @@ def upload_questions():
     return render_template("admin/upload_questions.html", summary=summary, filename=filename)
 
 
+
+def _render_campaign_content(content: str, **values) -> str:
+    """Replace only approved dashboard placeholders in campaign HTML."""
+    rendered = content or ""
+    for key, value in values.items():
+        rendered = rendered.replace(f"[[{key}]]", str(value or ""))
+    return rendered
+
+
+
 def _send_campaign_job(
     campaign_id: int,
     target: str,
@@ -271,6 +281,10 @@ def _send_campaign_job(
     sender_name: str,
     dashboard_link: str,
     subscribe_link: str,
+    subscriber_subject: str,
+    subscriber_content: str,
+    non_subscriber_subject: str,
+    non_subscriber_content: str,
 ) -> None:
     """
     Background worker for campaigns.
@@ -329,16 +343,21 @@ def _send_campaign_job(
 
             for u in subs_users:
                 try:
+                    personalised_content = _render_campaign_content(
+                        subscriber_content,
+                        first_name=u.username or "User",
+                        app_name=app_name,
+                        dashboard_link=dashboard_link,
+                        subscribe_link=subscribe_link,
+                        sender_name=sender_name,
+                    )
                     send_dynamic_template_email(
                         to_email=u.email,
-                        template_id="active_subscribers",
+                        template_id="custom_campaign",
                         dynamic_data={
-                            "first_name": u.username,
-                            "app_name": app_name,
-                            "dashboard_link": dashboard_link,
-                            "sender_name": sender_name,
-                            "subject": f"{app_name}: Your premium access is active",
-                            "text_fallback": f"Hello {u.username}\nDashboard: {dashboard_link}\n— {sender_name}",
+                            "subject": subscriber_subject,
+                            "email_content": personalised_content,
+                            "text_fallback": f"Hello {u.username or 'User'} - {dashboard_link}",
                         },
                     )
                     total_sent += 1
@@ -384,16 +403,21 @@ def _send_campaign_job(
 
             for u in non_sub_users:
                 try:
+                    personalised_content = _render_campaign_content(
+                        non_subscriber_content,
+                        first_name=u.username or "User",
+                        app_name=app_name,
+                        dashboard_link=dashboard_link,
+                        subscribe_link=subscribe_link,
+                        sender_name=sender_name,
+                    )
                     send_dynamic_template_email(
                         to_email=u.email,
-                        template_id="active_non_subscribers",
+                        template_id="custom_campaign",
                         dynamic_data={
-                            "first_name": u.username,
-                            "app_name": app_name,
-                            "subscribe_link": subscribe_link,
-                            "sender_name": sender_name,
-                            "subject": f"{app_name}: Unlock premium practice",
-                            "text_fallback": f"Hello {u.username}\nSubscribe: {subscribe_link}\n— {sender_name}",
+                            "subject": non_subscriber_subject,
+                            "email_content": personalised_content,
+                            "text_fallback": f"Hello {u.username or 'User'} - {subscribe_link}",
                         },
                     )
                     total_sent += 1
@@ -447,8 +471,6 @@ def send_campaigns():
         except ValueError:
             session.pop("last_campaign_sent", None)
 
-    session["last_campaign_sent"] = now.isoformat()
-
     target = request.form.get("target", "both")
     if target not in ("subscribers", "non_subscribers", "both"):
         target = "both"
@@ -462,6 +484,22 @@ def send_campaigns():
 
     app_name = current_app.config.get("APP_NAME", "FOTMASTech CBT App")
     sender_name = current_app.config.get("SENDER_NAME", "Felix")
+
+    subscriber_subject = (request.form.get("subscriber_subject") or "").strip()
+    subscriber_content = (request.form.get("subscriber_content") or "").strip()
+    non_subscriber_subject = (request.form.get("non_subscriber_subject") or "").strip()
+    non_subscriber_content = (request.form.get("non_subscriber_content") or "").strip()
+
+    if target in ("subscribers", "both") and (not subscriber_subject or not subscriber_content):
+        flash("Subscriber email subject and content are required.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    if target in ("non_subscribers", "both") and (not non_subscriber_subject or not non_subscriber_content):
+        flash("Non-subscriber email subject and content are required.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    # Start the cooldown only after the submitted campaign has passed validation.
+    session["last_campaign_sent"] = now.isoformat()
 
     # Build links here while request context is active
     dashboard_link = url_for("dashboard.index", _external=True)
@@ -486,6 +524,10 @@ def send_campaigns():
         sender_name,
         dashboard_link,
         subscribe_link,
+        subscriber_subject,
+        subscriber_content,
+        non_subscriber_subject,
+        non_subscriber_content,
     )
 
     flash(f"Campaign queued (ID #{log.id}). Sending in background…", "success")
@@ -499,19 +541,39 @@ def test_email():
     app_name = current_app.config.get("APP_NAME", "FOTMASTech CBT App")
     sender_name = current_app.config.get("SENDER_NAME", "Admin")
     dashboard_link = url_for("dashboard.index", _external=True)
+    subscribe_link = url_for("subscription.start_subscription", _external=True)
+
+    test_target = request.form.get("test_target", "non_subscribers")
+    if test_target == "subscribers":
+        subject = (request.form.get("subscriber_subject") or "").strip()
+        content = (request.form.get("subscriber_content") or "").strip()
+    else:
+        subject = (request.form.get("non_subscriber_subject") or "").strip()
+        content = (request.form.get("non_subscriber_content") or "").strip()
+
+    if not subject or not content:
+        flash("Enter the test email subject and content first.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    personalised_content = _render_campaign_content(
+        content,
+        first_name=current_user.username or "Admin",
+        app_name=app_name,
+        dashboard_link=dashboard_link,
+        subscribe_link=subscribe_link,
+        sender_name=sender_name,
+    )
 
     send_dynamic_template_email(
         to_email=current_user.email,
-        template_id="active_subscribers",
+        template_id="custom_campaign",
         dynamic_data={
-            "first_name": current_user.username,
-            "app_name": app_name,
-            "dashboard_link": dashboard_link,
-            "sender_name": sender_name,
-            "subject": "Test Email",
-            "text_fallback": "Test Email",
+            "subject": subject,
+            "email_content": personalised_content,
+            "text_fallback": "Campaign test email",
         },
     )
 
-    flash("Test email attempted. Check inbox/spam and logs.", "info")
+    flash("Test email sent. Check your inbox and spam folder.", "success")
     return redirect(url_for("dashboard.index"))
+

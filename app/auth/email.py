@@ -144,6 +144,7 @@ def send_html_email(to_email: str, subject: str, html_content: str, text_content
 TEMPLATE_MAP = {
     "active_subscribers": "email/active_subscribers.html",
     "active_non_subscribers": "email/active_non_subscribers.html",
+    "custom_campaign": "email/custom_campaign.html",
 }
 
 SUBJECT_MAP = {
