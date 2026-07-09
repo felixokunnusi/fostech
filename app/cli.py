@@ -17,7 +17,7 @@ def register_cli(app):
 
         tmpl_subs = current_app.config.get("SENDGRID_TMPL_ACTIVE_SUBSCRIBERS")
         tmpl_non = current_app.config.get("SENDGRID_TMPL_ACTIVE_NON_SUBSCRIBERS")
-        app_name = current_app.config.get("APP_NAME", "FOTMASTech CBT App")
+        app_name = current_app.config.get("APP_NAME", "FOSTech CBT App")
         sender_name = current_app.config.get("SENDER_NAME", "Admin")
         base_url = (current_app.config.get("BASE_URL") or "").rstrip("/")
         limit = int(current_app.config.get("WEEKLY_EMAIL_LIMIT", 200))

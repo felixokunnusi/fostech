@@ -482,7 +482,7 @@ def send_campaigns():
         cfg_limit = 200
     limit = min(max(cfg_limit, 1), 500)
 
-    app_name = current_app.config.get("APP_NAME", "FOTMASTech CBT App")
+    app_name = current_app.config.get("APP_NAME", "FOSTech CBT App")
     sender_name = current_app.config.get("SENDER_NAME", "Felix")
 
     subscriber_subject = (request.form.get("subscriber_subject") or "").strip()
@@ -538,7 +538,7 @@ def send_campaigns():
 @login_required
 @admin_required
 def test_email():
-    app_name = current_app.config.get("APP_NAME", "FOTMASTech CBT App")
+    app_name = current_app.config.get("APP_NAME", "FOSTech CBT App")
     sender_name = current_app.config.get("SENDER_NAME", "Admin")
     dashboard_link = url_for("dashboard.index", _external=True)
     subscribe_link = url_for("subscription.start_subscription", _external=True)

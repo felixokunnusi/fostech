@@ -115,7 +115,7 @@ class BaseConfig:
     # -------------------
     # App / Campaign settings
     # -------------------
-    APP_NAME = _getenv("APP_NAME", "FOTMASTech CBT App")
+    APP_NAME = _getenv("APP_NAME", "FOSTech CBT App")
     SENDER_NAME = _getenv("SENDER_NAME", "Admin")
     BASE_URL = _getenv("BASE_URL", "https://fotmas.site")
     WEEKLY_EMAIL_LIMIT = _as_int(_getenv("WEEKLY_EMAIL_LIMIT"), default=200)

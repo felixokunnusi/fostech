@@ -210,7 +210,7 @@ def _get_sender() -> tuple[str, str]:
         parsed_name
         or _clean(current_app.config.get("APP_NAME"))
         or _clean(current_app.config.get("SENDER_NAME"))
-        or "FOTMASTech CBT App"
+        or "FOSTech CBT App"
     )
 
     return sender_name, parsed_email
