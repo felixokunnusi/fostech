@@ -1,139 +1,353 @@
+# app/email_service.py
+
+from __future__ import annotations
+
 import smtplib
-import threading
+import ssl
 import time
 from dataclasses import dataclass
 from email.message import EmailMessage
-from typing import Optional, Tuple, List
+from email.utils import formataddr, parseaddr
+from typing import Optional
 
 from flask import current_app
 
 
-class EmailSendError(Exception):
-    pass
+class EmailSendError(RuntimeError):
+    """Raised when all configured email providers fail."""
 
 
-@dataclass
-class SmtpConfig:
+@dataclass(frozen=True)
+class SMTPConfig:
+    name: str
     host: str
     port: int
     username: str
     password: str
-    use_tls: bool = True
 
 
-# provider -> unix timestamp until when it should be skipped
+# Store provider cooldown expiry times in memory.
+# This resets whenever the Flask process restarts.
 _PROVIDER_COOLDOWNS: dict[str, float] = {}
-_PROVIDER_LOCK = threading.Lock()
+
+DEFAULT_SMTP_TIMEOUT = 20
+DEFAULT_COOLDOWN_SECONDS = 600
 
 
-def _require(val: Optional[str], name: str) -> str:
-    if not val:
-        raise RuntimeError(f"{name} is missing. Set it in .env / Render env vars.")
-    return val
+def _clean(value: object) -> str:
+    """Convert a configuration value to a stripped string."""
+    if value is None:
+        return ""
+
+    return str(value).strip()
 
 
-def _get_sender() -> str:
-    sender = current_app.config.get("MAIL_DEFAULT_SENDER") or current_app.config.get("MAIL_USERNAME")
-    return _require(sender, "MAIL_DEFAULT_SENDER (or MAIL_USERNAME)")
+def _as_int(value: object, default: int) -> int:
+    """Convert a value to int and fall back safely."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
-def _provider_chain() -> List[str]:
-    chain = current_app.config.get("EMAIL_PROVIDER_CHAIN") or ""
-    if chain.strip():
-        return [p.strip().lower() for p in chain.split(",") if p.strip()]
-    return [(current_app.config.get("EMAIL_PROVIDER") or "brevo").strip().lower()]
+def _provider_chain() -> list[str]:
+    """
+    Return the configured provider order.
+
+    EMAIL_PROVIDER_CHAIN takes priority. If it is empty,
+    EMAIL_PROVIDER is used.
+    """
+    configured_chain = _clean(
+        current_app.config.get("EMAIL_PROVIDER_CHAIN")
+    )
+
+    if configured_chain:
+        providers = [
+            provider.strip().lower()
+            for provider in configured_chain.split(",")
+            if provider.strip()
+        ]
+    else:
+        default_provider = _clean(
+            current_app.config.get("EMAIL_PROVIDER", "zoho")
+        ).lower()
+
+        providers = [default_provider] if default_provider else ["zoho"]
+
+    # Remove duplicates while preserving order.
+    return list(dict.fromkeys(providers))
 
 
-def _load_smtp(provider: str) -> SmtpConfig:
-    p = provider.lower()
+def _get_provider_config(provider: str) -> SMTPConfig:
+    """Build SMTP configuration for a named provider."""
+    provider = provider.strip().lower()
 
-    if p == "brevo":
-        return SmtpConfig(
-            host=current_app.config.get("BREVO_SMTP_HOST", "smtp-relay.brevo.com"),
-            port=int(current_app.config.get("BREVO_SMTP_PORT", 587)),
-            username=_require(current_app.config.get("BREVO_SMTP_USERNAME"), "BREVO_SMTP_USERNAME"),
-            password=_require(current_app.config.get("BREVO_SMTP_PASSWORD"), "BREVO_SMTP_PASSWORD"),
-            use_tls=True,
+    if provider == "zoho":
+        return SMTPConfig(
+            name="zoho",
+            host=_clean(
+                current_app.config.get(
+                    "ZOHO_SMTP_HOST",
+                    "smtppro.zoho.com",
+                )
+            ),
+            port=_as_int(
+                current_app.config.get("ZOHO_SMTP_PORT"),
+                587,
+            ),
+            username=_clean(
+                current_app.config.get("ZOHO_SMTP_USERNAME")
+            ),
+            password=_clean(
+                current_app.config.get("ZOHO_SMTP_PASSWORD")
+            ),
         )
 
-    if p == "mailgun":
-        return SmtpConfig(
-            host=current_app.config.get("MAILGUN_SMTP_HOST", "smtp.mailgun.org"),
-            port=int(current_app.config.get("MAILGUN_SMTP_PORT", 587)),
-            username=_require(current_app.config.get("MAILGUN_SMTP_USERNAME"), "MAILGUN_SMTP_USERNAME"),
-            password=_require(current_app.config.get("MAILGUN_SMTP_PASSWORD"), "MAILGUN_SMTP_PASSWORD"),
-            use_tls=True,
+    if provider == "brevo":
+        return SMTPConfig(
+            name="brevo",
+            host=_clean(
+                current_app.config.get(
+                    "BREVO_SMTP_HOST",
+                    "smtp-relay.brevo.com",
+                )
+            ),
+            port=_as_int(
+                current_app.config.get("BREVO_SMTP_PORT"),
+                587,
+            ),
+            username=_clean(
+                current_app.config.get("BREVO_SMTP_USERNAME")
+            ),
+            password=_clean(
+                current_app.config.get("BREVO_SMTP_PASSWORD")
+            ),
         )
 
-    if p == "mailersend":
-        return SmtpConfig(
-            host=current_app.config.get("MAILERSEND_SMTP_HOST", "smtp.mailersend.net"),
-            port=int(current_app.config.get("MAILERSEND_SMTP_PORT", 587)),
-            username=_require(current_app.config.get("MAILERSEND_SMTP_USERNAME"), "MAILERSEND_SMTP_USERNAME"),
-            password=_require(current_app.config.get("MAILERSEND_SMTP_PASSWORD"), "MAILERSEND_SMTP_PASSWORD"),
-            use_tls=True,
+    if provider == "mailersend":
+        return SMTPConfig(
+            name="mailersend",
+            host=_clean(
+                current_app.config.get(
+                    "MAILERSEND_SMTP_HOST",
+                    "smtp.mailersend.net",
+                )
+            ),
+            port=_as_int(
+                current_app.config.get("MAILERSEND_SMTP_PORT"),
+                587,
+            ),
+            username=_clean(
+                current_app.config.get("MAILERSEND_SMTP_USERNAME")
+            ),
+            password=_clean(
+                current_app.config.get("MAILERSEND_SMTP_PASSWORD")
+            ),
         )
 
-    if p == "zoho":
-        return SmtpConfig(
-            host=current_app.config.get("ZOHO_SMTP_HOST", "smtp.zoho.com"),
-            port=int(current_app.config.get("ZOHO_SMTP_PORT", 587)),
-            username=_require(current_app.config.get("ZOHO_SMTP_USERNAME"), "ZOHO_SMTP_USERNAME"),
-            password=_require(current_app.config.get("ZOHO_SMTP_PASSWORD"), "ZOHO_SMTP_PASSWORD"),
-            use_tls=True,
+    raise EmailSendError(
+        f"Unsupported email provider: {provider}"
+    )
+
+
+def _validate_provider_config(cfg: SMTPConfig) -> None:
+    """Ensure the provider has the required SMTP settings."""
+    missing: list[str] = []
+
+    if not cfg.host:
+        missing.append("host")
+
+    if not cfg.port:
+        missing.append("port")
+
+    if not cfg.username:
+        missing.append("username")
+
+    if not cfg.password:
+        missing.append("password")
+
+    if missing:
+        fields = ", ".join(missing)
+
+        raise EmailSendError(
+            f"{cfg.name} SMTP configuration is missing: {fields}"
         )
 
-    raise RuntimeError(f"Unknown EMAIL provider: {provider}")
+
+def _get_sender() -> tuple[str, str]:
+    """
+    Return sender name and sender email.
+
+    Accepts either:
+        admin@fotmas.site
+
+    or:
+        FOSTech <admin@fotmas.site>
+    """
+    configured_sender = _clean(
+        current_app.config.get("MAIL_DEFAULT_SENDER")
+    )
+
+    if not configured_sender:
+        configured_sender = _clean(
+            current_app.config.get("MAIL_USERNAME")
+        )
+
+    if not configured_sender:
+        raise EmailSendError(
+            "MAIL_DEFAULT_SENDER is missing. "
+            "Set it in .env or the deployment environment variables."
+        )
+
+    parsed_name, parsed_email = parseaddr(configured_sender)
+
+    if not parsed_email:
+        raise EmailSendError(
+            "MAIL_DEFAULT_SENDER does not contain a valid email address."
+        )
+
+    sender_name = (
+        parsed_name
+        or _clean(current_app.config.get("APP_NAME"))
+        or _clean(current_app.config.get("SENDER_NAME"))
+        or "FOTMASTech CBT App"
+    )
+
+    return sender_name, parsed_email
 
 
-def _smtp_send(cfg: SmtpConfig, msg: EmailMessage) -> None:
-    with smtplib.SMTP(cfg.host, cfg.port, timeout=20) as server:
+def _build_message(
+    to_email: str,
+    subject: str,
+    html_content: str,
+    text_content: Optional[str] = None,
+) -> EmailMessage:
+    """Create an email with plain-text and HTML alternatives."""
+    recipient = _clean(to_email)
+    subject = _clean(subject)
+
+    if not recipient:
+        raise EmailSendError("Recipient email address is missing.")
+
+    if not subject:
+        raise EmailSendError("Email subject is missing.")
+
+    sender_name, sender_email = _get_sender()
+
+    message = EmailMessage()
+    message["From"] = formataddr((sender_name, sender_email))
+    message["To"] = recipient
+    message["Subject"] = subject
+
+    plain_text = _clean(text_content)
+
+    if not plain_text:
+        plain_text = (
+            "This email contains HTML content. "
+            "Please view it using an HTML-compatible email client."
+        )
+
+    message.set_content(plain_text)
+
+    if html_content:
+        message.add_alternative(
+            str(html_content),
+            subtype="html",
+        )
+
+    return message
+
+
+def _smtp_timeout() -> int:
+    """Return the configured SMTP connection timeout."""
+    return _as_int(
+        current_app.config.get(
+            "SMTP_TIMEOUT_SECONDS",
+            DEFAULT_SMTP_TIMEOUT,
+        ),
+        DEFAULT_SMTP_TIMEOUT,
+    )
+
+
+def _smtp_send(cfg: SMTPConfig, message: EmailMessage) -> None:
+    """
+    Send an email using the correct connection method.
+
+    Port 465:
+        Implicit TLS using SMTP_SSL.
+
+    Other ports, including 587 and 2525:
+        SMTP connection upgraded with STARTTLS.
+    """
+    _validate_provider_config(cfg)
+
+    timeout = _smtp_timeout()
+    tls_context = ssl.create_default_context()
+
+    if cfg.port == 465:
+        with smtplib.SMTP_SSL(
+            cfg.host,
+            cfg.port,
+            timeout=timeout,
+            context=tls_context,
+        ) as server:
+            server.login(cfg.username, cfg.password)
+            server.send_message(message)
+
+        return
+
+    with smtplib.SMTP(
+        cfg.host,
+        cfg.port,
+        timeout=timeout,
+    ) as server:
         server.ehlo()
-        if cfg.use_tls:
-            server.starttls()
-            server.ehlo()
+        server.starttls(context=tls_context)
+        server.ehlo()
         server.login(cfg.username, cfg.password)
-        server.send_message(msg)
+        server.send_message(message)
 
 
-def _is_on_cooldown(provider: str) -> bool:
-    now = time.time()
-    with _PROVIDER_LOCK:
-        until = _PROVIDER_COOLDOWNS.get(provider, 0)
-        if until <= now:
-            _PROVIDER_COOLDOWNS.pop(provider, None)
-            return False
-        return True
+def _cooldown_seconds() -> int:
+    """Return the provider failure cooldown duration."""
+    return _as_int(
+        current_app.config.get(
+            "EMAIL_PROVIDER_COOLDOWN_SECONDS",
+            DEFAULT_COOLDOWN_SECONDS,
+        ),
+        DEFAULT_COOLDOWN_SECONDS,
+    )
 
 
-def _mark_provider_failed(provider: str, seconds: int, reason: str) -> None:
-    until = time.time() + seconds
-    with _PROVIDER_LOCK:
-        _PROVIDER_COOLDOWNS[provider] = until
+def _provider_is_on_cooldown(provider: str) -> bool:
+    """Return True while a provider is temporarily unavailable."""
+    cooldown_until = _PROVIDER_COOLDOWNS.get(provider, 0)
+    return cooldown_until > time.monotonic()
+
+
+def _put_provider_on_cooldown(
+    provider: str,
+    reason: object,
+) -> None:
+    """Temporarily skip a provider after an SMTP failure."""
+    cooldown_seconds = _cooldown_seconds()
+
+    _PROVIDER_COOLDOWNS[provider] = (
+        time.monotonic() + cooldown_seconds
+    )
+
     current_app.logger.warning(
-        "Email provider put on cooldown: provider=%s cooldown_seconds=%s reason=%s",
-        provider, seconds, reason
+        "Email provider put on cooldown: "
+        "provider=%s cooldown_seconds=%s reason=%s",
+        provider,
+        cooldown_seconds,
+        reason,
     )
 
 
 def _clear_provider_cooldown(provider: str) -> None:
-    with _PROVIDER_LOCK:
-        _PROVIDER_COOLDOWNS.pop(provider, None)
-
-
-def _cooldown_seconds_for_error(err: Exception) -> int:
-    msg = str(err).lower()
-
-    # auth/config problems: retry later but not constantly
-    if any(x in msg for x in ["authentication", "auth", "username", "password", "login failed"]):
-        return 1800  # 30 min
-
-    # provider/rate/network issues: shorter cooldown
-    if any(x in msg for x in ["rate", "quota", "too many", "temporar", "timeout", "connection", "421", "450", "451", "452"]):
-        return 300  # 5 min
-
-    # default
-    return 600  # 10 min
+    """Remove cooldown after a successful delivery."""
+    _PROVIDER_COOLDOWNS.pop(provider, None)
 
 
 def send_email(
@@ -141,50 +355,85 @@ def send_email(
     subject: str,
     html_content: str,
     text_content: Optional[str] = None,
-) -> Tuple[str, Optional[str]]:
+) -> bool:
     """
-    Sends via provider chain with cooldown-aware failover.
-    Returns: (provider_used, previous_error_if_any)
+    Send an email using the configured provider chain.
+
+    Example:
+        EMAIL_PROVIDER_CHAIN=zoho,brevo,mailersend
+
+    Returns True when delivery succeeds.
+
+    Raises EmailSendError when every configured provider fails.
     """
-    sender = _get_sender()
+    message = _build_message(
+        to_email=to_email,
+        subject=subject,
+        html_content=html_content,
+        text_content=text_content,
+    )
 
-    msg = EmailMessage()
-    msg["From"] = sender
-    msg["To"] = to_email
-    msg["Subject"] = subject
+    providers = _provider_chain()
 
-    if not text_content:
-        text_content = "Please open this email in an HTML-capable email client."
-    msg.set_content(text_content)
-    msg.add_alternative(html_content, subtype="html")
+    if not providers:
+        raise EmailSendError(
+            "No email providers are configured."
+        )
 
-    chain = _provider_chain()
+    last_error: Optional[Exception] = None
+    attempted_provider = False
 
-    # First pass: try only healthy providers
-    preferred = [p for p in chain if not _is_on_cooldown(p)]
-    # Fallback pass: if all are on cooldown, try them anyway
-    providers_to_try = preferred if preferred else chain
+    for provider in providers:
+        if _provider_is_on_cooldown(provider):
+            current_app.logger.warning(
+                "Email provider skipped because it is on cooldown: "
+                "provider=%s",
+                provider,
+            )
+            continue
 
-    last_err: Optional[str] = None
+        attempted_provider = True
 
-    for provider in providers_to_try:
         try:
-            cfg = _load_smtp(provider)
-            _smtp_send(cfg, msg)
+            cfg = _get_provider_config(provider)
+            _smtp_send(cfg, message)
+
             _clear_provider_cooldown(provider)
+
             current_app.logger.info(
-                "Email sent via provider=%s to=%s subject=%s",
-                provider, to_email, subject
+                "Email sent successfully: "
+                "provider=%s to=%s subject=%s",
+                provider,
+                to_email,
+                subject,
             )
-            return provider, last_err
 
-        except Exception as e:
-            cooldown = _cooldown_seconds_for_error(e)
-            _mark_provider_failed(provider, cooldown, str(e))
-            last_err = f"{provider}: {e}"
+            return True
+
+        except Exception as exc:
+            last_error = exc
+            _put_provider_on_cooldown(provider, exc)
+
             current_app.logger.exception(
-                "Email failed via provider=%s to=%s subject=%s err=%s",
-                provider, to_email, subject, e
+                "Email failed via provider=%s "
+                "to=%s subject=%s err=%s",
+                provider,
+                to_email,
+                subject,
+                exc,
             )
 
-    raise EmailSendError(f"All providers failed. Last error: {last_err}")
+    if not attempted_provider:
+        raise EmailSendError(
+            "All configured email providers are currently on cooldown."
+        )
+
+    error_message = (
+        str(last_error)
+        if last_error is not None
+        else "Unknown email delivery error"
+    )
+
+    raise EmailSendError(
+        f"All providers failed. Last error: {error_message}"
+    )

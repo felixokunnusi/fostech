@@ -82,33 +82,54 @@
           </a>
 
           {% if current_user.is_admin %}
-          <div class="dropdown">
-            <button class="btn btn-success dropdown-toggle w-100 w-lg-auto {% if endpoint and endpoint.startswith('admin.') %}fw-semibold{% endif %}"
-                    type="button" data-bs-toggle="dropdown" aria-expanded="false">
-              Admin
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li>
-                <a class="dropdown-item {% if endpoint == 'admin.upload_questions' %}active{% endif %}"
-                   href="{{ url_for('admin.upload_questions') }}">
-                  Upload Questions
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item {% if endpoint == 'admin.manage_subscriptions' %}active{% endif %}"
-                   href="{{ url_for('admin.manage_subscriptions') }}">
-                  Manage Subscriptions
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item {% if endpoint == 'admin.withdrawals' %}active{% endif %}"
-                   href="{{ url_for('admin.withdrawals') }}">
-                  Withdrawals
-                </a>
-              </li>
-            </ul>
-          </div>
-          {% endif %}
+            <div class="dropdown admin-dropdown">
+              <button
+                class="btn btn-success dropdown-toggle w-100 w-lg-auto
+                      {% if endpoint and endpoint.startswith('admin.') %}fw-semibold{% endif %}"
+                type="button"
+                id="adminDropdown"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                Admin
+              </button>
+
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="adminDropdown"
+              >
+                <li>
+                  <a
+                    class="dropdown-item
+                          {% if endpoint == 'admin.upload_questions' %}active{% endif %}"
+                    href="{{ url_for('admin.upload_questions') }}"
+                  >
+                    Upload Questions
+                  </a>
+                </li>
+
+                <li>
+                  <a
+                    class="dropdown-item
+                          {% if endpoint == 'admin.manage_subscriptions' %}active{% endif %}"
+                    href="{{ url_for('admin.manage_subscriptions') }}"
+                  >
+                    Manage Subscriptions
+                  </a>
+                </li>
+
+                <li>
+                  <a
+                    class="dropdown-item
+                          {% if endpoint == 'admin.withdrawals' %}active{% endif %}"
+                    href="{{ url_for('admin.withdrawals') }}"
+                  >
+                    Withdrawals
+                  </a>
+                </li>
+              </ul>
+            </div>
+            {% endif %}
 
           <a class="btn btn-outline-light" href="{{ url_for('auth.logout') }}">
             Logout
@@ -218,7 +239,7 @@
     <hr class="my-4">
 
     <div class="text-center small text-muted">
-    © {{ now.year if now else 2026 }} FOTMASTech. All rights reserved.
+    © {{ now.year if now else 2026 }} FOSTech. All rights reserved.
     </div>
 
   </div>
@@ -231,28 +252,63 @@
     const nav = document.querySelector(".navbar");
     const navCollapseEl = document.getElementById("navMain");
 
+    <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const nav = document.querySelector(".navbar");
+    const navCollapseEl = document.getElementById("navMain");
+
     if (!nav || !navCollapseEl) return;
 
     navCollapseEl.addEventListener("click", function (e) {
       const clicked = e.target.closest("a, button");
+
       if (!clicked) return;
 
-      // If navbar is expanded (mobile), collapse after click
-      const isShown = navCollapseEl.classList.contains("show");
-      const isToggler = clicked.classList.contains("navbar-toggler");
-      if (isShown && !isToggler) {
-        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(navCollapseEl);
+      /*
+       * Do not collapse the navbar when:
+       * 1. The navbar toggler is clicked.
+       * 2. A dropdown toggle such as the Admin button is clicked.
+       */
+      const isNavbarToggler =
+        clicked.classList.contains("navbar-toggler");
+
+      const isDropdownToggle =
+        clicked.matches('[data-bs-toggle="dropdown"]');
+
+      if (isNavbarToggler || isDropdownToggle) {
+        return;
+      }
+
+      /*
+       * Collapse only after clicking an actual navigation link,
+       * such as Home, History, Logout, or a dropdown menu item.
+       */
+      const isNavigationLink = clicked.tagName === "A";
+
+      if (
+        isNavigationLink &&
+        navCollapseEl.classList.contains("show")
+      ) {
+        const bsCollapse =
+          bootstrap.Collapse.getOrCreateInstance(navCollapseEl);
+
         bsCollapse.hide();
       }
     });
 
-    // Optional: shrink navbar when scrolling down a bit
-    const onScroll = () => {
-      if (window.scrollY > 20) nav.classList.add("nav--shrink");
-      else nav.classList.remove("nav--shrink");
+    const onScroll = function () {
+      if (window.scrollY > 20) {
+        nav.classList.add("nav--shrink");
+      } else {
+        nav.classList.remove("nav--shrink");
+      }
     };
+
     onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
+
+    window.addEventListener("scroll", onScroll, {
+      passive: true,
+    });
   });
 </script>
 </body>

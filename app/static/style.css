@@ -113,3 +113,24 @@ html, body {
 /*
 #test {background-color: #062e6b;}
 */
+/* ==============================
+  FIX MOBILE ADMIN DROPDOWN HIDDEN
+=============================== */
+@media (max-width: 991.98px) {
+    .admin-dropdown {
+        width: 100%;
+    }
+
+    .admin-dropdown .dropdown-menu {
+        position: static !important;
+        transform: none !important;
+        width: 100%;
+        margin-top: 0.35rem;
+    }
+}
+
+@media (min-width: 992px) {
+    .w-lg-auto {
+        width: auto !important;
+    }
+}

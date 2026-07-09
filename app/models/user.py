@@ -25,7 +25,7 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     reset_token = db.Column(db.String(255), index=True)
     reset_token_expires = db.Column(db.DateTime)
-    wallet_balance = db.Column(Numeric(12,2), default=Decimal("0.00"))
+    wallet_balance = db.Column(Numeric(12,2), nullable=False, default=Decimal("0.00"))
     current_session_token = db.Column(db.String(128), nullable=True)
 
     __table_args__ = (

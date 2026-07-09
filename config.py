@@ -1,6 +1,8 @@
 # config.py
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def _getenv(key: str, default: str | None = None) -> str | None:
     """Small wrapper to read environment variables."""
@@ -122,7 +124,7 @@ class BaseConfig:
     # Referrals / Verification
     # -------------------
     DEFAULT_REFERRAL_CODE = _getenv("DEFAULT_REFERRAL_CODE", "SYSTEM")
-    REFERRAL_BONUS = _as_float(_getenv("REFERRAL_BONUS"), default=500.00)
+    REFERRAL_PERCENT = _as_float(_getenv("REFERRAL_PERCENT"),default=0.025)
     EMAIL_VERIFICATION_EXPIRY_HOURS = _as_int(
         _getenv("EMAIL_VERIFICATION_EXPIRY_HOURS"),
         default=1

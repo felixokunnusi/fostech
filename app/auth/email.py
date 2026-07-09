@@ -41,7 +41,7 @@ def _send_message(to_email: str, subject: str, html_content: str, text_content: 
                 subject=subject,
                 html_content=html_content,
                 text_content=text_content,
-                from_email=sender,
+                #from_email=sender,
             )
         except TypeError:
             # Fallback in case your helper only accepts 4 args
