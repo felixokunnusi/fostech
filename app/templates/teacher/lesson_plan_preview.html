@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}Lesson Plan{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="card shadow-sm">
+
+        <div class="card-body p-4">
+
+            <div class="d-flex justify-content-between
+                        align-items-center mb-4">
+
+                <div>
+                    <h3 class="mb-1">
+                        Lesson Plan
+                    </h3>
+
+                    <p class="text-muted mb-0">
+                        {{ lesson_plan.subject }}
+                        —
+                        {{ lesson_plan.lesson_topic }}
+                    </p>
+                </div>
+
+                <a
+                    href="{{ url_for('teacher.dashboard') }}"
+                    class="btn btn-outline-secondary"
+                >
+                    Teacher Dashboard
+                </a>
+
+            </div>
+
+
+            {% if lesson_plan.status == "generated" %}
+
+                <div class="alert alert-success">
+                    <strong>AI lesson plan generated.</strong>
+
+                    The structured lesson content has been generated
+                    successfully and saved to this lesson plan.
+                </div>
+
+            {% else %}
+
+                <div class="alert alert-info">
+                    <strong>Draft saved.</strong>
+
+                    The lesson-plan information has been saved
+                    successfully. You can now generate the
+                    structured FCT-EMIS lesson plan.
+                </div>
+
+            {% endif %}
+
+
+            <h5 class="border-bottom pb-2 mb-3">
+                Selected Format
+            </h5>
+
+            <p>
+                {% if lesson_plan.format_key == "fct_emis" %}
+                    FCT-EMIS Lesson Plan — Default
+                {% else %}
+                    {{ lesson_plan.format_key }}
+                {% endif %}
+            </p>
+
+
+            <h5 class="border-bottom pb-2 mb-3 mt-4">
+                Lesson Information
+            </h5>
+
+
+            <div class="table-responsive">
+
+                <table class="table table-bordered">
+
+                    <tbody>
+
+                        <tr>
+                            <th width="30%">Date</th>
+                            <td>
+                                {{ lesson_plan.lesson_date
+                                   or "Not specified" }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Class</th>
+                            <td>
+                                {{ lesson_plan.class_name }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>No. in Class</th>
+                            <td>
+                                {{ lesson_plan.number_in_class
+                                   or "Not specified" }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Average Age</th>
+                            <td>
+                                {{ lesson_plan.average_age
+                                   or "Not specified" }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Subject</th>
+                            <td>
+                                {{ lesson_plan.subject }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Lesson Topic</th>
+                            <td>
+                                {{ lesson_plan.lesson_topic }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Unit Topic</th>
+                            <td>
+                                {{ lesson_plan.unit_topic
+                                   or "Not specified" }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Time</th>
+                            <td>
+
+                                {% if lesson_plan.start_time
+                                      or lesson_plan.end_time %}
+
+                                    {{ lesson_plan.start_time
+                                       or "—" }}
+
+                                    -
+
+                                    {{ lesson_plan.end_time
+                                       or "—" }}
+
+                                {% else %}
+
+                                    Not specified
+
+                                {% endif %}
+
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Duration</th>
+                            <td>
+
+                                {% if lesson_plan.duration_minutes %}
+
+                                    {{ lesson_plan.duration_minutes }}
+                                    minutes
+
+                                {% else %}
+
+                                    Not specified
+
+                                {% endif %}
+
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Learning Material(s)</th>
+                            <td>
+                                {{ lesson_plan.learning_materials
+                                   or "Not specified" }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Curriculum / Syllabus</th>
+                            <td>
+                                {{ lesson_plan.curriculum
+                                   or "Not specified" }}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Examination Relevance</th>
+                            <td>
+                                {{ lesson_plan.examination_relevance
+                                   or "None / Not Applicable" }}
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <div class="mt-4">
+
+                <form
+                    method="POST"
+                    action="{{ url_for(
+                        'teacher.generate_lesson_plan_ai',
+                        lesson_plan_id=lesson_plan.id
+                    ) }}"
+                >
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
+
+                        {% if lesson_plan.status == "generated" %}
+                            Regenerate FCT-EMIS Lesson Plan
+                        {% else %}
+                            Generate FCT-EMIS Lesson Plan with AI
+                        {% endif %}
+
+                    </button>
+
+                </form>
+
+                <p class="text-muted mt-2 mb-0">
+                    AI generation uses the configured Teacher Digital
+                    Assistant and saves the structured lesson content
+                    to this draft.
+                </p>
+
+            </div>
+
+
+            {% if generated_content %}
+
+                <div class="mt-5">
+
+                    <h4 class="border-bottom pb-2 mb-4">
+                        Generated Lesson Content
+                    </h4>
+
+
+                    <h5 class="mb-3">
+                        Lesson Objectives
+                    </h5>
+
+                    <ol>
+
+                        {% for objective
+                              in generated_content.lesson_objectives %}
+
+                            <li class="mb-2">
+                                {{ objective }}
+                            </li>
+
+                        {% endfor %}
+
+                    </ol>
+
+
+                    {% set stages = [
+                        (
+                            "Identification of Prior Ideas",
+                            "prior_ideas"
+                        ),
+                        (
+                            "Exploration",
+                            "exploration"
+                        ),
+                        (
+                            "Discussion",
+                            "discussion"
+                        ),
+                        (
+                            "Application",
+                            "application"
+                        ),
+                        (
+                            "Evaluation",
+                            "evaluation"
+                        )
+                    ] %}
+
+
+                    {% for stage_title, stage_key in stages %}
+
+                        <div class="card border mb-4">
+
+                            <div class="card-header">
+                                <strong>
+                                    {{ stage_title }}
+                                </strong>
+                            </div>
+
+                            <div class="card-body">
+
+                                <p>
+                                    <strong>Mode:</strong>
+                                    {{ generated_content[stage_key].mode }}
+                                </p>
+
+                                <div class="mb-3">
+
+                                    <strong>
+                                        Teacher's Activities
+                                    </strong>
+
+                                    <p class="mt-2 mb-0">
+                                        {{ generated_content[
+                                            stage_key
+                                        ].teacher_activities }}
+                                    </p>
+
+                                </div>
+
+                                <div>
+
+                                    <strong>
+                                        Students' Activities
+                                    </strong>
+
+                                    <p class="mt-2 mb-0">
+                                        {{ generated_content[
+                                            stage_key
+                                        ].student_activities }}
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    {% endfor %}
+
+
+                    <h5 class="mb-3">
+                        References
+                    </h5>
+
+                    {% if generated_content.references %}
+
+                        <ul>
+
+                            {% for reference
+                                  in generated_content.references %}
+
+                                <li class="mb-2">
+                                    {{ reference }}
+                                </li>
+
+                            {% endfor %}
+
+                        </ul>
+
+                    {% else %}
+
+                        <p class="text-muted">
+                            No references were supplied or generated.
+                        </p>
+
+                    {% endif %}
+
+
+                    <h5 class="mb-3 mt-4">
+                        Home Task
+                    </h5>
+
+                    <div class="card border">
+
+                        <div class="card-body">
+                            {{ generated_content.home_task }}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

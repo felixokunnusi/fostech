@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}Create Lesson Plan{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="row justify-content-center">
+
+        <div class="col-lg-9">
+
+            <div class="card shadow-sm">
+
+                <div class="card-body p-4">
+
+                    <div class="d-flex justify-content-between
+                                align-items-center mb-4">
+
+                        <div>
+                            <h3 class="mb-1">
+                                Create Lesson Plan
+                            </h3>
+
+                            <p class="text-muted mb-0">
+                                Prepare the lesson information
+                                for your lesson plan.
+                            </p>
+                        </div>
+
+                        <a
+                            href="{{ url_for('teacher.dashboard') }}"
+                            class="btn btn-outline-secondary"
+                        >
+                            Back
+                        </a>
+
+                    </div>
+
+
+                    <form method="POST">
+
+                        {{ form.hidden_tag() }}
+
+
+                        <!-- FORMAT -->
+                        <h5 class="border-bottom pb-2 mb-3">
+                            Lesson Plan Format
+                        </h5>
+
+                        <div class="mb-4">
+
+                            {{ form.format_key.label(
+                                class="form-label"
+                            ) }}
+
+                            {{ form.format_key(
+                                class="form-select"
+                            ) }}
+
+                            <div class="form-text">
+                                FCT-EMIS is currently the default
+                                lesson-plan format. More formats
+                                can be added later.
+                            </div>
+
+                            {% for error in form.format_key.errors %}
+                                <small class="text-danger">
+                                    {{ error }}
+                                </small>
+                            {% endfor %}
+
+                        </div>
+
+
+                        <!-- BASIC INFORMATION -->
+                        <h5 class="border-bottom pb-2 mb-3">
+                            Lesson Information
+                        </h5>
+
+                        <div class="row">
+
+                            <div class="col-md-6 mb-3">
+
+                                {{ form.lesson_date.label(
+                                    class="form-label"
+                                ) }}
+
+                                {{ form.lesson_date(
+                                    class="form-control"
+                                ) }}
+
+                            </div>
+
+
+                            <div class="col-md-6 mb-3">
+
+                                {{ form.class_name.label(
+                                    class="form-label"
+                                ) }}
+
+                                {{ form.class_name(
+                                    class="form-control",
+                                    placeholder="e.g. SS3 C"
+                                ) }}
+
+                                {% for error in form.class_name.errors %}
+                                    <small class="text-danger">
+                                        {{ error }}
+                                    </small>
+                                {% endfor %}
+
+                            </div>
+
+
+                            <div class="col-md-6 mb-3">
+
+                                {{ form.number_in_class.label(
+                                    class="form-label"
+                                ) }}
+
+                                {{ form.number_in_class(
+                                    class="form-control",
+                                    placeholder="e.g. 40"
+                                ) }}
+
+                            </div>
+
+
+                            <div class="col-md-6 mb-3">
+
+                                {{ form.average_age.label(
+                                    class="form-label"
+                                ) }}
+
+                                {{ form.average_age(
+                                    class="form-control",
+                                    placeholder="e.g. 16"
+                                ) }}
+
+                            </div>
+
+
+                            <div class="col-md-6 mb-3">
+
+                                {{ form.subject.label(
+                                    class="form-label"
+                                ) }}
+
+                                {{ form.subject(
+                                    class="form-control",
+                                    placeholder="e.g. Digital Technologies"
+                                ) }}
+
+                                {% for error in form.subject.errors %}
+                                    <small class="text-danger">
+                                        {{ error }}
+                                    </small>
+                                {% endfor %}
+
+                            </div>
+
+
+                            <div class="col-md-6 mb-3">
+
+                                {{ form.lesson_topic.label(
+                                    class="form-label"
+                                ) }}
+
+                                {{ form.lesson_topic(
+                                    class="form-control",
+                                    placeholder="e.g. Computer Network"
+                                ) }}
+
+                                {% for error in form.lesson_topic.errors %}
+                                    <small class="text-danger">
+                                        {{ error }}
+                                    </small>
+                                {% endfor %}
+
+                            </div>
+
+
+                            <div class="col-12 mb-3">
+
+                                {{ form.unit_topic.label(
+                                    class="form-label"
+                                ) }}
+
+                                {{ form.unit_topic(
+                                    class="form-control",
+                                    rows="2",
+                                    placeholder=(
+                                        "Enter the unit/topic coverage"
+                                    )
+                                ) }}
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- TIME -->
+                        <h5 class="border-bottom pb-2 mb-3 mt-3">
+                            Time and Duration
+                        </h5>
+
+                        <div class="row">
+
+                            <div class="col-md-4 mb-3">
+
+                                {{ form.start_time.label(
+                                    class="form-label"
+                                ) }}
+
+                                {{ form.start_time(
+                                    class="form-control",
+                                    placeholder="e.g. 12:40"
+                                ) }}
+
+                            </div>
+
+
+                            <div class="col-md-4 mb-3">
+
+                                {{ form.end_time.label(
+                                    class="form-label"
+                                ) }}
+
+                                {{ form.end_time(
+                                    class="form-control",
+                                    placeholder="e.g. 02:00"
+                                ) }}
+
+                            </div>
+
+
+                            <div class="col-md-4 mb-3">
+
+                                {{ form.duration_minutes.label(
+                                    class="form-label"
+                                ) }}
+
+                                {{ form.duration_minutes(
+                                    class="form-control",
+                                    placeholder="e.g. 80"
+                                ) }}
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- MATERIALS -->
+                        <h5 class="border-bottom pb-2 mb-3 mt-3">
+                            Learning Materials
+                        </h5>
+
+                        <div class="mb-4">
+
+                            {{ form.learning_materials.label(
+                                class="form-label"
+                            ) }}
+
+                            {{ form.learning_materials(
+                                class="form-control",
+                                rows="3",
+                                placeholder=(
+                                    "e.g. Computer systems, "
+                                    "network devices"
+                                )
+                            ) }}
+
+                        </div>
+
+
+                        <!-- CURRICULUM -->
+                        <h5 class="border-bottom pb-2 mb-3 mt-3">
+                            Curriculum and Examination Context
+                        </h5>
+
+                        <div class="mb-3">
+
+                            {{ form.curriculum.label(
+                                class="form-label"
+                            ) }}
+
+                            {{ form.curriculum(
+                                class="form-control",
+                                rows="4",
+                                placeholder=(
+                                    "Enter or select the relevant "
+                                    "curriculum/syllabus context."
+                                )
+                            ) }}
+
+                            <div class="form-text">
+                                The curriculum/syllabus will be treated
+                                as the primary authority when generation
+                                is implemented.
+                            </div>
+
+                        </div>
+
+
+                        <div class="mb-4">
+
+                            {{ form.examination_relevance.label(
+                                class="form-label"
+                            ) }}
+
+                            {{ form.examination_relevance(
+                                class="form-select"
+                            ) }}
+
+                            <div class="form-text">
+                                Examination relevance will only be used
+                                where appropriate to the selected topic
+                                and curriculum.
+                            </div>
+
+                        </div>
+
+
+                        <!-- SUBMIT -->
+                        <div class="d-flex justify-content-between">
+
+                            <a
+                                href="{{ url_for('teacher.dashboard') }}"
+                                class="btn btn-outline-secondary"
+                            >
+                                Cancel
+                            </a>
+
+                            {{ form.submit(
+                                class="btn btn-primary"
+                            ) }}
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

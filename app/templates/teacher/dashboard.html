@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Teacher Workspace{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">
+                Teacher Workspace
+            </h2>
+
+            <p class="text-muted mb-0">
+                Welcome, {{ current_user.username }}.
+                Your teaching tools will be available here.
+            </p>
+        </div>
+
+        <a
+            href="{{ url_for('workspace.index') }}"
+            class="btn btn-outline-secondary"
+        >
+            Switch Workspace
+        </a>
+
+    </div>
+
+
+    <!-- Teacher Tools -->
+    <div class="row g-4">
+
+        <!-- Lesson Plans -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 shadow-sm">
+
+                <div class="card-body">
+
+                    <div class="fs-1 mb-3">
+                        📚
+                    </div>
+
+                    <h5 class="card-title">
+                        Lesson Plans
+                    </h5>
+
+                    <p class="card-text text-muted">
+                        Create structured lesson plans aligned
+                        with the appropriate curriculum and
+                        examination requirements.
+                    </p>
+
+                    <a
+                        href="{{ url_for('teacher.new_lesson_plan') }}"
+                        class="btn btn-primary"
+                    >
+                        Create Lesson Plan
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Lesson Notes -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 shadow-sm">
+
+                <div class="card-body">
+
+                    <div class="fs-1 mb-3">
+                        📝
+                    </div>
+
+                    <h5 class="card-title">
+                        Lesson Notes
+                    </h5>
+
+                    <p class="card-text text-muted">
+                        Generate comprehensive teaching notes
+                        for your selected subject, class, topic,
+                        and curriculum.
+                    </p>
+
+                    <button
+                        class="btn btn-primary"
+                        disabled
+                    >
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Scheme of Work -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 shadow-sm">
+
+                <div class="card-body">
+
+                    <div class="fs-1 mb-3">
+                        📅
+                    </div>
+
+                    <h5 class="card-title">
+                        Scheme of Work
+                    </h5>
+
+                    <p class="card-text text-muted">
+                        Organise topics and teaching activities
+                        across the academic term.
+                    </p>
+
+                    <button
+                        class="btn btn-primary"
+                        disabled
+                    >
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Assignments -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 shadow-sm">
+
+                <div class="card-body">
+
+                    <div class="fs-1 mb-3">
+                        📋
+                    </div>
+
+                    <h5 class="card-title">
+                        Assignments
+                    </h5>
+
+                    <p class="card-text text-muted">
+                        Create classroom assignments,
+                        exercises, and revision activities.
+                    </p>
+
+                    <button
+                        class="btn btn-primary"
+                        disabled
+                    >
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- AI Teaching Assistant -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 shadow-sm border-primary">
+
+                <div class="card-body">
+
+                    <div class="fs-1 mb-3">
+                        🤖
+                    </div>
+
+                    <h5 class="card-title">
+                        AI Teaching Assistant
+                    </h5>
+
+                    <p class="card-text text-muted">
+                        Generate teaching resources using the
+                        Teacher Digital Assistant.
+                    </p>
+
+                    <button
+                        class="btn btn-primary"
+                        disabled
+                    >
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Teacher Resources -->
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 shadow-sm">
+
+                <div class="card-body">
+
+                    <div class="fs-1 mb-3">
+                        🗂️
+                    </div>
+
+                    <h5 class="card-title">
+                        My Resources
+                    </h5>
+
+                    <p class="card-text text-muted">
+                        Save and manage your generated lesson
+                        plans, notes, assignments, and other
+                        teaching materials.
+                    </p>
+
+                    <button
+                        class="btn btn-primary"
+                        disabled
+                    >
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Credit Information -->
+    <div class="card shadow-sm mt-4">
+
+        <div class="card-body">
+
+            <div class="row align-items-center">
+
+                <div class="col-md-8">
+
+                    <h5 class="mb-1">
+                        AI Credits
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        Your AI-powered teaching tools will use
+                        the platform's credit system.
+                    </p>
+
+                </div>
+
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+
+                    <span class="badge bg-secondary fs-6">
+                        Credit system coming soon
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

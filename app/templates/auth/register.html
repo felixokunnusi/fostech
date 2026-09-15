@@ -30,6 +30,17 @@
                     <div class="mb-3">
                         {{ form.password.label(class="form-label") }}
                         {{ form.password(class="form-control") }}
+                        {% for error in form.password.errors %}
+                            <small class="text-danger">{{ error }}</small>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.user_type.label(class="form-label") }}
+                        {{ form.user_type(class="form-select") }}
+                        {% for error in form.user_type.errors %}
+                            <small class="text-danger">{{ error }}</small>
+                        {% endfor %}
                     </div>
 
                     <div class="d-grid">

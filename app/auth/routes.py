@@ -2,10 +2,16 @@ from flask import render_template, redirect, url_for, request, flash, current_ap
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, current_user, login_required
 from ..extensions import db
-from ..models.user import User
+from ..models.user import User, UserRole
 from . import auth_bp
 from .forms import RegisterForm, LoginForm, ConfirmEmailForm
-from .. utils import generate_code, code_is_expired, generate_referral_code, delete_if_expired_unverified, generate_unique_referral_code
+from .. utils import (
+    generate_code,
+    code_is_expired,
+    generate_referral_code,
+    delete_if_expired_unverified,
+    generate_unique_referral_code
+)
 from .email import send_confirmation_email, send_password_reset_email
 from app.auth.decorators import email_verified_required
 from datetime import timedelta, datetime
@@ -27,56 +33,153 @@ def register():
     if not referral_code:
         referral_code = current_app.config.get("DEFAULT_REFERRAL_CODE")
 
-    referrer = User.query.filter_by(referral_code=referral_code).first()
+    referrer = User.query.filter_by(
+        referral_code=referral_code
+    ).first()
+
     if not referrer:
-        referral_code = current_app.config.get("DEFAULT_REFERRAL_CODE")
+        referral_code = current_app.config.get(
+            "DEFAULT_REFERRAL_CODE"
+        )
 
     if form.validate_on_submit():
 
         # Prevent duplicate email
-        if User.query.filter_by(email=form.email.data).first():
-            flash("Email already registered.", "danger")
-            return render_template("auth/register.html", form=form)
+        if User.query.filter_by(
+            email=form.email.data
+        ).first():
+            flash(
+                "Email already registered.",
+                "danger"
+            )
+            return render_template(
+                "auth/register.html",
+                form=form
+            )
 
         # Prevent duplicate username
-        if User.query.filter_by(username=form.username.data).first():
-            flash("Username already taken.", "danger")
-            return render_template("auth/register.html", form=form)
+        if User.query.filter_by(
+            username=form.username.data
+        ).first():
+            flash(
+                "Username already taken.",
+                "danger"
+            )
+            return render_template(
+                "auth/register.html",
+                form=form
+            )
 
-        # 🔐 Generate 6-digit email code
-        email_code = str(random.randint(100000, 999999))
+        # ------------------------------------------------------
+        # Validate selected user role
+        # ------------------------------------------------------
+        allowed_roles = {
+            "civil_servant",
+            "teacher",
+            "student"
+        }
 
+        selected_role = form.user_type.data
+
+        if selected_role not in allowed_roles:
+            flash(
+                "Invalid account type selected.",
+                "danger"
+            )
+            return render_template(
+                "auth/register.html",
+                form=form
+            )
+
+        # ------------------------------------------------------
+        # Generate 6-digit email verification code
+        # ------------------------------------------------------
+        email_code = str(
+            random.randint(100000, 999999)
+        )
+
+        # ------------------------------------------------------
+        # Create new user
+        # ------------------------------------------------------
+        #
+        # Public registration NEVER grants staff access.
+        #
+        # The selected account type is stored in the
+        # user_role table after the User record is created.
+        # ------------------------------------------------------
         user = User(
             username=form.username.data,
             email=form.email.data,
-            password_hash=generate_password_hash(form.password.data),
+            password_hash=generate_password_hash(
+                form.password.data
+            ),
+            is_staff=False,
             is_email_verified=False,
             email_confirm_code=email_code,
-            email_confirm_expires=datetime.utcnow() + timedelta(minutes=10),
+            email_confirm_expires=(
+                datetime.utcnow() + timedelta(minutes=10)
+            ),
             email_code_sent_at=datetime.utcnow(),
             last_confirmation_sent=datetime.utcnow(),
             referred_by=referral_code
         )
 
         db.session.add(user)
+
+        # Flush so that user.id is available before creating
+        # the UserRole record.
+        db.session.flush()
+
+        # ------------------------------------------------------
+        # Assign the selected primary role
+        # ------------------------------------------------------
+        user_role = UserRole(
+            user_id=user.id,
+            role=selected_role
+        )
+
+        db.session.add(user_role)
+
+        # Commit user + role together.
         db.session.commit()
 
-        session.pop("ref", None)  # ✅ prevent referral carrying over to future signups
+        # Prevent referral carrying over to future signups
+        session.pop("ref", None)
 
+        # ------------------------------------------------------
         # Send verification email
+        # ------------------------------------------------------
         try:
             send_confirmation_email(user)
+
         except Exception:
-            current_app.logger.exception("Failed to send confirmation email")
-            flash("Account created, but we couldn't send the confirmation email now. Please try 'Resend confirmation'.", "warning")
+            current_app.logger.exception(
+                "Failed to send confirmation email"
+            )
+
+            flash(
+                "Account created, but we couldn't send the "
+                "confirmation email now. Please try "
+                "'Resend confirmation'.",
+                "warning"
+            )
 
         # Store email for verification step
         session["verify_email"] = user.email
 
-        flash("Enter the 6-digit code sent to your email.", "info")
-        return redirect(url_for("auth.confirm_email"))
+        flash(
+            "Enter the 6-digit code sent to your email.",
+            "info"
+        )
 
-    return render_template("auth/register.html", form=form)
+        return redirect(
+            url_for("auth.confirm_email")
+        )
+
+    return render_template(
+        "auth/register.html",
+        form=form
+    )
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
@@ -87,177 +190,372 @@ def login():
     form = LoginForm()
 
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
+
+        user = User.query.filter_by(
+            email=form.email.data
+        ).first()
 
         if user and delete_if_expired_unverified(user):
-            flash("Your account expired. Please register again.", "danger")
-            return redirect(url_for("auth.register"))
+            flash(
+                "Your account expired. Please register again.",
+                "danger"
+            )
+            return redirect(
+                url_for("auth.register")
+            )
 
         # Invalid credentials
-        if not user or not user.check_password(form.password.data):
-            flash("Invalid email or password", "danger")
-            return render_template("auth/login.html", form=form)
+        if not user or not user.check_password(
+            form.password.data
+        ):
+            flash(
+                "Invalid email or password",
+                "danger"
+            )
+            return render_template(
+                "auth/login.html",
+                form=form
+            )
 
-        # 🔐 Email NOT verified → force confirmation flow
+        # Email NOT verified → force confirmation flow
         if not user.is_email_verified:
             session["verify_email"] = user.email
-            flash("Please confirm your email to continue.", "warning")
-            return redirect(url_for("auth.confirm_email"))
 
-        # ✅ Single session per user 
+            flash(
+                "Please confirm your email to continue.",
+                "warning"
+            )
+
+            return redirect(
+                url_for("auth.confirm_email")
+            )
+
+        # Single session per user
         token = secrets.token_urlsafe(32)
+
         user.current_session_token = token
+
         db.session.commit()
+
         session["session_token"] = token
 
-         # ✅ Verified → login 
+        # Verified → login
         login_user(user)
-        return redirect(url_for("dashboard.index"))
 
-    return render_template("auth/login.html", form=form)
+        return redirect(
+            url_for("workspace.index")
+        )
+
+    return render_template(
+        "auth/login.html",
+        form=form
+    )
+
 
 @auth_bp.route('/logout')
 def logout():
     if current_user.is_authenticated:
         current_user.current_session_token = None
         db.session.commit()
+
     logout_user()
-    return redirect(url_for('auth.login'))
+
+    return redirect(
+        url_for('auth.login')
+    )
 
 
-#Confirmation route
-@auth_bp.route("/confirm-email", methods=["GET", "POST"])
+# --------------------------------------------------------------
+# Confirmation route
+# --------------------------------------------------------------
+@auth_bp.route(
+    "/confirm-email",
+    methods=["GET", "POST"]
+)
 def confirm_email():
-    email = session.get("verify_email")
-    if not email:
-        return redirect(url_for("auth.login"))
 
-    user = User.query.filter_by(email=email).first()
+    email = session.get("verify_email")
+
+    if not email:
+        return redirect(
+            url_for("auth.login")
+        )
+
+    user = User.query.filter_by(
+        email=email
+    ).first()
+
     if not user:
-        flash("Account not found.", "danger")
-        return redirect(url_for("auth.register"))
+        flash(
+            "Account not found.",
+            "danger"
+        )
+        return redirect(
+            url_for("auth.register")
+        )
 
     if delete_if_expired_unverified(user):
-        session.pop("verify_email", None)
-        flash("Verification time expired. Please register again.", "danger")
-        return redirect(url_for("auth.register"))
+        session.pop(
+            "verify_email",
+            None
+        )
+
+        flash(
+            "Verification time expired. Please register again.",
+            "danger"
+        )
+
+        return redirect(
+            url_for("auth.register")
+        )
+
     form = ConfirmEmailForm()
 
     if form.validate_on_submit():
+
         if (
             user.email_confirm_code != form.code.data
             or user.email_confirm_expires < datetime.utcnow()
         ):
-            flash("Invalid or expired code.", "danger")
-            return redirect(url_for("auth.confirm_email"))
+            flash(
+                "Invalid or expired code.",
+                "danger"
+            )
 
-        # ✅ Mark email verified
+            return redirect(
+                url_for("auth.confirm_email")
+            )
+
+        # Mark email verified
         user.is_email_verified = True
         user.email_confirm_code = None
         user.email_confirm_expires = None
 
-        # 🎁 Generate referral code HERE
+        # Generate referral code
         if not user.referral_code:
-            user.referral_code = generate_unique_referral_code()
-            
+            user.referral_code = (
+                generate_unique_referral_code()
+            )
 
         db.session.commit()
 
-        session.pop("verify_email", None)
+        session.pop(
+            "verify_email",
+            None
+        )
 
-        flash("Email verified successfully! You can now log in.", "success")
-        return redirect(url_for("auth.login"))
+        flash(
+            "Email verified successfully! You can now log in.",
+            "success"
+        )
 
-    return render_template("auth/confirm_email.html", form=form)
+        return redirect(
+            url_for("auth.login")
+        )
+
+    return render_template(
+        "auth/confirm_email.html",
+        form=form
+    )
 
 
-# Resend Code
-# Resend Code
+# --------------------------------------------------------------
+# Resend confirmation
+# --------------------------------------------------------------
 @auth_bp.route("/resend-confirmation")
 def resend_confirmation():
+
     email = session.get("verify_email")
-    user = User.query.filter_by(email=email).first()
+
+    user = User.query.filter_by(
+        email=email
+    ).first()
 
     if not user or user.is_email_verified:
-        return redirect(url_for("auth.login"))
+        return redirect(
+            url_for("auth.login")
+        )
 
-    # ⏱ Cooldown (e.g. 60 seconds)
-    if user.last_confirmation_sent and \
-       datetime.utcnow() - user.last_confirmation_sent < timedelta(seconds=60):
-        flash("Please wait before resending.", "warning")
-        return redirect(url_for("auth.confirm_email"))
+    # Cooldown: 60 seconds
+    if (
+        user.last_confirmation_sent
+        and datetime.utcnow()
+        - user.last_confirmation_sent
+        < timedelta(seconds=60)
+    ):
+        flash(
+            "Please wait before resending.",
+            "warning"
+        )
+
+        return redirect(
+            url_for("auth.confirm_email")
+        )
 
     if delete_if_expired_unverified(user):
-        flash("Account expired. Please register again.", "danger")
-        return redirect(url_for("auth.register"))
+        flash(
+            "Account expired. Please register again.",
+            "danger"
+        )
+
+        return redirect(
+            url_for("auth.register")
+        )
 
     # Generate new code
-    user.email_confirm_code = str(random.randint(100000, 999999))
-    user.email_confirm_expires = datetime.utcnow() + timedelta(minutes=10)
+    user.email_confirm_code = str(
+        random.randint(100000, 999999)
+    )
+
+    user.email_confirm_expires = (
+        datetime.utcnow() + timedelta(minutes=10)
+    )
+
     user.last_confirmation_sent = datetime.utcnow()
 
     db.session.commit()
 
-    # 🔥 SAFE email send
+    # Safe email send
     try:
         send_confirmation_email(user)
 
     except RuntimeError as e:
-        flash(str(e), "danger")
-        return redirect(url_for("auth.confirm_email"))
+        flash(
+            str(e),
+            "danger"
+        )
+
+        return redirect(
+            url_for("auth.confirm_email")
+        )
 
     except Exception:
-        flash("Unable to send email right now. Please try again later.", "danger")
-        return redirect(url_for("auth.confirm_email"))
+        flash(
+            "Unable to send email right now. "
+            "Please try again later.",
+            "danger"
+        )
 
-    flash("New confirmation code sent.", "success")
-    return redirect(url_for("auth.confirm_email"))
+        return redirect(
+            url_for("auth.confirm_email")
+        )
 
+    flash(
+        "New confirmation code sent.",
+        "success"
+    )
+
+    return redirect(
+        url_for("auth.confirm_email")
+    )
+
+
+# --------------------------------------------------------------
 # Password reset
-@auth_bp.route("/forgot-password", methods=["GET", "POST"])
+# --------------------------------------------------------------
+@auth_bp.route(
+    "/forgot-password",
+    methods=["GET", "POST"]
+)
 def forgot_password():
+
     if request.method == "POST":
+
         email = request.form.get("email")
-        user = User.query.filter_by(email=email).first()
+
+        user = User.query.filter_by(
+            email=email
+        ).first()
 
         if not user:
-            flash("If that email exists, a reset link has been sent.", "info")
-            return redirect(url_for("auth.login"))
+            flash(
+                "If that email exists, a reset link has been sent.",
+                "info"
+            )
+
+            return redirect(
+                url_for("auth.login")
+            )
 
         user.reset_token = generate_reset_token()
-        user.reset_token_expires = datetime.utcnow() + timedelta(minutes=30)
+
+        user.reset_token_expires = (
+            datetime.utcnow() + timedelta(minutes=30)
+        )
+
         db.session.commit()
 
         send_password_reset_email(user)
-        flash("Password reset link sent. Check your email.", "success")
-        return redirect(url_for("auth.login"))
 
-    return render_template("auth/forgot_password.html")
+        flash(
+            "Password reset link sent. Check your email.",
+            "success"
+        )
 
+        return redirect(
+            url_for("auth.login")
+        )
+
+    return render_template(
+        "auth/forgot_password.html"
+    )
+
+
+# --------------------------------------------------------------
 # Password reset token
-@auth_bp.route("/reset-password/<token>", methods=["GET", "POST"])
+# --------------------------------------------------------------
+@auth_bp.route(
+    "/reset-password/<token>",
+    methods=["GET", "POST"]
+)
 def reset_password(token):
-    user = User.query.filter_by(reset_token=token).first()
 
-    if not user or user.reset_token_expires < datetime.utcnow():
-        flash("Reset link is invalid or expired.", "danger")
-        return redirect(url_for("auth.forgot_password"))
+    user = User.query.filter_by(
+        reset_token=token
+    ).first()
+
+    if (
+        not user
+        or user.reset_token_expires < datetime.utcnow()
+    ):
+        flash(
+            "Reset link is invalid or expired.",
+            "danger"
+        )
+
+        return redirect(
+            url_for("auth.forgot_password")
+        )
 
     if request.method == "POST":
+
         password = request.form.get("password")
         confirm = request.form.get("confirm_password")
 
         if password != confirm:
-            flash("Passwords do not match.", "danger")
+            flash(
+                "Passwords do not match.",
+                "danger"
+            )
+
             return redirect(request.url)
 
         user.set_password(password)
+
         user.reset_token = None
         user.reset_token_expires = None
+
         db.session.commit()
 
-        flash("Password reset successful. You can now log in.", "success")
-        return redirect(url_for("auth.login"))
+        flash(
+            "Password reset successful. You can now log in.",
+            "success"
+        )
 
-    return render_template("auth/reset_password.html")
+        return redirect(
+            url_for("auth.login")
+        )
 
+    return render_template(
+        "auth/reset_password.html"
+    )

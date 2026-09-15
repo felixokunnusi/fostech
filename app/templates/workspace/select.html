@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Choose Workspace{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+
+                <h3 class="text-center mb-4">
+                    Choose Your Workspace
+                </h3>
+
+                <p class="text-center text-muted mb-4">
+                    Select the workspace you want to use.
+                </p>
+
+                <div class="row g-3">
+
+                    {% for workspace in workspaces %}
+
+                    <div class="col-md-6">
+
+                        <a
+                            href="{{ url_for(
+                                'workspace.switch_workspace',
+                                workspace=workspace.key
+                            ) }}"
+                            class="text-decoration-none"
+                        >
+
+                            <div class="card h-100 border shadow-sm">
+
+                                <div class="card-body text-center p-4">
+
+                                    {% if workspace.type == "staff" %}
+
+                                        <div class="fs-1 mb-3">
+                                            🛠️
+                                        </div>
+
+                                    {% elif workspace.key == "teacher" %}
+
+                                        <div class="fs-1 mb-3">
+                                            👨‍🏫
+                                        </div>
+
+                                    {% elif workspace.key == "student" %}
+
+                                        <div class="fs-1 mb-3">
+                                            🎓
+                                        </div>
+
+                                    {% else %}
+
+                                        <div class="fs-1 mb-3">
+                                            👤
+                                        </div>
+
+                                    {% endif %}
+
+                                    <h5 class="mb-2">
+                                        {{ workspace.name }}
+                                    </h5>
+
+                                    <p class="text-muted mb-0">
+                                        Enter {{ workspace.name }} workspace
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </a>
+
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
