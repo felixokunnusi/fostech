@@ -32,6 +32,7 @@ from app.teacher.ai.lesson_plan import (
 
 from . import teacher_bp
 from .forms import LessonPlanForm
+from app.teacher.renderers.fct_emis import build_fct_emis_view_model
 
 
 def teacher_has_access():
@@ -287,4 +288,51 @@ def generate_lesson_plan_ai(lesson_plan_id):
             "teacher.lesson_plan_preview",
             lesson_plan_id=lesson_plan.id,
         )
+    )
+
+
+@teacher_bp.route("/lesson-plans/<int:lesson_plan_id>/fct-emis")
+@login_required
+def lesson_plan_fct_emis(lesson_plan_id):
+    if not teacher_has_access():
+        flash("You do not have access to the Teacher workspace.", "danger")
+        return redirect(url_for("workspace.index"))
+
+    lesson_plan = get_teacher_lesson_plan_or_404(lesson_plan_id)
+
+    if not lesson_plan.generated_content:
+        flash(
+            "Generate the lesson plan before viewing the FCT-EMIS format.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.lesson_plan_preview",
+                lesson_plan_id=lesson_plan.id,
+            )
+        )
+
+    try:
+        generated_content = json.loads(lesson_plan.generated_content)
+    except (TypeError, json.JSONDecodeError):
+        flash(
+            "The saved AI lesson content could not be read.",
+            "danger",
+        )
+        return redirect(
+            url_for(
+                "teacher.lesson_plan_preview",
+                lesson_plan_id=lesson_plan.id,
+            )
+        )
+
+    fct_emis = build_fct_emis_view_model(
+        lesson_plan,
+        generated_content,
+    )
+
+    return render_template(
+        "teacher/fct_emis_lesson_plan.html",
+        lesson_plan=lesson_plan,
+        fct_emis=fct_emis,
     )

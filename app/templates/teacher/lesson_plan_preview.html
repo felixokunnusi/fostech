@@ -207,30 +207,54 @@
             </div>
 
 
+            <!-- ACTION BUTTONS -->
+
             <div class="mt-4">
 
-                <form
-                    method="POST"
-                    action="{{ url_for(
-                        'teacher.generate_lesson_plan_ai',
-                        lesson_plan_id=lesson_plan.id
-                    ) }}"
-                >
+                <div class="d-flex gap-2 flex-wrap">
 
-                    <button
-                        type="submit"
-                        class="btn btn-primary"
+                    <!-- Generate / Regenerate -->
+
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'teacher.generate_lesson_plan_ai',
+                            lesson_plan_id=lesson_plan.id
+                        ) }}"
                     >
 
-                        {% if lesson_plan.status == "generated" %}
-                            Regenerate FCT-EMIS Lesson Plan
-                        {% else %}
-                            Generate FCT-EMIS Lesson Plan with AI
-                        {% endif %}
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                        >
+                            {% if lesson_plan.status == "generated" %}
+                                Regenerate FCT-EMIS Lesson Plan
+                            {% else %}
+                                Generate FCT-EMIS Lesson Plan with AI
+                            {% endif %}
+                        </button>
 
-                    </button>
+                    </form>
 
-                </form>
+
+                    <!-- FCT-EMIS Renderer -->
+
+                    {% if generated_content %}
+
+                        <a
+                            href="{{ url_for(
+                                'teacher.lesson_plan_fct_emis',
+                                lesson_plan_id=lesson_plan.id
+                            ) }}"
+                            class="btn btn-success"
+                        >
+                            View FCT-EMIS Format
+                        </a>
+
+                    {% endif %}
+
+                </div>
+
 
                 <p class="text-muted mt-2 mb-0">
                     AI generation uses the configured Teacher Digital
@@ -241,6 +265,8 @@
             </div>
 
 
+            <!-- GENERATED CONTENT -->
+
             {% if generated_content %}
 
                 <div class="mt-5">
@@ -249,6 +275,8 @@
                         Generated Lesson Content
                     </h4>
 
+
+                    <!-- OBJECTIVES -->
 
                     <h5 class="mb-3">
                         Lesson Objectives
@@ -267,6 +295,8 @@
 
                     </ol>
 
+
+                    <!-- STAGES -->
 
                     {% set stages = [
                         (
@@ -344,6 +374,8 @@
                     {% endfor %}
 
 
+                    <!-- REFERENCES -->
+
                     <h5 class="mb-3">
                         References
                     </h5>
@@ -371,6 +403,8 @@
 
                     {% endif %}
 
+
+                    <!-- HOME TASK -->
 
                     <h5 class="mb-3 mt-4">
                         Home Task

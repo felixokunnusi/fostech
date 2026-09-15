@@ -1,0 +1,750 @@
+{% extends "base.html" %}
+
+{% block title %}Modern Teaching Approach — Lesson Plan{% endblock %}
+
+{% block content %}
+
+<style>
+
+    /* =========================================================
+       WEB VIEW
+       ========================================================= */
+
+    .lesson-plan-actions {
+        max-width: 210mm;
+        margin: 20px auto;
+    }
+
+    .lesson-plan-paper {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto;
+        padding: 12mm;
+        background: #ffffff;
+        border: 1px solid #d8d8d8;
+        box-sizing: border-box;
+
+        font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+
+        font-size: 10.5pt;
+        line-height: 1.35;
+        color: #111111;
+    }
+
+    /* =========================================================
+       DOCUMENT HEADER
+       ========================================================= */
+
+    .lesson-plan-header {
+        text-align: center;
+        margin-bottom: 8mm;
+    }
+
+    .lesson-plan-header .organisation {
+        font-size: 19pt;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        text-transform: uppercase;
+        margin: 0;
+    }
+
+    .lesson-plan-header .document-title {
+        font-size: 17pt;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin: 2mm 0 0;
+    }
+
+    /* =========================================================
+       LESSON INFORMATION
+       ========================================================= */
+
+    .lesson-info {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        margin-bottom: 5mm;
+    }
+
+    .lesson-info th,
+    .lesson-info td {
+        border: 1px solid #555555;
+        padding: 2.2mm 2.5mm;
+        vertical-align: top;
+        text-align: left;
+    }
+
+    .lesson-info th {
+        font-weight: 700;
+        background: #eef2f5;
+        width: 18%;
+    }
+
+    .lesson-info td {
+        width: 32%;
+    }
+
+    .lesson-info .wide-label {
+        width: 18%;
+    }
+
+    /* =========================================================
+       SECTION HEADINGS
+       ========================================================= */
+
+    .document-section {
+        margin-top: 4mm;
+        page-break-inside: avoid;
+    }
+
+    .section-heading {
+        font-size: 11.5pt;
+        font-weight: 700;
+        text-transform: uppercase;
+        background: #e9eef2;
+        border: 1px solid #555555;
+        padding: 2mm 2.5mm;
+        margin: 0;
+    }
+
+    /* =========================================================
+       OBJECTIVES
+       ========================================================= */
+
+    .objectives-list {
+        border: 1px solid #555555;
+        border-top: none;
+        margin: 0;
+        padding: 2.5mm 4mm 2.5mm 9mm;
+    }
+
+    .objectives-list li {
+        margin-bottom: 1.2mm;
+    }
+
+    .objectives-list li:last-child {
+        margin-bottom: 0;
+    }
+
+    /* =========================================================
+       TEACHING STAGES
+       ========================================================= */
+
+    .stage-section {
+        margin-top: 4mm;
+        page-break-inside: avoid;
+    }
+
+    .stage-heading {
+        font-size: 11.5pt;
+        font-weight: 700;
+        text-transform: uppercase;
+        background: #e9eef2;
+        border: 1px solid #555555;
+        padding: 2mm 2.5mm;
+        margin: 0;
+    }
+
+    .stage-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        margin: 0;
+    }
+
+    .stage-table th,
+    .stage-table td {
+        border: 1px solid #555555;
+        padding: 2.2mm 2.5mm;
+        vertical-align: top;
+        text-align: left;
+    }
+
+    .stage-table th {
+        font-weight: 700;
+        background: #f3f5f6;
+    }
+
+    .stage-table th:first-child,
+    .stage-table td:first-child {
+        width: 15%;
+    }
+
+    .stage-table th:nth-child(2),
+    .stage-table td:nth-child(2) {
+        width: 42.5%;
+    }
+
+    .stage-table th:nth-child(3),
+    .stage-table td:nth-child(3) {
+        width: 42.5%;
+    }
+
+    .activity-text {
+        white-space: pre-line;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+    }
+
+    /* =========================================================
+       REFERENCES
+       ========================================================= */
+
+    .references-list {
+        border: 1px solid #555555;
+        border-top: none;
+        margin: 0;
+        padding: 2.5mm 4mm 2.5mm 9mm;
+    }
+
+    .references-list li {
+        margin-bottom: 1.2mm;
+    }
+
+    .references-list li:last-child {
+        margin-bottom: 0;
+    }
+
+    /* =========================================================
+       HOME TASK
+       ========================================================= */
+
+    .home-task {
+        border: 1px solid #555555;
+        border-top: none;
+        padding: 3mm;
+        min-height: 15mm;
+        white-space: pre-line;
+        overflow-wrap: break-word;
+    }
+
+    /* =========================================================
+       REMARKS
+       ========================================================= */
+
+    .remarks-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .remarks-table th,
+    .remarks-table td {
+        border: 1px solid #555555;
+        padding: 2mm 2.5mm;
+        text-align: left;
+        vertical-align: top;
+    }
+
+    .remarks-table th {
+        background: #f3f5f6;
+        font-weight: 700;
+    }
+
+    .remarks-table th:first-child,
+    .remarks-table td:first-child {
+        width: 20%;
+    }
+
+    .remarks-table th:nth-child(2),
+    .remarks-table td:nth-child(2) {
+        width: 32%;
+    }
+
+    .remarks-table th:nth-child(3),
+    .remarks-table td:nth-child(3) {
+        width: 25%;
+    }
+
+    .remarks-table th:nth-child(4),
+    .remarks-table td:nth-child(4) {
+        width: 23%;
+    }
+
+    .remarks-table td {
+        height: 9mm;
+    }
+
+    /* =========================================================
+       PRINT
+       ========================================================= */
+
+    @page {
+        size: A4 portrait;
+        margin: 10mm;
+    }
+
+    @media print {
+
+        html,
+        body {
+            width: 210mm;
+            margin: 0;
+            padding: 0;
+            background: #ffffff !important;
+        }
+
+        body {
+            font-size: 10pt;
+        }
+
+        .lesson-plan-actions,
+        nav,
+        header,
+        footer,
+        .navbar,
+        .btn,
+        .alert {
+            display: none !important;
+        }
+
+        .lesson-plan-paper {
+            width: 100%;
+            min-height: auto;
+            margin: 0;
+            padding: 0;
+            border: none;
+            box-shadow: none;
+        }
+
+        .lesson-plan-header {
+            margin-top: 0;
+            margin-bottom: 6mm;
+        }
+
+        .lesson-plan-header .organisation {
+            font-size: 17pt;
+        }
+
+        .lesson-plan-header .document-title {
+            font-size: 15pt;
+        }
+
+        .lesson-info,
+        .stage-table,
+        .remarks-table {
+            page-break-inside: auto;
+        }
+
+        .lesson-info tr,
+        .stage-table tr,
+        .remarks-table tr {
+            page-break-inside: avoid;
+        }
+
+        .stage-section {
+            page-break-inside: avoid;
+        }
+
+        .document-section {
+            page-break-inside: avoid;
+        }
+
+        .section-heading,
+        .stage-heading {
+            page-break-after: avoid;
+        }
+
+        thead {
+            display: table-header-group;
+        }
+
+        tr {
+            page-break-inside: avoid;
+        }
+
+        a {
+            color: #000000 !important;
+            text-decoration: none !important;
+        }
+    }
+
+</style>
+
+
+<!-- =========================================================
+     WEB ACTIONS
+     ========================================================= -->
+
+<div class="lesson-plan-actions">
+
+    <div class="d-flex justify-content-between align-items-center">
+
+        <a
+            href="{{ url_for(
+                'teacher.lesson_plan_preview',
+                lesson_plan_id=lesson_plan.id
+            ) }}"
+            class="btn btn-outline-secondary"
+        >
+            Back to Preview
+        </a>
+
+        <button
+            type="button"
+            class="btn btn-primary"
+            onclick="window.print()"
+        >
+            Print Lesson Plan
+        </button>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     A4 DOCUMENT
+     ========================================================= -->
+
+<div class="lesson-plan-paper">
+
+
+    <!-- HEADER -->
+
+    <div class="lesson-plan-header">
+
+        <h1 class="organisation">
+            {{ fct_emis.header.organisation }}
+        </h1>
+
+        <h2 class="document-title">
+            {{ fct_emis.header.document_title }}
+        </h2>
+
+    </div>
+
+
+    <!-- =====================================================
+         LESSON INFORMATION
+         ===================================================== -->
+
+    <table class="lesson-info">
+
+        <tbody>
+
+            <tr>
+
+                <th>Date</th>
+
+                <td>
+                    {% if fct_emis.lesson_information.date %}
+                        {{ fct_emis.lesson_information.date.strftime('%d/%m/%Y') }}
+                    {% endif %}
+                </td>
+
+                <th>Class</th>
+
+                <td>
+                    {{ fct_emis.lesson_information.class_name or "" }}
+                </td>
+
+            </tr>
+
+
+            <tr>
+
+                <th>No. in Class</th>
+
+                <td>
+                    {{ fct_emis.lesson_information.number_in_class or "" }}
+                </td>
+
+                <th>Average Age</th>
+
+                <td>
+                    {{ fct_emis.lesson_information.average_age or "" }}
+                </td>
+
+            </tr>
+
+
+            <tr>
+
+                <th>Subject</th>
+
+                <td>
+                    {{ fct_emis.lesson_information.subject or "" }}
+                </td>
+
+                <th>Lesson Topic</th>
+
+                <td>
+                    {{ fct_emis.lesson_information.lesson_topic or "" }}
+                </td>
+
+            </tr>
+
+
+            <tr>
+
+                <th>Time</th>
+
+                <td>
+                    {{ fct_emis.lesson_information.time or "" }}
+                </td>
+
+                <th>Duration</th>
+
+                <td>
+                    {% if fct_emis.lesson_information.duration_minutes %}
+                        {{ fct_emis.lesson_information.duration_minutes }}
+                        MINUTES
+                    {% endif %}
+                </td>
+
+            </tr>
+
+
+            <tr>
+
+                <th>Unit Topic</th>
+
+                <td colspan="3">
+                    {{ fct_emis.lesson_information.unit_topic or "" }}
+                </td>
+
+            </tr>
+
+
+            <tr>
+
+                <th>Learning Materials</th>
+
+                <td colspan="3">
+                    {{ fct_emis.lesson_information.learning_materials or "" }}
+                </td>
+
+            </tr>
+
+        </tbody>
+
+    </table>
+
+
+    <!-- =====================================================
+         LESSON OBJECTIVES
+         ===================================================== -->
+
+    <section class="document-section">
+
+        <h3 class="section-heading">
+            Lesson Objectives
+        </h3>
+
+        <ol class="objectives-list">
+
+            {% for objective in fct_emis.lesson_objectives %}
+
+                <li>
+                    {{ objective }}
+                </li>
+
+            {% endfor %}
+
+        </ol>
+
+    </section>
+
+
+    <!-- =====================================================
+         FIVE TEACHING STAGES
+         ===================================================== -->
+
+    {% for stage in fct_emis.stages %}
+
+        <section class="stage-section">
+
+            <h3 class="stage-heading">
+
+                {{ stage.step_number }}:
+                {{ stage.title }}
+
+            </h3>
+
+
+            <table class="stage-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Mode
+                        </th>
+
+                        <th>
+                            Teacher's Activities
+                        </th>
+
+                        <th>
+                            Students' Activities
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    <tr>
+
+                        <td>
+                            {{ stage.mode or "" }}
+                        </td>
+
+                        <td class="activity-text">
+                            {{ stage.teacher_activities or "" }}
+                        </td>
+
+                        <td class="activity-text">
+                            {{ stage.student_activities or "" }}
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </section>
+
+    {% endfor %}
+
+
+    <!-- =====================================================
+         REFERENCES
+         ===================================================== -->
+
+    <section class="document-section">
+
+        <h3 class="section-heading">
+            References
+        </h3>
+
+
+        {% if fct_emis.references %}
+
+            <ul class="references-list">
+
+                {% for reference in fct_emis.references %}
+
+                    <li>
+                        {{ reference }}
+                    </li>
+
+                {% endfor %}
+
+            </ul>
+
+        {% else %}
+
+            <div class="references-list">
+                No references were supplied or generated.
+            </div>
+
+        {% endif %}
+
+    </section>
+
+
+    <!-- =====================================================
+         HOME TASK
+         ===================================================== -->
+
+    <section class="document-section">
+
+        <h3 class="section-heading">
+            Home Task
+        </h3>
+
+        <div class="home-task">
+            {{ fct_emis.home_task or "" }}
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         REMARKS
+         ===================================================== -->
+
+    <section class="document-section">
+
+        <h3 class="section-heading">
+            Remarks
+        </h3>
+
+
+        <table class="remarks-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        Officer
+                    </th>
+
+                    <th>
+                        Remark
+                    </th>
+
+                    <th>
+                        Name
+                    </th>
+
+                    <th>
+                        Date
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+                <tr>
+
+                    <td>
+                        HOD/V.P. Academics
+                    </td>
+
+                    <td></td>
+
+                    <td></td>
+
+                    <td></td>
+
+                </tr>
+
+
+                <tr>
+
+                    <td>
+                        Inspector/Evaluator
+                    </td>
+
+                    <td></td>
+
+                    <td></td>
+
+                    <td></td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </section>
+
+
+</div>
+
+{% endblock %}
