@@ -10,6 +10,7 @@
 
         <div class="card-body p-4">
 
+            <!-- HEADER -->
             <div class="d-flex justify-content-between
                         align-items-center mb-4">
 
@@ -35,27 +36,43 @@
             </div>
 
 
+            <!-- STATUS MESSAGE -->
+
             {% if lesson_plan.status == "generated" %}
 
-                <div class="alert alert-success">
+                <div class="alert alert-success" role="alert">
                     <strong>AI lesson plan generated.</strong>
 
                     The structured lesson content has been generated
                     successfully and saved to this lesson plan.
                 </div>
 
+            {% elif lesson_plan.status == "needs_regeneration" %}
+
+                <div class="alert alert-warning" role="alert">
+                    <strong>Regeneration required.</strong>
+
+                    The lesson-plan details have been updated, but the
+                    existing AI-generated content may no longer match
+                    the revised details.
+
+                    Please regenerate the lesson plan.
+                </div>
+
             {% else %}
 
-                <div class="alert alert-info">
+                <div class="alert alert-info" role="alert">
                     <strong>Draft saved.</strong>
 
                     The lesson-plan information has been saved
-                    successfully. You can now generate the
-                    structured FCT-EMIS lesson plan.
+                    successfully. You can now generate the structured
+                    FCT-EMIS lesson plan.
                 </div>
 
             {% endif %}
 
+
+            <!-- SELECTED FORMAT -->
 
             <h5 class="border-bottom pb-2 mb-3">
                 Selected Format
@@ -63,17 +80,22 @@
 
             <p>
                 {% if lesson_plan.format_key == "fct_emis" %}
+
                     FCT-EMIS Lesson Plan — Default
+
                 {% else %}
+
                     {{ lesson_plan.format_key }}
+
                 {% endif %}
             </p>
 
 
+            <!-- LESSON INFORMATION -->
+
             <h5 class="border-bottom pb-2 mb-3 mt-4">
                 Lesson Information
             </h5>
-
 
             <div class="table-responsive">
 
@@ -82,60 +104,91 @@
                     <tbody>
 
                         <tr>
-                            <th width="30%">Date</th>
+                            <th width="30%">
+                                Date
+                            </th>
+
                             <td>
                                 {{ lesson_plan.lesson_date
                                    or "Not specified" }}
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>Class</th>
+                            <th>
+                                Class
+                            </th>
+
                             <td>
                                 {{ lesson_plan.class_name }}
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>No. in Class</th>
+                            <th>
+                                No. in Class
+                            </th>
+
                             <td>
                                 {{ lesson_plan.number_in_class
                                    or "Not specified" }}
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>Average Age</th>
+                            <th>
+                                Average Age
+                            </th>
+
                             <td>
                                 {{ lesson_plan.average_age
                                    or "Not specified" }}
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>Subject</th>
+                            <th>
+                                Subject
+                            </th>
+
                             <td>
                                 {{ lesson_plan.subject }}
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>Lesson Topic</th>
+                            <th>
+                                Lesson Topic
+                            </th>
+
                             <td>
                                 {{ lesson_plan.lesson_topic }}
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>Unit Topic</th>
+                            <th>
+                                Unit Topic
+                            </th>
+
                             <td>
                                 {{ lesson_plan.unit_topic
                                    or "Not specified" }}
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>Time</th>
+                            <th>
+                                Time
+                            </th>
+
                             <td>
 
                                 {% if lesson_plan.start_time
@@ -158,8 +211,12 @@
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>Duration</th>
+                            <th>
+                                Duration
+                            </th>
+
                             <td>
 
                                 {% if lesson_plan.duration_minutes %}
@@ -176,24 +233,36 @@
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>Learning Material(s)</th>
+                            <th>
+                                Learning Material(s)
+                            </th>
+
                             <td>
                                 {{ lesson_plan.learning_materials
                                    or "Not specified" }}
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>Curriculum / Syllabus</th>
+                            <th>
+                                Curriculum / Syllabus
+                            </th>
+
                             <td>
                                 {{ lesson_plan.curriculum
                                    or "Not specified" }}
                             </td>
                         </tr>
 
+
                         <tr>
-                            <th>Examination Relevance</th>
+                            <th>
+                                Examination Relevance
+                            </th>
+
                             <td>
                                 {{ lesson_plan.examination_relevance
                                    or "None / Not Applicable" }}
@@ -207,13 +276,35 @@
             </div>
 
 
-            <!-- ACTION BUTTONS -->
+                    <!-- ACTION BUTTONS -->
 
-            <div class="mt-4">
+                <div class="mt-4">
 
-                <div class="d-flex gap-2 flex-wrap">
+                    <div class="d-flex gap-2 flex-wrap">
+                    <a
+                        href="{{ url_for(
+                            'teacher.edit_generated_lesson_plan',
+                            lesson_plan_id=lesson_plan.id
+                        ) }}"
+                        class="btn btn-outline-warning"
+                    >
+                        ✏️ Edit Generated Content
+                    </a>
 
-                    <!-- Generate / Regenerate -->
+                    <!-- EDIT LESSON PLAN -->
+
+                    <a
+                        href="{{ url_for(
+                            'teacher.edit_lesson_plan',
+                            lesson_plan_id=lesson_plan.id
+                        ) }}"
+                        class="btn btn-outline-secondary"
+                    >
+                        ✏️ Edit Lesson Plan
+                    </a>
+
+
+                    <!-- GENERATE / REGENERATE -->
 
                     <form
                         method="POST"
@@ -221,23 +312,34 @@
                             'teacher.generate_lesson_plan_ai',
                             lesson_plan_id=lesson_plan.id
                         ) }}"
+                        class="d-inline"
                     >
 
                         <button
                             type="submit"
                             class="btn btn-primary"
                         >
-                            {% if lesson_plan.status == "generated" %}
-                                Regenerate FCT-EMIS Lesson Plan
+
+                            {% if lesson_plan.status == "needs_regeneration" %}
+
+                                🔄 Regenerate AI Lesson Plan
+
+                            {% elif lesson_plan.status == "generated" %}
+
+                                🔄 Regenerate AI Lesson Plan
+
                             {% else %}
-                                Generate FCT-EMIS Lesson Plan with AI
+
+                                🤖 Generate AI Lesson Plan
+
                             {% endif %}
+
                         </button>
 
                     </form>
 
 
-                    <!-- FCT-EMIS Renderer -->
+                    <!-- FCT-EMIS FORMAT -->
 
                     {% if generated_content %}
 
@@ -253,13 +355,48 @@
 
                     {% endif %}
 
+
+                    <!-- PDF -->
+
+                    {% if generated_content %}
+
+                        <a
+                            href="{{ url_for(
+                                'teacher.lesson_plan_pdf',
+                                lesson_plan_id=lesson_plan.id
+                            ) }}"
+                            class="btn btn-outline-danger"
+                        >
+                            Download PDF
+                        </a>
+
+                    {% endif %}
+
                 </div>
 
 
+                {% if lesson_plan.status == "needs_regeneration" %}
+
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <strong>Regeneration recommended.</strong>
+
+                        You changed the lesson-plan details after the
+                        previous AI content was generated.
+
+                        Regenerating will replace the previous
+                        AI-generated content with content based on the
+                        revised lesson details.
+                    </div>
+
+                {% endif %}
+
+
                 <p class="text-muted mt-2 mb-0">
+
                     AI generation uses the configured Teacher Digital
                     Assistant and saves the structured lesson content
-                    to this draft.
+                    to this lesson plan.
+
                 </p>
 
             </div>
@@ -282,21 +419,31 @@
                         Lesson Objectives
                     </h5>
 
-                    <ol>
+                    {% if generated_content.lesson_objectives %}
 
-                        {% for objective
-                              in generated_content.lesson_objectives %}
+                        <ol>
 
-                            <li class="mb-2">
-                                {{ objective }}
-                            </li>
+                            {% for objective
+                                  in generated_content.lesson_objectives %}
 
-                        {% endfor %}
+                                <li class="mb-2">
+                                    {{ objective }}
+                                </li>
 
-                    </ol>
+                            {% endfor %}
+
+                        </ol>
+
+                    {% else %}
+
+                        <p class="text-muted">
+                            No lesson objectives were generated.
+                        </p>
+
+                    {% endif %}
 
 
-                    <!-- STAGES -->
+                    <!-- FIVE TEACHING STAGES -->
 
                     {% set stages = [
                         (
@@ -327,17 +474,26 @@
                         <div class="card border mb-4">
 
                             <div class="card-header">
+
                                 <strong>
                                     {{ stage_title }}
                                 </strong>
+
                             </div>
+
 
                             <div class="card-body">
 
                                 <p>
-                                    <strong>Mode:</strong>
+
+                                    <strong>
+                                        Mode:
+                                    </strong>
+
                                     {{ generated_content[stage_key].mode }}
+
                                 </p>
+
 
                                 <div class="mb-3">
 
@@ -346,12 +502,15 @@
                                     </strong>
 
                                     <p class="mt-2 mb-0">
+
                                         {{ generated_content[
                                             stage_key
                                         ].teacher_activities }}
+
                                     </p>
 
                                 </div>
+
 
                                 <div>
 
@@ -360,9 +519,11 @@
                                     </strong>
 
                                     <p class="mt-2 mb-0">
+
                                         {{ generated_content[
                                             stage_key
                                         ].student_activities }}
+
                                     </p>
 
                                 </div>
@@ -379,6 +540,7 @@
                     <h5 class="mb-3">
                         References
                     </h5>
+
 
                     {% if generated_content.references %}
 
@@ -410,10 +572,13 @@
                         Home Task
                     </h5>
 
+
                     <div class="card border">
 
                         <div class="card-body">
+
                             {{ generated_content.home_task }}
+
                         </div>
 
                     </div>

@@ -242,6 +242,234 @@
     </div>
 
 
+    <!-- My Lesson Plans -->
+    <div class="card shadow-sm mt-4">
+
+        <div class="card-header bg-white">
+
+            <div class="d-flex justify-content-between align-items-center">
+
+                <div>
+                    <h5 class="mb-1">
+                        📚 My Lesson Plans
+                    </h5>
+
+                    <p class="text-muted mb-0 small">
+                        Your saved lesson plans and generated teaching materials.
+                    </p>
+                </div>
+
+                <a
+                    href="{{ url_for('teacher.new_lesson_plan') }}"
+                    class="btn btn-primary btn-sm"
+                >
+                    + New Lesson Plan
+                </a>
+
+            </div>
+
+        </div>
+
+
+        <div class="card-body p-0">
+
+            {% if lesson_plans %}
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead class="table-light">
+
+                        <tr>
+                            <th>Date</th>
+                            <th>Subject</th>
+                            <th>Topic</th>
+                            <th>Class</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for lesson_plan in lesson_plans %}
+
+                        <tr>
+
+                            <td>
+                                {% if lesson_plan.lesson_date %}
+                                    {{ lesson_plan.lesson_date.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    <span class="text-muted">
+                                        —
+                                    </span>
+                                {% endif %}
+                            </td>
+
+
+                            <td>
+                                <strong>
+                                    {{ lesson_plan.subject }}
+                                </strong>
+                            </td>
+
+
+                            <td>
+                                {{ lesson_plan.lesson_topic }}
+                            </td>
+
+
+                            <td>
+                                {{ lesson_plan.class_name }}
+                            </td>
+
+
+                            <td>
+                                {% if lesson_plan.status == "generated" %}
+
+                                    <span class="badge bg-success">
+                                        Generated
+                                    </span>
+
+                                {% elif lesson_plan.status == "needs_regeneration" %}
+
+                                    <span class="badge bg-warning text-dark">
+                                        Needs Regeneration
+                                    </span>
+
+                                {% elif lesson_plan.status == "draft" %}
+
+                                    <span class="badge bg-secondary">
+                                        Draft
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-secondary">
+                                        {{ lesson_plan.status|replace("_", " ")|title }}
+                                    </span>
+
+                                {% endif %}
+                                
+                            </td>
+
+
+                            <td class="text-end">
+
+                                <div class="btn-group btn-group-sm">
+                                    <a
+                                        href="{{ url_for(
+                                            'teacher.edit_lesson_plan',
+                                            lesson_plan_id=lesson_plan.id
+                                        ) }}"
+                                        class="btn btn-outline-secondary"
+                                    >
+                                        Edit
+                                    </a>
+
+                                    <a
+                                        href="{{ url_for(
+                                            'teacher.lesson_plan_preview',
+                                            lesson_plan_id=lesson_plan.id
+                                        ) }}"
+                                        class="btn btn-outline-primary"
+                                    >
+                                        View
+                                    </a>
+
+
+                                    {% if lesson_plan.generated_content %}
+
+                                    <a
+                                        href="{{ url_for(
+                                            'teacher.lesson_plan_fct_emis',
+                                            lesson_plan_id=lesson_plan.id
+                                        ) }}"
+                                        class="btn btn-outline-success"
+                                    >
+                                        FCT-EMIS
+                                    </a>
+
+
+                                    <a
+                                        href="{{ url_for(
+                                            'teacher.lesson_plan_pdf',
+                                            lesson_plan_id=lesson_plan.id
+                                        ) }}"
+                                        class="btn btn-outline-danger"
+                                    >
+                                        PDF
+                                    </a>
+
+                                    {% endif %}
+
+                                    <form
+                                        method="POST"
+                                        action="{{ url_for(
+                                            'teacher.delete_lesson_plan',
+                                            lesson_plan_id=lesson_plan.id
+                                        ) }}"
+                                        class="d-inline"
+                                        onsubmit="return confirm(
+                                            'Are you sure you want to delete this lesson plan? This action cannot be undone.'
+                                        );"
+                                    >
+                                        <button
+                                            type="submit"
+                                            class="btn btn-outline-danger"
+                                        >
+                                            Delete
+                                        </button>
+                                    </form>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            {% else %}
+
+            <div class="text-center py-5">
+
+                <div class="fs-1 mb-3">
+                    📚
+                </div>
+
+                <h5>
+                    No lesson plans yet
+                </h5>
+
+                <p class="text-muted mb-3">
+                    Create your first lesson plan to get started.
+                </p>
+
+                <a
+                    href="{{ url_for('teacher.new_lesson_plan') }}"
+                    class="btn btn-primary"
+                >
+                    Create Lesson Plan
+                </a>
+
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
     <!-- Credit Information -->
     <div class="card shadow-sm mt-4">
 

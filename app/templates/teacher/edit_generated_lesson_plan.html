@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Edit Generated Lesson Plan
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                ✏️ Edit Generated Lesson Plan
+            </h2>
+
+            <p class="text-muted mb-0">
+                {{ lesson_plan.subject }}
+                —
+                {{ lesson_plan.lesson_topic }}
+            </p>
+        </div>
+
+        <a
+            href="{{ url_for(
+                'teacher.lesson_plan_preview',
+                lesson_plan_id=lesson_plan.id
+            ) }}"
+            class="btn btn-outline-secondary"
+        >
+            ← Back to Lesson Plan
+        </a>
+    </div>
+
+
+    <!-- Information -->
+    <div class="alert alert-info">
+        <strong>Teacher Editing Mode</strong>
+
+        <p class="mb-0 mt-1">
+            You are editing the generated lesson content directly.
+            Your changes will be saved without regenerating the lesson
+            plan with AI.
+        </p>
+    </div>
+
+
+    <form method="POST">
+
+        {{ form.hidden_tag() }}
+
+
+        <!-- LESSON OBJECTIVES -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">
+                    Lesson Objectives
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <p class="text-muted small">
+                    Enter one objective per line.
+                </p>
+
+                {{ form.lesson_objectives(
+                    class="form-control",
+                    rows="7",
+                    placeholder="Example:
+Define a computer network.
+Identify different types of networks.
+Explain common network topologies."
+                ) }}
+
+            </div>
+
+        </div>
+
+
+        <!-- STEP I -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">
+                    STEP I — IDENTIFICATION OF PRIOR IDEAS
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <div class="mb-3">
+                    {{ form.prior_ideas_mode.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.prior_ideas_mode(
+                        class="form-control"
+                    ) }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.prior_ideas_teacher_activities.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.prior_ideas_teacher_activities(
+                        class="form-control",
+                        rows="6"
+                    ) }}
+                </div>
+
+                <div>
+                    {{ form.prior_ideas_student_activities.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.prior_ideas_student_activities(
+                        class="form-control",
+                        rows="6"
+                    ) }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- STEP II -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">
+                    STEP II — EXPLORATION
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <div class="mb-3">
+                    {{ form.exploration_mode.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.exploration_mode(
+                        class="form-control"
+                    ) }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.exploration_teacher_activities.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.exploration_teacher_activities(
+                        class="form-control",
+                        rows="6"
+                    ) }}
+                </div>
+
+                <div>
+                    {{ form.exploration_student_activities.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.exploration_student_activities(
+                        class="form-control",
+                        rows="6"
+                    ) }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- STEP III -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">
+                    STEP III — DISCUSSION
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <div class="mb-3">
+                    {{ form.discussion_mode.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.discussion_mode(
+                        class="form-control"
+                    ) }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.discussion_teacher_activities.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.discussion_teacher_activities(
+                        class="form-control",
+                        rows="6"
+                    ) }}
+                </div>
+
+                <div>
+                    {{ form.discussion_student_activities.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.discussion_student_activities(
+                        class="form-control",
+                        rows="6"
+                    ) }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- STEP IV -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">
+                    STEP IV — APPLICATION
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <div class="mb-3">
+                    {{ form.application_mode.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.application_mode(
+                        class="form-control"
+                    ) }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.application_teacher_activities.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.application_teacher_activities(
+                        class="form-control",
+                        rows="6"
+                    ) }}
+                </div>
+
+                <div>
+                    {{ form.application_student_activities.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.application_student_activities(
+                        class="form-control",
+                        rows="6"
+                    ) }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- STEP V -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">
+                    STEP V — EVALUATION
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <div class="mb-3">
+                    {{ form.evaluation_mode.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.evaluation_mode(
+                        class="form-control"
+                    ) }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.evaluation_teacher_activities.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.evaluation_teacher_activities(
+                        class="form-control",
+                        rows="6"
+                    ) }}
+                </div>
+
+                <div>
+                    {{ form.evaluation_student_activities.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.evaluation_student_activities(
+                        class="form-control",
+                        rows="6"
+                    ) }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- REFERENCES -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">
+                    References
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <p class="text-muted small">
+                    Enter one reference per line.
+                </p>
+
+                {{ form.references(
+                    class="form-control",
+                    rows="5"
+                ) }}
+
+            </div>
+
+        </div>
+
+
+        <!-- HOME TASK -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">
+                    Home Task
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                {{ form.home_task(
+                    class="form-control",
+                    rows="5"
+                ) }}
+
+            </div>
+
+        </div>
+
+
+        <!-- ACTIONS -->
+        <div class="d-flex gap-2 mb-5">
+
+            {{ form.submit(
+                class="btn btn-success btn-lg"
+            ) }}
+
+            <a
+                href="{{ url_for(
+                    'teacher.lesson_plan_preview',
+                    lesson_plan_id=lesson_plan.id
+                ) }}"
+                class="btn btn-outline-secondary btn-lg"
+            >
+                Cancel
+            </a>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
