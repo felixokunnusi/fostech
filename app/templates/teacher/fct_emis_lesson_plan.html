@@ -383,6 +383,16 @@
             Back to Preview
         </a>
 
+        <a
+            href="{{ url_for(
+                'teacher.lesson_plan_pdf',
+                lesson_plan_id=lesson_plan.id
+            ) }}"
+            class="btn btn-primary"
+        >
+            Download PDF
+        </a>
+
         <button
             type="button"
             class="btn btn-primary"

@@ -6,6 +6,8 @@ Handles:
 - Lesson plan creation
 - Lesson plan preview
 - AI lesson-plan generation
+- FCT-EMIS lesson-plan rendering
+- Lesson-plan PDF generation
 
 AI-generated lesson content is stored as structured JSON text in the
 LessonPlan.generated_content field.
@@ -14,11 +16,13 @@ Presentation/rendering remains separate from AI generation.
 """
 
 import json
+from io import BytesIO
 
 from flask import (
     flash,
     redirect,
     render_template,
+    send_file,
     url_for,
 )
 from flask_login import current_user, login_required
@@ -29,10 +33,11 @@ from app.teacher.ai.lesson_plan import (
     LessonPlanAIError,
     generate_lesson_plan,
 )
+from app.teacher.renderers.fct_emis import build_fct_emis_view_model
 
 from . import teacher_bp
 from .forms import LessonPlanForm
-from app.teacher.renderers.fct_emis import build_fct_emis_view_model
+from .pdf import generate_lesson_plan_pdf
 
 
 def teacher_has_access():
@@ -335,4 +340,86 @@ def lesson_plan_fct_emis(lesson_plan_id):
         "teacher/fct_emis_lesson_plan.html",
         lesson_plan=lesson_plan,
         fct_emis=fct_emis,
+    )
+
+@teacher_bp.route("/lesson-plans/<int:lesson_plan_id>/pdf")
+@login_required
+def lesson_plan_pdf(lesson_plan_id):
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    lesson_plan = get_teacher_lesson_plan_or_404(lesson_plan_id)
+
+    if not lesson_plan.generated_content:
+        flash(
+            "Generate the lesson plan before downloading the PDF.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.lesson_plan_preview",
+                lesson_plan_id=lesson_plan.id,
+            )
+        )
+
+    try:
+        generated_content = json.loads(
+            lesson_plan.generated_content
+        )
+    except (TypeError, json.JSONDecodeError):
+        flash(
+            "The saved AI lesson content could not be read.",
+            "danger",
+        )
+        return redirect(
+            url_for(
+                "teacher.lesson_plan_preview",
+                lesson_plan_id=lesson_plan.id,
+            )
+        )
+
+    fct_emis = build_fct_emis_view_model(
+        lesson_plan,
+        generated_content,
+    )
+
+    try:
+        pdf_data = generate_lesson_plan_pdf(
+            lesson_plan,
+            fct_emis,
+        )
+    except Exception:
+        flash(
+            "The lesson plan PDF could not be generated.",
+            "danger",
+        )
+        return redirect(
+            url_for(
+                "teacher.lesson_plan_fct_emis",
+                lesson_plan_id=lesson_plan.id,
+            )
+        )
+
+    filename = (
+        f"lesson_plan_{lesson_plan.id}_"
+        f"{lesson_plan.lesson_topic}.pdf"
+    )
+
+    # Keep the filename safe for Windows and browsers.
+    filename = "".join(
+        character
+        for character in filename
+        if character.isalnum()
+        or character in " ._-"
+    )
+
+    return send_file(
+        BytesIO(pdf_data),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename,
     )

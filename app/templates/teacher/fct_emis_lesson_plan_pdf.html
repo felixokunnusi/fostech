@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <title>
+        FCT-EMIS Lesson Plan -
+        {{ lesson_plan.subject }} -
+        {{ lesson_plan.lesson_topic }}
+    </title>
+
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9pt;
+            color: #111;
+            background: white;
+        }
+
+        body {
+            line-height: 1.25;
+        }
+
+        .document {
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .organisation {
+            font-size: 13pt;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .system {
+            font-size: 8.5pt;
+            margin-top: 2px;
+        }
+
+        .document-title {
+            font-size: 14pt;
+            font-weight: 700;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            border: 0.7px solid #000;
+            padding: 4px 5px;
+            vertical-align: top;
+            overflow-wrap: break-word;
+        }
+
+        th {
+            font-weight: 700;
+        }
+
+        .information-table {
+            margin-bottom: 8px;
+        }
+
+        .information-table .label {
+            width: 15%;
+            font-weight: 700;
+        }
+
+        .information-table .value {
+            width: 35%;
+        }
+
+        .section-title {
+            font-size: 10pt;
+            font-weight: 700;
+            text-align: center;
+            background: #f1f1f1;
+            border: 0.7px solid #000;
+            padding: 4px;
+            margin-top: 8px;
+            margin-bottom: 0;
+            text-transform: uppercase;
+        }
+
+        .objectives {
+            border: 0.7px solid #000;
+            border-top: none;
+            padding: 5px 8px;
+        }
+
+        .objectives ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .objectives li {
+            margin-bottom: 2px;
+        }
+
+        .stage {
+            margin-top: 8px;
+            page-break-inside: avoid;
+        }
+
+        .stage-heading {
+            border: 0.7px solid #000;
+            border-bottom: none;
+            padding: 4px 5px;
+            font-weight: 700;
+            background: #f1f1f1;
+        }
+
+        .stage-table th:nth-child(1) {
+            width: 14%;
+        }
+
+        .stage-table th:nth-child(2) {
+            width: 43%;
+        }
+
+        .stage-table th:nth-child(3) {
+            width: 43%;
+        }
+
+        .stage-table td {
+            min-height: 25px;
+        }
+
+        .references,
+        .home-task {
+            border: 0.7px solid #000;
+            border-top: none;
+            padding: 5px 8px;
+        }
+
+        .references ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .references li {
+            margin-bottom: 2px;
+        }
+
+        .home-task {
+            min-height: 30px;
+        }
+
+        .remarks-table {
+            margin-top: 8px;
+        }
+
+        .remarks-table th:nth-child(1) {
+            width: 28%;
+        }
+
+        .remarks-table th:nth-child(2) {
+            width: 27%;
+        }
+
+        .remarks-table th:nth-child(3) {
+            width: 20%;
+        }
+
+        .remarks-table th:nth-child(4) {
+            width: 25%;
+        }
+
+        .remark-space {
+            height: 35px;
+        }
+
+        .footer-note {
+            margin-top: 6px;
+            text-align: center;
+            font-size: 7pt;
+        }
+
+        /* Keep major sections together where possible. */
+        .keep-together {
+            page-break-inside: avoid;
+        }
+
+        /* Avoid unnecessary blank pages. */
+        tr,
+        td,
+        th {
+            page-break-inside: avoid;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="document">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="organisation">
+            {{ fct_emis.header.organisation }}
+        </div>
+
+        {% if fct_emis.header.system %}
+        <div class="system">
+            {{ fct_emis.header.system }}
+        </div>
+        {% endif %}
+
+        <div class="document-title">
+            {{ fct_emis.header.document_title }}
+        </div>
+    </div>
+
+
+    <!-- LESSON INFORMATION -->
+    <table class="information-table">
+        <tbody>
+
+            <tr>
+                <td class="label">Date</td>
+                <td class="value">
+                    {% if fct_emis.lesson_information.date %}
+                        {{ fct_emis.lesson_information.date.strftime('%d/%m/%Y') }}
+                    {% endif %}
+                </td>
+
+                <td class="label">Class</td>
+                <td class="value">
+                    {{ fct_emis.lesson_information.class_name or '' }}
+                </td>
+            </tr>
+
+            <tr>
+                <td class="label">No. in Class</td>
+                <td class="value">
+                    {{ fct_emis.lesson_information.number_in_class or '' }}
+                </td>
+
+                <td class="label">Average Age</td>
+                <td class="value">
+                    {{ fct_emis.lesson_information.average_age or '' }}
+                </td>
+            </tr>
+
+            <tr>
+                <td class="label">Subject</td>
+                <td class="value">
+                    {{ fct_emis.lesson_information.subject or '' }}
+                </td>
+
+                <td class="label">Lesson Topic</td>
+                <td class="value">
+                    {{ fct_emis.lesson_information.lesson_topic or '' }}
+                </td>
+            </tr>
+
+            <tr>
+                <td class="label">Time</td>
+                <td class="value">
+                    {{ fct_emis.lesson_information.time or '' }}
+                </td>
+
+                <td class="label">Duration</td>
+                <td class="value">
+                    {% if fct_emis.lesson_information.duration_minutes %}
+                        {{ fct_emis.lesson_information.duration_minutes }}
+                        MINUTES
+                    {% endif %}
+                </td>
+            </tr>
+
+            <tr>
+                <td class="label">Unit Topic</td>
+                <td colspan="3">
+                    {{ fct_emis.lesson_information.unit_topic or '' }}
+                </td>
+            </tr>
+
+            <tr>
+                <td class="label">Learning Materials</td>
+                <td colspan="3">
+                    {{ fct_emis.lesson_information.learning_materials or '' }}
+                </td>
+            </tr>
+
+        </tbody>
+    </table>
+
+
+    <!-- OBJECTIVES -->
+    <div class="section-title">
+        Lesson Objectives
+    </div>
+
+    <div class="objectives">
+        {% if fct_emis.lesson_objectives %}
+            <ol>
+                {% for objective in fct_emis.lesson_objectives %}
+                    <li>{{ objective }}</li>
+                {% endfor %}
+            </ol>
+        {% else %}
+            No lesson objectives provided.
+        {% endif %}
+    </div>
+
+
+    <!-- FIVE TEACHING STAGES -->
+    {% for stage in fct_emis.stages %}
+
+    <div class="stage">
+
+        <div class="stage-heading">
+            {{ stage.step_number }}:
+            {{ stage.title }}
+        </div>
+
+        <table class="stage-table">
+            <thead>
+                <tr>
+                    <th>Mode</th>
+                    <th>Teacher's Activities</th>
+                    <th>Students' Activities</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <tr>
+                    <td>
+                        {{ stage.mode or '' }}
+                    </td>
+
+                    <td>
+                        {{ stage.teacher_activities or '' }}
+                    </td>
+
+                    <td>
+                        {{ stage.student_activities or '' }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+    </div>
+
+    {% endfor %}
+
+
+    <!-- REFERENCES -->
+    <div class="section-title">
+        References
+    </div>
+
+    <div class="references">
+        {% if fct_emis.references %}
+            <ul>
+                {% for reference in fct_emis.references %}
+                    <li>{{ reference }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            No references provided.
+        {% endif %}
+    </div>
+
+
+    <!-- HOME TASK -->
+    <div class="section-title">
+        Home Task
+    </div>
+
+    <div class="home-task">
+        {{ fct_emis.home_task or '' }}
+    </div>
+
+
+    <!-- REMARKS -->
+    <div class="section-title">
+        Remarks
+    </div>
+
+    <table class="remarks-table">
+        <thead>
+            <tr>
+                <th>Remark</th>
+                <th>HOD / V.P. Academics</th>
+                <th>Name</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <td class="remark-space">
+                    {{ fct_emis.remarks.hod_vp_academics.remark or '' }}
+                </td>
+
+                <td>
+                    HOD / V.P. Academics
+                </td>
+
+                <td>
+                    {{ fct_emis.remarks.hod_vp_academics.name or '' }}
+                </td>
+
+                <td>
+                    {{ fct_emis.remarks.hod_vp_academics.date or '' }}
+                </td>
+            </tr>
+
+            <tr>
+                <td class="remark-space">
+                    {{ fct_emis.remarks.inspector_evaluator.remark or '' }}
+                </td>
+
+                <td>
+                    Inspector / Evaluator
+                </td>
+
+                <td>
+                    {{ fct_emis.remarks.inspector_evaluator.name or '' }}
+                </td>
+
+                <td>
+                    {{ fct_emis.remarks.inspector_evaluator.date or '' }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <div class="footer-note">
+        FCT-EMIS Lesson Plan
+    </div>
+
+</div>
+
+</body>
+</html>
