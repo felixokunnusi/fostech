@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Assessments
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">
+                📝 Assessments & Assignments
+            </h2>
+
+            <p class="text-muted mb-0">
+                Create, manage and assign assessments to your students.
+            </p>
+        </div>
+
+        <div class="d-flex gap-2">
+
+            <a
+                href="{{ url_for('teacher.dashboard') }}"
+                class="btn btn-outline-secondary"
+            >
+                ← Teacher Dashboard
+            </a>
+
+            <a
+                href="{{ url_for('teacher.new_assessment') }}"
+                class="btn btn-primary"
+            >
+                + New Assessment
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- Information -->
+    <div class="alert alert-info mb-4">
+
+        <strong>Assessment Workspace</strong>
+
+        <p class="mb-0 mt-1">
+            Create an assessment first. Questions can then be added
+            and edited before the assessment is published.
+        </p>
+
+    </div>
+
+
+    <!-- Assessment List -->
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h5 class="mb-0">
+                My Assessments
+            </h5>
+        </div>
+
+        <div class="card-body p-0">
+
+            {% if assessments %}
+
+            <div class="table-responsive">
+
+                <table class="table table-hover mb-0 align-middle">
+
+                    <thead class="table-light">
+
+                        <tr>
+                            <th>Title</th>
+                            <th>Subject</th>
+                            <th>Class</th>
+                            <th>Topic</th>
+                            <th>Type</th>
+                            <th>Questions</th>
+                            <th>Marks</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for assessment in assessments %}
+
+                        <tr>
+
+                            <td>
+                                <strong>
+                                    {{ assessment.title }}
+                                </strong>
+                            </td>
+
+                            <td>
+                                {{ assessment.subject }}
+                            </td>
+
+                            <td>
+                                {{ assessment.class_name }}
+                            </td>
+
+                            <td>
+                                {{ assessment.topic or "—" }}
+                            </td>
+
+                            <td>
+                                {% if assessment.assessment_type == "mcq" %}
+                                    MCQ
+                                {% elif assessment.assessment_type == "short_answer" %}
+                                    Short Answer
+                                {% elif assessment.assessment_type == "theory" %}
+                                    Theory
+                                {% else %}
+                                    Mixed
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {{ assessment.questions|length }}
+                            </td>
+
+                            <td>
+                                {{ assessment.total_marks }}
+                            </td>
+
+                            <td>
+
+                                {% if assessment.status == "published" %}
+
+                                    <span class="badge bg-success">
+                                        Published
+                                    </span>
+
+                                {% elif assessment.status == "closed" %}
+
+                                    <span class="badge bg-secondary">
+                                        Closed
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-warning text-dark">
+                                        Draft
+                                    </span>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+
+                                <div class="d-flex flex-wrap gap-1">
+
+                                    <a
+                                        href="{{ url_for(
+                                            'teacher.manage_assessment',
+                                            assessment_id=assessment.id
+                                        ) }}"
+                                        class="btn btn-sm btn-outline-primary"
+                                    >
+                                        Manage
+                                    </a>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            {% else %}
+
+            <!-- Empty State -->
+
+            <div class="text-center py-5">
+
+                <div class="display-5 mb-3">
+                    📝
+                </div>
+
+                <h5>
+                    No assessments yet
+                </h5>
+
+                <p class="text-muted mb-4">
+                    Create your first assessment or assignment
+                    for your students.
+                </p>
+
+                <a
+                    href="{{ url_for('teacher.new_assessment') }}"
+                    class="btn btn-primary"
+                >
+                    + Create First Assessment
+                </a>
+
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

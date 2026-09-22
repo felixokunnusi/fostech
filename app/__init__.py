@@ -146,6 +146,7 @@ def create_app():
     from app.dashboard.routes import dashboard_bp
     from app.workspace.routes import workspace_bp
     from app.teacher.routes import teacher_bp
+    from app.student import student_bp
     from app.subscriptions.routes import subscription_bp
     from app.referrals.routes import referral_bp
     from app.quiz import quiz_bp
@@ -165,6 +166,7 @@ def create_app():
     register_cli(app)
     app.register_blueprint(workspace_bp)
     app.register_blueprint(teacher_bp)
+    app.register_blueprint(student_bp)
 
 
 

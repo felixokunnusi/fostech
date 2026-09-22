@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Generate Questions with AI</h2>
+            <p class="text-muted mb-0">
+                Generate draft questions for this assessment.
+            </p>
+        </div>
+
+        <a
+            href="{{ url_for(
+                'teacher.manage_assessment',
+                assessment_id=assessment.id
+            ) }}"
+            class="btn btn-outline-secondary"
+        >
+            Back to Assessment
+        </a>
+    </div>
+
+
+    <!-- Assessment Context -->
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-header">
+            <strong>Assessment Details</strong>
+        </div>
+
+        <div class="card-body">
+
+            <div class="row">
+
+                <div class="col-md-6 mb-3">
+                    <strong>Assessment:</strong><br>
+                    {{ assessment.title }}
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <strong>Subject:</strong><br>
+                    {{ assessment.subject }}
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <strong>Class:</strong><br>
+                    {{ assessment.class_name }}
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <strong>Topic:</strong><br>
+                    {{ assessment.topic }}
+                </div>
+
+            </div>
+
+            <div class="alert alert-info mb-0">
+                <strong>Note:</strong>
+                The subject, class, and topic are taken automatically
+                from the assessment. You do not need to enter them again.
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- AI Generation Form -->
+
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <strong>AI Generation Parameters</strong>
+        </div>
+
+        <div class="card-body">
+
+            <form method="POST">
+
+                {{ form.hidden_tag() }}
+
+                <div class="row">
+
+                    <!-- Number -->
+
+                    <div class="col-md-6 mb-3">
+
+                        {{ form.number_of_questions.label(
+                            class="form-label"
+                        ) }}
+
+                        {{ form.number_of_questions(
+                            class="form-control",
+                            min="1",
+                            max="100"
+                        ) }}
+
+                        {% for error in form.number_of_questions.errors %}
+                            <div class="text-danger small">
+                                {{ error }}
+                            </div>
+                        {% endfor %}
+
+                        <div class="form-text">
+                            Choose between 1 and 100 questions.
+                        </div>
+
+                    </div>
+
+
+                    <!-- Question Type -->
+
+                    <div class="col-md-6 mb-3">
+
+                        {{ form.question_type.label(
+                            class="form-label"
+                        ) }}
+
+                        {{ form.question_type(
+                            class="form-select"
+                        ) }}
+
+                        {% for error in form.question_type.errors %}
+                            <div class="text-danger small">
+                                {{ error }}
+                            </div>
+                        {% endfor %}
+
+                    </div>
+
+
+                    <!-- Difficulty -->
+
+                    <div class="col-md-6 mb-3">
+
+                        {{ form.difficulty.label(
+                            class="form-label"
+                        ) }}
+
+                        {{ form.difficulty(
+                            class="form-select"
+                        ) }}
+
+                        {% for error in form.difficulty.errors %}
+                            <div class="text-danger small">
+                                {{ error }}
+                            </div>
+                        {% endfor %}
+
+                    </div>
+
+
+                    <!-- Examination Relevance -->
+
+                    <div class="col-md-6 mb-3">
+
+                        {{ form.examination_relevance.label(
+                            class="form-label"
+                        ) }}
+
+                        {{ form.examination_relevance(
+                            class="form-select"
+                        ) }}
+
+                        {% for error in form.examination_relevance.errors %}
+                            <div class="text-danger small">
+                                {{ error }}
+                            </div>
+                        {% endfor %}
+
+                    </div>
+
+
+                    <!-- Additional Instructions -->
+
+                    <div class="col-12 mb-3">
+
+                        {{ form.additional_instructions.label(
+                            class="form-label"
+                        ) }}
+
+                        {{ form.additional_instructions(
+                            class="form-control",
+                            rows="5",
+                            placeholder="Optional instructions for the AI, e.g. focus on practical applications, include calculations, align with a particular curriculum emphasis..."
+                        ) }}
+
+                        {% for error in form.additional_instructions.errors %}
+                            <div class="text-danger small">
+                                {{ error }}
+                            </div>
+                        {% endfor %}
+
+                    </div>
+
+                </div>
+
+
+                <div class="alert alert-warning">
+                    <strong>Important:</strong>
+                    AI-generated questions will be added to this assessment
+                    as draft questions. They will not be published
+                    automatically. Review, edit, delete, or add questions
+                    before publishing the assessment.
+                </div>
+
+
+                <div class="d-flex gap-2">
+
+                    {{ form.submit(
+                        class="btn btn-primary"
+                    ) }}
+
+                    <a
+                        href="{{ url_for(
+                            'teacher.manage_assessment',
+                            assessment_id=assessment.id
+                        ) }}"
+                        class="btn btn-secondary"
+                    >
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

@@ -29,17 +29,30 @@ from flask import (
 from flask_login import current_user, login_required
 
 from app.extensions import db
-from app.models import LessonPlan
+from app.models import (
+    Assessment,
+    AssessmentQuestion,
+    LessonPlan,
+)
 from app.teacher.ai.lesson_plan import (
     LessonPlanAIError,
     generate_lesson_plan,
+)
+from app.teacher.ai.assessment import (
+    AssessmentAIError,
+    generate_assessment_questions,
 )
 from app.teacher.renderers.fct_emis import build_fct_emis_view_model
 
 from . import teacher_bp
 from .pdf import generate_lesson_plan_pdf
-from .forms import GeneratedLessonPlanForm, LessonPlanForm
-
+from .forms import (
+    AssessmentAIGenerationForm,
+    AssessmentForm,
+    AssessmentQuestionForm,
+    GeneratedLessonPlanForm,
+    LessonPlanForm,
+)
 
 def teacher_has_access():
     """
@@ -782,4 +795,651 @@ def delete_lesson_plan(lesson_plan_id):
 
     return redirect(
         url_for("teacher.dashboard")
+    )
+
+
+def validate_assessment_for_publication(assessment):
+    """
+    Validate an assessment before it can be published.
+
+    Returns:
+        list[str]: Validation errors.
+    """
+
+    errors = []
+
+    # Basic assessment information
+    if not assessment.title or not assessment.title.strip():
+        errors.append("Assessment title is required.")
+
+    if not assessment.subject or not assessment.subject.strip():
+        errors.append("Subject is required.")
+
+    if not assessment.class_name or not assessment.class_name.strip():
+        errors.append("Class is required.")
+
+    if not assessment.topic or not assessment.topic.strip():
+        errors.append("Topic is required.")
+
+    # Questions
+    questions = (
+        AssessmentQuestion.query
+        .filter_by(assessment_id=assessment.id)
+        .order_by(AssessmentQuestion.question_number.asc())
+        .all()
+    )
+
+    if not questions:
+        errors.append(
+            "The assessment must contain at least one question."
+        )
+        return errors
+
+    # Validate each question
+    for number, question in enumerate(questions, start=1):
+
+        question_label = f"Question {number}"
+
+        if not question.question_text or not question.question_text.strip():
+            errors.append(
+                f"{question_label}: question text is required."
+            )
+
+        if not question.marks or question.marks < 1:
+            errors.append(
+                f"{question_label}: marks must be at least 1."
+            )
+
+        if question.question_type == "mcq":
+
+            if not question.option_a or not question.option_a.strip():
+                errors.append(
+                    f"{question_label}: Option A is required."
+                )
+
+            if not question.option_b or not question.option_b.strip():
+                errors.append(
+                    f"{question_label}: Option B is required."
+                )
+
+            if not question.option_c or not question.option_c.strip():
+                errors.append(
+                    f"{question_label}: Option C is required."
+                )
+
+            if not question.option_d or not question.option_d.strip():
+                errors.append(
+                    f"{question_label}: Option D is required."
+                )
+
+            if (
+                not question.correct_answer
+                or not question.correct_answer.strip()
+            ):
+                errors.append(
+                    f"{question_label}: correct answer is required."
+                )
+
+    # Date validation
+    if assessment.start_at and assessment.due_at:
+        if assessment.due_at <= assessment.start_at:
+            errors.append(
+                "The due date/time must be later than the start date/time."
+            )
+
+    return errors
+
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>/validate",
+    methods=["POST"],
+)
+@login_required
+def validate_assessment(assessment_id):
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    if assessment.status != "draft":
+        flash(
+            "Only draft assessments can be validated for publication.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    errors = validate_assessment_for_publication(assessment)
+
+    if errors:
+        for error in errors:
+            flash(error, "danger")
+
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    flash(
+        "Assessment passed all publication checks. "
+        "It is ready to be published.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "teacher.manage_assessment",
+            assessment_id=assessment.id,
+        )
+    )
+
+
+@teacher_bp.route("/assessments")
+@login_required
+def assessments():
+    """
+    Display assessments belonging to the current teacher.
+    """
+
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessments = (
+        Assessment.query
+        .filter_by(teacher_id=current_user.id)
+        .order_by(Assessment.updated_at.desc())
+        .all()
+    )
+
+    return render_template(
+        "teacher/assessments.html",
+        assessments=assessments,
+    )
+
+@teacher_bp.route(
+    "/assessments/new",
+    methods=["GET", "POST"],
+)
+@login_required
+def new_assessment():
+    """
+    Create a new assessment draft.
+    """
+
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    form = AssessmentForm()
+
+    if form.validate_on_submit():
+
+        assessment = Assessment(
+            teacher_id=current_user.id,
+            title=form.title.data,
+            subject=form.subject.data,
+            class_name=form.class_name.data,
+            topic=form.topic.data,
+            assessment_type=form.assessment_type.data,
+            mode=form.mode.data,
+            instructions=form.instructions.data,
+            start_at=form.start_at.data,
+            due_at=form.due_at.data,
+            status="draft",
+            total_marks=0,
+        )
+
+        db.session.add(assessment)
+        db.session.commit()
+
+        flash(
+            "Assessment draft created successfully.",
+            "success",
+        )
+
+        return redirect(
+            url_for(
+                "teacher.assessments",
+            )
+        )
+
+    return render_template(
+        "teacher/assessment_form.html",
+        form=form,
+        edit_mode=False,
+    )
+
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>",
+)
+@login_required
+def manage_assessment(assessment_id):
+    """
+    Display an assessment and its questions.
+    """
+
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    return render_template(
+        "teacher/manage_assessment.html",
+        assessment=assessment,
+    )
+
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>/questions/new",
+    methods=["GET", "POST"],
+)
+@login_required
+def new_assessment_question(assessment_id):
+    """
+    Add a question to an existing assessment.
+    """
+
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    if assessment.status != "draft":
+        flash(
+            "Questions can only be added while the assessment is a draft.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    form = AssessmentQuestionForm()
+
+    if form.validate_on_submit():
+
+        next_question_number = (
+            AssessmentQuestion.query
+            .filter_by(assessment_id=assessment.id)
+            .count()
+            + 1
+        )
+
+        question = AssessmentQuestion(
+            assessment_id=assessment.id,
+            question_number=next_question_number,
+            question_type=form.question_type.data,
+            question_text=form.question_text.data,
+            option_a=form.option_a.data,
+            option_b=form.option_b.data,
+            option_c=form.option_c.data,
+            option_d=form.option_d.data,
+            correct_answer=form.correct_answer.data,
+            marks=form.marks.data,
+            explanation=form.explanation.data,
+        )
+
+        db.session.add(question)
+
+        assessment.total_marks += form.marks.data
+
+        db.session.commit()
+
+        flash(
+            "Question added successfully.",
+            "success",
+        )
+
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    return render_template(
+        "teacher/assessment_question_form.html",
+        form=form,
+        assessment=assessment,
+        edit_mode=False,
+    )
+
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>/questions/generate",
+    methods=["GET", "POST"],
+)
+@login_required
+def generate_assessment_questions_ai(assessment_id):
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    if assessment.status != "draft":
+        flash(
+            "AI questions can only be generated while the assessment is a draft.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    if not assessment.topic:
+        flash(
+            "Please set an assessment topic before generating questions with AI.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    form = AssessmentAIGenerationForm()
+
+    if form.validate_on_submit():
+        try:
+            generated_questions = generate_assessment_questions(
+                subject=assessment.subject,
+                class_name=assessment.class_name,
+                topic=assessment.topic,
+                number_of_questions=form.number_of_questions.data,
+                question_type=form.question_type.data,
+                difficulty=form.difficulty.data,
+                examination_relevance=form.examination_relevance.data,
+                additional_instructions=form.additional_instructions.data,
+            )
+
+            existing_count = (
+                AssessmentQuestion.query
+                .filter_by(assessment_id=assessment.id)
+                .count()
+            )
+
+            next_question_number = existing_count + 1
+            added_marks = 0
+
+            for index, generated in enumerate(
+                generated_questions,
+                start=next_question_number,
+            ):
+                question = AssessmentQuestion(
+                    assessment_id=assessment.id,
+                    question_number=index,
+                    question_type=generated["question_type"],
+                    question_text=generated["question_text"],
+                    option_a=generated.get("option_a"),
+                    option_b=generated.get("option_b"),
+                    option_c=generated.get("option_c"),
+                    option_d=generated.get("option_d"),
+                    correct_answer=generated.get("correct_answer"),
+                    marks=generated["marks"],
+                    explanation=generated.get("explanation"),
+                )
+
+                db.session.add(question)
+                added_marks += generated["marks"]
+
+            assessment.total_marks += added_marks
+
+            db.session.commit()
+
+            flash(
+                f"{len(generated_questions)} AI-generated question(s) "
+                "were added as draft questions. Review and edit them "
+                "before publishing the assessment.",
+                "success",
+            )
+
+            return redirect(
+                url_for(
+                    "teacher.manage_assessment",
+                    assessment_id=assessment.id,
+                )
+            )
+
+        except AssessmentAIError as exc:
+            db.session.rollback()
+
+            flash(
+                f"AI question generation failed: {exc}",
+                "danger",
+            )
+
+        except Exception:
+            db.session.rollback()
+
+            flash(
+                "An unexpected error occurred while generating "
+                "assessment questions.",
+                "danger",
+            )
+
+    return render_template(
+        "teacher/assessment_ai_generation_form.html",
+        form=form,
+        assessment=assessment,
+    )
+
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>/questions/<int:question_id>/edit",
+    methods=["GET", "POST"],
+)
+@login_required
+def edit_assessment_question(assessment_id, question_id):
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    question = (
+        AssessmentQuestion.query
+        .filter_by(
+            id=question_id,
+            assessment_id=assessment.id,
+        )
+        .first_or_404()
+    )
+
+    if assessment.status != "draft":
+        flash(
+            "Questions can only be edited while the assessment is a draft.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    form = AssessmentQuestionForm(obj=question)
+
+    if form.validate_on_submit():
+        old_marks = question.marks
+
+        question.question_type = form.question_type.data
+        question.question_text = form.question_text.data
+        question.option_a = form.option_a.data
+        question.option_b = form.option_b.data
+        question.option_c = form.option_c.data
+        question.option_d = form.option_d.data
+        question.correct_answer = form.correct_answer.data
+        question.marks = form.marks.data
+        question.explanation = form.explanation.data
+
+        assessment.total_marks += (
+            form.marks.data - old_marks
+        )
+
+        db.session.commit()
+
+        flash(
+            "Question updated successfully.",
+            "success",
+        )
+
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    return render_template(
+        "teacher/assessment_question_form.html",
+        form=form,
+        assessment=assessment,
+        question=question,
+        edit_mode=True,
+    )
+
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>/questions/<int:question_id>/delete",
+    methods=["POST"],
+)
+@login_required
+def delete_assessment_question(assessment_id, question_id):
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    question = (
+        AssessmentQuestion.query
+        .filter_by(
+            id=question_id,
+            assessment_id=assessment.id,
+        )
+        .first_or_404()
+    )
+
+    if assessment.status != "draft":
+        flash(
+            "Questions can only be deleted while the assessment is a draft.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    db.session.delete(question)
+    db.session.flush()
+
+    remaining_questions = (
+        AssessmentQuestion.query
+        .filter_by(assessment_id=assessment.id)
+        .order_by(AssessmentQuestion.question_number.asc())
+        .all()
+    )
+
+    for number, remaining_question in enumerate(
+        remaining_questions,
+        start=1,
+    ):
+        remaining_question.question_number = number
+
+    assessment.total_marks = sum(
+        question.marks
+        for question in remaining_questions
+    )
+
+    db.session.commit()
+
+    flash(
+        "Question deleted successfully and the assessment was renumbered.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "teacher.manage_assessment",
+            assessment_id=assessment.id,
+        )
     )

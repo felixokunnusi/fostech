@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if edit_mode %}
+        Edit Question
+    {% else %}
+        Add Question
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">
+                {% if edit_mode %}
+                    ✏️ Edit Question
+                {% else %}
+                    ➕ Add Question
+                {% endif %}
+            </h2>
+
+            <p class="text-muted mb-0">
+                {{ assessment.title }}
+                —
+                {{ assessment.subject }}
+                —
+                {{ assessment.class_name }}
+            </p>
+        </div>
+
+        <a
+            href="{{ url_for(
+                'teacher.manage_assessment',
+                assessment_id=assessment.id
+            ) }}"
+            class="btn btn-outline-secondary"
+        >
+            ← Back to Assessment
+        </a>
+
+    </div>
+
+
+    <!-- Question Form -->
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h5 class="mb-0">
+                Question Details
+            </h5>
+        </div>
+
+        <div class="card-body">
+
+            <form method="POST">
+
+                {{ form.hidden_tag() }}
+
+
+                <!-- Question Type -->
+                <div class="mb-4">
+
+                    {{ form.question_type.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.question_type(
+                        class="form-select"
+                    ) }}
+
+                    {% for error in form.question_type.errors %}
+                        <div class="text-danger small mt-1">
+                            {{ error }}
+                        </div>
+                    {% endfor %}
+
+                </div>
+
+
+                <!-- Question -->
+                <div class="mb-4">
+
+                    {{ form.question_text.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.question_text(
+                        class="form-control",
+                        rows="5",
+                        placeholder="Enter the question..."
+                    ) }}
+
+                    {% for error in form.question_text.errors %}
+                        <div class="text-danger small mt-1">
+                            {{ error }}
+                        </div>
+                    {% endfor %}
+
+                </div>
+
+
+                <!-- MCQ Options -->
+                <div class="card border mb-4">
+
+                    <div class="card-header bg-light">
+                        <strong>
+                            Multiple Choice Options
+                        </strong>
+                    </div>
+
+                    <div class="card-body">
+
+                        <p class="text-muted small">
+                            Complete these fields when this is a
+                            Multiple Choice question.
+                        </p>
+
+
+                        <div class="mb-3">
+
+                            {{ form.option_a.label(
+                                class="form-label fw-bold"
+                            ) }}
+
+                            {{ form.option_a(
+                                class="form-control",
+                                rows="2",
+                                placeholder="Option A"
+                            ) }}
+
+                        </div>
+
+
+                        <div class="mb-3">
+
+                            {{ form.option_b.label(
+                                class="form-label fw-bold"
+                            ) }}
+
+                            {{ form.option_b(
+                                class="form-control",
+                                rows="2",
+                                placeholder="Option B"
+                            ) }}
+
+                        </div>
+
+
+                        <div class="mb-3">
+
+                            {{ form.option_c.label(
+                                class="form-label fw-bold"
+                            ) }}
+
+                            {{ form.option_c(
+                                class="form-control",
+                                rows="2",
+                                placeholder="Option C"
+                            ) }}
+
+                        </div>
+
+
+                        <div class="mb-3">
+
+                            {{ form.option_d.label(
+                                class="form-label fw-bold"
+                            ) }}
+
+                            {{ form.option_d(
+                                class="form-control",
+                                rows="2",
+                                placeholder="Option D"
+                            ) }}
+
+                        </div>
+
+
+                        <div class="mb-0">
+
+                            {{ form.correct_answer.label(
+                                class="form-label fw-bold"
+                            ) }}
+
+                            {{ form.correct_answer(
+                                class="form-control",
+                                placeholder="e.g. A"
+                            ) }}
+
+                            <div class="form-text">
+                                For MCQ, enter the correct option,
+                                such as A, B, C or D.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Marks -->
+                <div class="mb-4">
+
+                    {{ form.marks.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.marks(
+                        class="form-control",
+                        min="1",
+                        max="100"
+                    ) }}
+
+                    {% for error in form.marks.errors %}
+                        <div class="text-danger small mt-1">
+                            {{ error }}
+                        </div>
+                    {% endfor %}
+
+                </div>
+
+
+                <!-- Explanation -->
+                <div class="mb-4">
+
+                    {{ form.explanation.label(
+                        class="form-label fw-bold"
+                    ) }}
+
+                    {{ form.explanation(
+                        class="form-control",
+                        rows="4",
+                        placeholder="Optional explanation or marking guidance..."
+                    ) }}
+
+                    <div class="form-text">
+                        This can be used later for feedback,
+                        marking guidance or answer explanations.
+                    </div>
+
+                </div>
+
+
+                <!-- Actions -->
+                <div class="d-flex gap-2">
+
+                    {{ form.submit(
+                        value="Update Question" if edit_mode else "Save Question",
+                        class="btn btn-primary"
+                    ) }}
+
+                    <a
+                        href="{{ url_for(
+                            'teacher.manage_assessment',
+                            assessment_id=assessment.id
+                        ) }}"
+                        class="btn btn-outline-secondary btn-lg"
+                    >
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

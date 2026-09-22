@@ -127,9 +127,8 @@ def redirect_workspace():
     # STUDENT
     # ----------------------------------------------------------
     if workspace == "student":
-        return render_template(
-            "workspace/coming_soon.html",
-            workspace_name="Student"
+        return redirect(
+        url_for("student.dashboard")
         )
 
     # ----------------------------------------------------------

@@ -4,3 +4,7 @@ from .referral_earning import ReferralEarning
 from .withdrawal import WithdrawalRequest
 from .campaign_log import CampaignLog
 from .lesson_plan import LessonPlan
+from .assessment import Assessment
+from .assessment_question import AssessmentQuestion
+from .assessment_attempt import AssessmentAttempt
+from .assessment_answer import AssessmentAnswer

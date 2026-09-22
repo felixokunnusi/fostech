@@ -8,6 +8,7 @@ from wtforms import (
     TextAreaField,
 )
 from wtforms.validators import DataRequired, NumberRange, Optional
+from wtforms.fields import DateTimeLocalField
 
 
 class LessonPlanForm(FlaskForm):
@@ -208,3 +209,196 @@ class GeneratedLessonPlanForm(FlaskForm):
     )
 
     submit = SubmitField("Save Changes")
+
+class AssessmentForm(FlaskForm):
+    """
+    Form for creating and editing an assessment.
+
+    This form creates the assessment container only.
+    Questions will be added in the next stage.
+    """
+
+    title = StringField(
+        "Assessment Title",
+        validators=[DataRequired()],
+    )
+
+    subject = StringField(
+        "Subject",
+        validators=[DataRequired()],
+    )
+
+    class_name = StringField(
+        "Class",
+        validators=[DataRequired()],
+    )
+
+    topic = StringField(
+        "Topic",
+        validators=[Optional()],
+    )
+
+    assessment_type = SelectField(
+        "Assessment Type",
+        choices=[
+            ("mcq", "Multiple Choice"),
+            ("short_answer", "Short Answer"),
+            ("theory", "Theory / Essay"),
+            ("mixed", "Mixed Assessment"),
+        ],
+        default="mixed",
+        validators=[DataRequired()],
+    )
+
+    mode = SelectField(
+    "Assessment Mode",
+    choices=[
+        ("practice", "Practice"),
+        ("graded", "Graded"),
+    ],
+    default="practice",
+    validators=[DataRequired()],
+    )
+
+    instructions = TextAreaField(
+        "Instructions",
+        validators=[Optional()],
+    )
+
+    start_at = DateTimeLocalField(
+        "Start Date / Time",
+        validators=[Optional()],
+    )
+
+    due_at = DateTimeLocalField(
+        "Due Date / Time",
+        validators=[Optional()],
+    )
+
+    submit = SubmitField(
+        "Create Assessment"
+    )
+
+class AssessmentQuestionForm(FlaskForm):
+    """
+    Form for creating and editing an assessment question.
+    """
+
+    question_type = SelectField(
+        "Question Type",
+        choices=[
+            ("mcq", "Multiple Choice"),
+            ("short_answer", "Short Answer"),
+            ("theory", "Theory / Essay"),
+        ],
+        default="mcq",
+        validators=[DataRequired()],
+    )
+
+    question_text = TextAreaField(
+        "Question",
+        validators=[DataRequired()],
+    )
+
+    option_a = TextAreaField(
+        "Option A",
+        validators=[Optional()],
+    )
+
+    option_b = TextAreaField(
+        "Option B",
+        validators=[Optional()],
+    )
+
+    option_c = TextAreaField(
+        "Option C",
+        validators=[Optional()],
+    )
+
+    option_d = TextAreaField(
+        "Option D",
+        validators=[Optional()],
+    )
+
+    correct_answer = TextAreaField(
+        "Correct Answer",
+        validators=[Optional()],
+    )
+
+    marks = IntegerField(
+        "Marks",
+        validators=[
+            DataRequired(),
+            NumberRange(min=1, max=100),
+        ],
+        default=1,
+    )
+
+    explanation = TextAreaField(
+        "Explanation",
+        validators=[Optional()],
+    )
+
+    submit = SubmitField(
+        "Save Question"
+    )
+class AssessmentAIGenerationForm(FlaskForm):
+    """
+    Form for generating assessment questions with AI.
+
+    The assessment's subject, class, and topic are inherited from
+    the selected assessment and are therefore not requested again.
+    """
+
+    number_of_questions = IntegerField(
+        "Number of Questions",
+        validators=[
+            DataRequired(),
+            NumberRange(min=1, max=100),
+        ],
+        default=10,
+    )
+
+    question_type = SelectField(
+        "Question Type",
+        choices=[
+            ("mcq", "Multiple Choice"),
+            ("short_answer", "Short Answer"),
+            ("theory", "Theory / Essay"),
+        ],
+        default="mcq",
+        validators=[DataRequired()],
+    )
+
+    difficulty = SelectField(
+        "Difficulty",
+        choices=[
+            ("easy", "Easy"),
+            ("medium", "Medium"),
+            ("hard", "Hard"),
+            ("mixed", "Mixed"),
+        ],
+        default="mixed",
+        validators=[DataRequired()],
+    )
+
+    examination_relevance = SelectField(
+        "Examination / Curriculum Relevance",
+        choices=[
+            ("", "None / General Curriculum"),
+            ("WAEC", "WAEC"),
+            ("NECO", "NECO"),
+            ("JAMB", "JAMB"),
+        ],
+        default="",
+        validators=[Optional()],
+    )
+
+    additional_instructions = TextAreaField(
+        "Additional Instructions",
+        validators=[Optional()],
+    )
+
+    submit = SubmitField(
+        "Generate Questions with AI"
+    )

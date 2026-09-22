@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Student Assessments
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="mb-4">
+        <h2 class="mb-1">
+            🎓 Student Assessments
+        </h2>
+
+        <p class="text-muted mb-0">
+            Published assessments available to you.
+        </p>
+    </div>
+
+
+    {% if assessments %}
+
+        <div class="row">
+
+            {% for assessment in assessments %}
+
+            <div class="col-md-6 col-lg-4 mb-4">
+
+                <div class="card shadow-sm h-100">
+
+                    <div class="card-body">
+
+                        <h5 class="card-title">
+                            {{ assessment.title }}
+                        </h5>
+
+                        <p class="mb-1">
+                            <strong>Subject:</strong>
+                            {{ assessment.subject }}
+                        </p>
+
+                        <p class="mb-1">
+                            <strong>Class:</strong>
+                            {{ assessment.class_name }}
+                        </p>
+
+                        {% if assessment.topic %}
+                        <p class="mb-1">
+                            <strong>Topic:</strong>
+                            {{ assessment.topic }}
+                        </p>
+                        {% endif %}
+
+                        <p class="mb-1">
+                            <strong>Questions:</strong>
+                            {{ assessment.questions|length }}
+                        </p>
+
+                        <p class="mb-3">
+                            <strong>Total Marks:</strong>
+                            {{ assessment.total_marks }}
+                        </p>
+
+                        {% if assessment.due_at %}
+
+                        <p class="small text-muted">
+                            <strong>Due:</strong>
+                            {{ assessment.due_at.strftime(
+                                "%d %b %Y, %I:%M %p"
+                            ) }}
+                        </p>
+
+                        {% endif %}
+
+                        <a
+                            href="{{ url_for(
+                                'student.start_assessment',
+                                assessment_id=assessment.id
+                            ) }}"
+                            class="btn btn-primary"
+                        >
+                            Start Assessment
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <div class="card shadow-sm">
+
+            <div class="card-body text-center py-5">
+
+                <div class="display-5 mb-3">
+                    📚
+                </div>
+
+                <h5>
+                    No assessments available
+                </h5>
+
+                <p class="text-muted mb-0">
+                    There are currently no published assessments
+                    available to you.
+                </p>
+
+            </div>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}
