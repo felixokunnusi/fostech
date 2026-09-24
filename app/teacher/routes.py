@@ -54,6 +54,8 @@ from .forms import (
     LessonPlanForm,
 )
 
+from app.utils import nigeria_to_utc
+
 def teacher_has_access():
     """
     Return True when the current user has the Teacher role.
@@ -950,6 +952,74 @@ def validate_assessment(assessment_id):
     )
 
 
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>/publish",
+    methods=["POST"],
+)
+@login_required
+def publish_assessment(assessment_id):
+    """
+    Publish a draft assessment after it passes all publication checks.
+    """
+
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    if assessment.status != "draft":
+        flash(
+            "Only draft assessments can be published.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    errors = validate_assessment_for_publication(assessment)
+
+    if errors:
+        for error in errors:
+            flash(error, "danger")
+
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    assessment.status = "published"
+
+    db.session.commit()
+
+    flash(
+        "Assessment published successfully. It is now available to students.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "teacher.manage_assessment",
+            assessment_id=assessment.id,
+        )
+    )
+
+
 @teacher_bp.route("/assessments")
 @login_required
 def assessments():
@@ -1006,8 +1076,8 @@ def new_assessment():
             assessment_type=form.assessment_type.data,
             mode=form.mode.data,
             instructions=form.instructions.data,
-            start_at=form.start_at.data,
-            due_at=form.due_at.data,
+            start_at=nigeria_to_utc(form.start_at.data),
+            due_at=nigeria_to_utc(form.due_at.data),
             status="draft",
             total_marks=0,
         )

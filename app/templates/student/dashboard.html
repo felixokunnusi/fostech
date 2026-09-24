@@ -52,6 +52,15 @@
                         </p>
                         {% endif %}
 
+                        <p>
+                            <strong>Mode:</strong>
+                            {% if assessment.mode == "graded" %}
+                                <span class="badge bg-danger">Graded</span>
+                            {% else %}
+                                <span class="badge bg-success">Practice</span>
+                            {% endif %}
+                        </p>
+
                         <p class="mb-1">
                             <strong>Questions:</strong>
                             {{ assessment.questions|length }}

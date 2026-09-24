@@ -90,3 +90,56 @@ def run_in_background(func, *args, **kwargs):
                 app.logger.exception("Background task failed")
 
     threading.Thread(target=task, daemon=True).start()
+
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+
+NIGERIA_TZ = ZoneInfo("Africa/Lagos")
+UTC_TZ = ZoneInfo("UTC")
+
+
+def nigeria_to_utc(value):
+    """
+    Convert a naive Nigeria/WAT datetime to a naive UTC datetime.
+
+    Database datetime columns currently store naive datetimes.
+    The application treats them as UTC internally.
+    """
+    if value is None:
+        return None
+
+    if value.tzinfo is not None:
+        return value.astimezone(UTC_TZ).replace(tzinfo=None)
+
+    nigeria_time = value.replace(tzinfo=NIGERIA_TZ)
+    return nigeria_time.astimezone(UTC_TZ).replace(tzinfo=None)
+
+
+def utc_to_nigeria(value):
+    """
+    Convert a naive UTC datetime from the database to naive
+    Nigeria/WAT datetime for display/editing.
+    """
+    if value is None:
+        return None
+
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC_TZ)
+
+    return value.astimezone(NIGERIA_TZ).replace(tzinfo=None)
+
+
+def now_utc():
+    """
+    Return the current UTC time as a naive datetime suitable
+    for the existing database datetime columns.
+    """
+    return datetime.now(UTC_TZ).replace(tzinfo=None)
+
+
+def now_nigeria():
+    """
+    Return the current Nigeria/WAT time as a naive datetime.
+    """
+    return datetime.now(NIGERIA_TZ).replace(tzinfo=None)

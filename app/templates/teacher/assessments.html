@@ -80,6 +80,7 @@
                             <th>Class</th>
                             <th>Topic</th>
                             <th>Type</th>
+                            <th>Mode</th>
                             <th>Questions</th>
                             <th>Marks</th>
                             <th>Status</th>
@@ -94,44 +95,89 @@
 
                         <tr>
 
+                            <!-- Title -->
                             <td>
                                 <strong>
                                     {{ assessment.title }}
                                 </strong>
                             </td>
 
+
+                            <!-- Subject -->
                             <td>
                                 {{ assessment.subject }}
                             </td>
 
+
+                            <!-- Class -->
                             <td>
                                 {{ assessment.class_name }}
                             </td>
 
+
+                            <!-- Topic -->
                             <td>
                                 {{ assessment.topic or "—" }}
                             </td>
 
+
+                            <!-- Type -->
                             <td>
+
                                 {% if assessment.assessment_type == "mcq" %}
+
                                     MCQ
+
                                 {% elif assessment.assessment_type == "short_answer" %}
+
                                     Short Answer
+
                                 {% elif assessment.assessment_type == "theory" %}
+
                                     Theory
+
                                 {% else %}
+
                                     Mixed
+
                                 {% endif %}
+
                             </td>
 
+
+                            <!-- Mode -->
+                            <td>
+
+                                {% if assessment.mode == "graded" %}
+
+                                    <span class="badge bg-danger">
+                                        Graded
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-info text-dark">
+                                        Practice
+                                    </span>
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- Questions -->
                             <td>
                                 {{ assessment.questions|length }}
                             </td>
 
+
+                            <!-- Marks -->
                             <td>
                                 {{ assessment.total_marks }}
                             </td>
 
+
+                            <!-- Status -->
                             <td>
 
                                 {% if assessment.status == "published" %}
@@ -156,10 +202,13 @@
 
                             </td>
 
+
+                            <!-- Actions -->
                             <td>
 
                                 <div class="d-flex flex-wrap gap-1">
 
+                                    <!-- Manage -->
                                     <a
                                         href="{{ url_for(
                                             'teacher.manage_assessment',
@@ -169,6 +218,53 @@
                                     >
                                         Manage
                                     </a>
+
+
+                                    {% if assessment.status == "draft" %}
+
+                                        <!-- Validate -->
+                                        <form
+                                            method="POST"
+                                            action="{{ url_for(
+                                                'teacher.validate_assessment',
+                                                assessment_id=assessment.id
+                                            ) }}"
+                                            class="d-inline"
+                                        >
+
+                                            <button
+                                                type="submit"
+                                                class="btn btn-sm btn-outline-warning"
+                                            >
+                                                Validate
+                                            </button>
+
+                                        </form>
+
+
+                                        <!-- Publish -->
+                                        <form
+                                            method="POST"
+                                            action="{{ url_for(
+                                                'teacher.publish_assessment',
+                                                assessment_id=assessment.id
+                                            ) }}"
+                                            class="d-inline"
+                                            onsubmit="return confirm(
+                                                'Are you sure you want to publish this assessment? Students will be able to access it according to its availability dates.'
+                                            );"
+                                        >
+
+                                            <button
+                                                type="submit"
+                                                class="btn btn-sm btn-success"
+                                            >
+                                                Publish
+                                            </button>
+
+                                        </form>
+
+                                    {% endif %}
 
                                 </div>
 

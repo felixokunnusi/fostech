@@ -12,6 +12,7 @@ from app.models import (
 )
 
 from . import student_bp
+from app.utils import now_utc
 
 
 def student_has_access():
@@ -34,7 +35,7 @@ def dashboard():
         )
         return redirect(url_for("workspace.index"))
 
-    now = datetime.utcnow()
+    now = now_utc()
 
     assessments = (
         Assessment.query
@@ -58,6 +59,8 @@ def dashboard():
         assessments=assessments,
     )
 
+
+
 @student_bp.route(
     "/assessments/<int:assessment_id>/start",
     methods=["GET"],
@@ -80,9 +83,8 @@ def start_assessment(assessment_id):
         .first_or_404()
     )
 
-    now = datetime.utcnow()
+    now = now_utc()
 
-    # Assessment has not started yet.
     if assessment.start_at and assessment.start_at > now:
         flash(
             "This assessment is not available yet.",
@@ -90,7 +92,6 @@ def start_assessment(assessment_id):
         )
         return redirect(url_for("student.dashboard"))
 
-    # Assessment has already closed.
     if assessment.due_at and assessment.due_at < now:
         flash(
             "This assessment is no longer available.",
@@ -98,7 +99,40 @@ def start_assessment(assessment_id):
         )
         return redirect(url_for("student.dashboard"))
 
-    # Look for an existing in-progress attempt.
+    # ---------------------------------------------------------
+    # GRADED MODE
+    # ---------------------------------------------------------
+    # A graded assessment allows exactly one attempt.
+    # If the student has already submitted one, access is denied.
+    if assessment.mode == "graded":
+
+        submitted_attempt = (
+            AssessmentAttempt.query
+            .filter_by(
+                assessment_id=assessment.id,
+                student_id=current_user.id,
+                status="submitted",
+            )
+            .first()
+        )
+
+        if submitted_attempt:
+            flash(
+                "You have already completed this graded assessment. "
+                "A second attempt is not allowed.",
+                "warning",
+            )
+            return redirect(
+                url_for(
+                    "student.assessment_result",
+                    attempt_id=submitted_attempt.id,
+                )
+            )
+
+    # ---------------------------------------------------------
+    # EXISTING IN-PROGRESS ATTEMPT
+    # ---------------------------------------------------------
+    # If the student has an unfinished attempt, resume it.
     attempt = (
         AssessmentAttempt.query
         .filter_by(
@@ -109,22 +143,28 @@ def start_assessment(assessment_id):
         .first()
     )
 
-    if not attempt:
-
-        attempt = AssessmentAttempt(
-            assessment_id=assessment.id,
-            student_id=current_user.id,
-            status="in_progress",
-            total_marks=assessment.total_marks,
+    if attempt:
+        return redirect(
+            url_for(
+                "student.take_assessment",
+                attempt_id=attempt.id,
+            )
         )
 
-        db.session.add(attempt)
-        db.session.commit()
+    # ---------------------------------------------------------
+    # CREATE NEW ATTEMPT
+    # ---------------------------------------------------------
+    attempt = AssessmentAttempt(
+        assessment_id=assessment.id,
+        student_id=current_user.id,
+        status="in_progress",
+        total_marks=assessment.total_marks,
+    )
 
-        flash(
-            "Assessment started.",
-            "success",
-        )
+    db.session.add(attempt)
+    db.session.commit()
+
+    flash("Assessment started.", "success")
 
     return redirect(
         url_for(
@@ -132,6 +172,7 @@ def start_assessment(assessment_id):
             attempt_id=attempt.id,
         )
     )
+
 
 @student_bp.route(
     "/attempts/<int:attempt_id>",
@@ -171,7 +212,7 @@ def take_assessment(attempt_id):
         )
         return redirect(url_for("student.dashboard"))
 
-    now = datetime.utcnow()
+    now = now_utc()
 
     if assessment.start_at and assessment.start_at > now:
         flash(
@@ -337,7 +378,7 @@ def submit_assessment(attempt_id):
 
         db.session.add(answer)
 
-    attempt.submitted_at = datetime.utcnow()
+    attempt.submitted_at = now_utc()
     attempt.status = "submitted"
     attempt.score = total_score
     attempt.total_marks = assessment.total_marks
