@@ -36,6 +36,16 @@
 
             <a
                 href="{{ url_for(
+                    'teacher.edit_assessment',
+                    assessment_id=assessment.id
+                ) }}"
+                class="btn btn-outline-primary"
+            >
+                Edit Assessment
+            </a>
+
+            <a
+                href="{{ url_for(
                     'teacher.new_assessment_question',
                     assessment_id=assessment.id
                 ) }}"
@@ -71,6 +81,41 @@
             </form>
 
             {% endif %}
+
+            {% if assessment.status == "published" %}
+                <form
+                    method="POST"
+                    action="{{ url_for(
+                        'teacher.close_assessment',
+                        assessment_id=assessment.id
+                    ) }}"
+                    class="d-inline"
+                    onsubmit="return confirm(
+                        'Are you sure you want to close this assessment? Students will no longer be able to start new attempts.'
+                    );"
+                >
+                    <button
+                        type="submit"
+                        class="btn btn-outline-danger"
+                    >
+                        Close Assessment
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if assessment.status in ["published", "closed"] %}
+                <a
+                    href="{{ url_for(
+                        'teacher.assessment_attempts',
+                        assessment_id=assessment.id
+                    ) }}"
+                    class="btn btn-outline-primary"
+                >
+                    View Attempts
+                </a>
+            {% endif %}
+
+
 
         </div>
 

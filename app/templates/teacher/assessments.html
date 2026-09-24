@@ -83,6 +83,8 @@
                             <th>Mode</th>
                             <th>Questions</th>
                             <th>Marks</th>
+                            <th>Start</th>
+                            <th>Due</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -174,6 +176,26 @@
                             <!-- Marks -->
                             <td>
                                 {{ assessment.total_marks }}
+                            </td>
+
+                            <!-- Start Date / Time -->
+                            <td>
+                                {% if assessment.start_at %}
+                                    {{ utc_to_nigeria(assessment.start_at).strftime('%d/%m/%Y %I:%M %p') }}
+                                    <div class="small text-muted">WAT</div>
+                                {% else %}
+                                    <span class="text-muted">Anytime</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Due Date / Time -->
+                            <td>
+                                {% if assessment.due_at %}
+                                    {{ utc_to_nigeria(assessment.due_at).strftime('%d/%m/%Y %I:%M %p') }}
+                                    <div class="small text-muted">WAT</div>
+                                {% else %}
+                                    <span class="text-muted">No deadline</span>
+                                {% endif %}
                             </td>
 
 

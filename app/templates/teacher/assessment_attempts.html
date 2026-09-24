@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Assessment Attempts
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">
+                📝 {{ assessment.title }}
+            </h2>
+
+            <p class="text-muted mb-0">
+                Student Attempts —
+                {{ assessment.subject }}
+                —
+                {{ assessment.class_name }}
+            </p>
+        </div>
+
+        <div>
+            <a
+                href="{{ url_for(
+                    'teacher.manage_assessment',
+                    assessment_id=assessment.id
+                ) }}"
+                class="btn btn-outline-secondary"
+            >
+                ← Manage Assessment
+            </a>
+        </div>
+
+    </div>
+
+
+    <!-- Summary -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Total Attempts
+                    </div>
+                    <div class="fs-3 fw-bold">
+                        {{ attempts|length }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Assessment Status
+                    </div>
+
+                    <div class="mt-1">
+                        {% if assessment.status == "published" %}
+                            <span class="badge bg-success">
+                                Published
+                            </span>
+                        {% elif assessment.status == "closed" %}
+                            <span class="badge bg-secondary">
+                                Closed
+                            </span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">
+                                Draft
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">
+                        Total Marks
+                    </div>
+                    <div class="fs-3 fw-bold">
+                        {{ assessment.total_marks }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- Attempts -->
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h5 class="mb-0">
+                Student Attempts
+            </h5>
+        </div>
+
+        <div class="card-body p-0">
+
+            {% if attempts %}
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover mb-0 align-middle">
+
+                        <thead class="table-light">
+
+                            <tr>
+                                <th>Student</th>
+                                <th>Started</th>
+                                <th>Submitted</th>
+                                <th>Status</th>
+                                <th>Score</th>
+                                <th>Percentage</th>
+                                <th>Action</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {% for attempt in attempts %}
+
+                            <tr>
+
+                                <!-- Student -->
+                                <td>
+                                    <strong>
+                                        {{ attempt.student.full_name
+                                           or attempt.student.username
+                                           or attempt.student.email }}
+                                    </strong>
+
+                                    {% if attempt.student.username %}
+                                        <div class="small text-muted">
+                                            @{{ attempt.student.username }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+
+                                <!-- Started -->
+                                <td>
+                                    {% if attempt.started_at %}
+                                        {{ utc_to_nigeria(
+                                            attempt.started_at
+                                        ).strftime(
+                                            '%d/%m/%Y %I:%M %p'
+                                        ) }}
+                                        <div class="small text-muted">
+                                            WAT
+                                        </div>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+
+
+                                <!-- Submitted -->
+                                <td>
+                                    {% if attempt.submitted_at %}
+                                        {{ utc_to_nigeria(
+                                            attempt.submitted_at
+                                        ).strftime(
+                                            '%d/%m/%Y %I:%M %p'
+                                        ) }}
+                                        <div class="small text-muted">
+                                            WAT
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">
+                                            Not submitted
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+
+                                <!-- Status -->
+                                <td>
+
+                                    {% if attempt.status == "submitted" %}
+
+                                        <span class="badge bg-success">
+                                            Submitted
+                                        </span>
+
+                                    {% elif attempt.status == "in_progress" %}
+
+                                        <span class="badge bg-warning text-dark">
+                                            In Progress
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge bg-secondary">
+                                            {{ attempt.status|replace(
+                                                "_",
+                                                " "
+                                            )|title }}
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- Score -->
+                                <td>
+
+                                    {% if attempt.score is not none %}
+
+                                        <strong>
+                                            {{ attempt.score }}
+                                        </strong>
+                                        /
+                                        {{ attempt.total_marks }}
+
+                                    {% else %}
+
+                                        <span class="text-muted">
+                                            —
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- Percentage -->
+                                <td>
+
+                                    {% if attempt.score is not none
+                                          and attempt.total_marks
+                                          and attempt.total_marks > 0 %}
+
+                                        {{ (
+                                            attempt.score
+                                            / attempt.total_marks
+                                            * 100
+                                        )|round(1) }}%
+
+                                    {% else %}
+
+                                        <span class="text-muted">
+                                            —
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- Action -->
+                                <td>
+
+                                    <a
+                                        href="{{ url_for(
+                                            'teacher.view_assessment_attempt',
+                                            assessment_id=assessment.id,
+                                            attempt_id=attempt.id
+                                        ) }}"
+                                        class="btn btn-sm btn-outline-primary"
+                                    >
+                                        View Attempt
+                                    </a>
+
+                                </td>
+
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            {% else %}
+
+                <div class="text-center py-5">
+
+                    <div class="display-5 mb-3">
+                        📊
+                    </div>
+
+                    <h5>
+                        No student attempts yet
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        Student attempts will appear here after
+                        students take this assessment.
+                    </p>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

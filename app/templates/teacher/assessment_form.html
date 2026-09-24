@@ -295,9 +295,16 @@
                 <!-- Actions -->
                 <div class="d-flex gap-2 mt-4">
 
-                    {{ form.submit(
-                        class="btn btn-primary btn-lg"
-                    ) }}
+                    {% if edit_mode %}
+                        {{ form.submit(
+                            class="btn btn-primary btn-lg",
+                            value="Save Changes"
+                        ) }}
+                    {% else %}
+                        {{ form.submit(
+                            class="btn btn-primary btn-lg"
+                        ) }}
+                    {% endif %}
 
                     <a
                         href="{{ url_for('teacher.assessments') }}"

@@ -27,6 +27,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from app.models.assessment_attempt import AssessmentAttempt
 
 from app.extensions import db
 from app.models import (
@@ -42,6 +43,7 @@ from app.teacher.ai.assessment import (
     AssessmentAIError,
     generate_assessment_questions,
 )
+from app.models.assessment_answer import AssessmentAnswer
 from app.teacher.renderers.fct_emis import build_fct_emis_view_model
 
 from . import teacher_bp
@@ -54,7 +56,7 @@ from .forms import (
     LessonPlanForm,
 )
 
-from app.utils import nigeria_to_utc
+from app.utils import nigeria_to_utc, utc_to_nigeria
 
 def teacher_has_access():
     """
@@ -1019,6 +1021,60 @@ def publish_assessment(assessment_id):
         )
     )
 
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>/close",
+    methods=["POST"],
+)
+@login_required
+def close_assessment(assessment_id):
+    """
+    Close a published assessment so that students can no longer start
+    new attempts.
+    """
+
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    if assessment.status != "published":
+        flash(
+            "Only published assessments can be closed.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    assessment.status = "closed"
+    db.session.commit()
+
+    flash(
+        "Assessment closed successfully. Students can no longer start new attempts.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "teacher.manage_assessment",
+            assessment_id=assessment.id,
+        )
+    )
+
 
 @teacher_bp.route("/assessments")
 @login_required
@@ -1044,6 +1100,7 @@ def assessments():
     return render_template(
         "teacher/assessments.html",
         assessments=assessments,
+        utc_to_nigeria=utc_to_nigeria,
     )
 
 @teacher_bp.route(
@@ -1103,6 +1160,87 @@ def new_assessment():
     )
 
 @teacher_bp.route(
+    "/assessments/<int:assessment_id>/edit",
+    methods=["GET", "POST"],
+)
+@login_required
+def edit_assessment(assessment_id):
+    """
+    Edit the basic details of a draft assessment.
+    """
+
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    if assessment.status != "draft":
+        flash(
+            "Only draft assessments can be edited.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    form = AssessmentForm(obj=assessment)
+
+    if request.method == "GET":
+        form.start_at.data = utc_to_nigeria(assessment.start_at)
+        form.due_at.data = utc_to_nigeria(assessment.due_at)
+
+    if form.validate_on_submit():
+        assessment.title = form.title.data
+        assessment.subject = form.subject.data
+        assessment.class_name = form.class_name.data
+        assessment.topic = form.topic.data
+        assessment.assessment_type = form.assessment_type.data
+        assessment.mode = form.mode.data
+        assessment.instructions = form.instructions.data
+
+        assessment.start_at = nigeria_to_utc(
+            form.start_at.data
+        )
+        assessment.due_at = nigeria_to_utc(
+            form.due_at.data
+        )
+
+        db.session.commit()
+
+        flash(
+            "Assessment details updated successfully.",
+            "success",
+        )
+
+        return redirect(
+            url_for(
+                "teacher.manage_assessment",
+                assessment_id=assessment.id,
+            )
+        )
+
+    return render_template(
+        "teacher/assessment_form.html",
+        form=form,
+        edit_mode=True,
+        assessment=assessment,
+    )
+
+@teacher_bp.route(
     "/assessments/<int:assessment_id>",
 )
 @login_required
@@ -1130,6 +1268,46 @@ def manage_assessment(assessment_id):
     return render_template(
         "teacher/manage_assessment.html",
         assessment=assessment,
+    )
+
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>/attempts",
+    methods=["GET"],
+)
+@login_required
+def assessment_attempts(assessment_id):
+    """
+    View student attempts for an assessment.
+    """
+
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    attempts = (
+        AssessmentAttempt.query
+        .filter_by(assessment_id=assessment.id)
+        .order_by(AssessmentAttempt.started_at.desc())
+        .all()
+    )
+
+    return render_template(
+        "teacher/assessment_attempts.html",
+        assessment=assessment,
+        attempts=attempts,
+        utc_to_nigeria=utc_to_nigeria,
     )
 
 @teacher_bp.route(
@@ -1511,5 +1689,183 @@ def delete_assessment_question(assessment_id, question_id):
         url_for(
             "teacher.manage_assessment",
             assessment_id=assessment.id,
+        )
+    )
+
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>/attempts/<int:attempt_id>",
+    methods=["GET"],
+)
+@login_required
+def view_assessment_attempt(assessment_id, attempt_id):
+    """
+    View one student's assessment attempt.
+    """
+
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    attempt = (
+        AssessmentAttempt.query
+        .filter_by(
+            id=attempt_id,
+            assessment_id=assessment.id,
+        )
+        .first_or_404()
+    )
+
+    answers = (
+        AssessmentAnswer.query
+        .filter_by(attempt_id=attempt.id)
+        .order_by(AssessmentAnswer.question_id.asc())
+        .all()
+    )
+
+    return render_template(
+        "teacher/view_assessment_attempt.html",
+        assessment=assessment,
+        attempt=attempt,
+        answers=answers,
+        utc_to_nigeria=utc_to_nigeria,
+    )
+
+@teacher_bp.route(
+    "/assessments/<int:assessment_id>/attempts/<int:attempt_id>/answers/<int:answer_id>/grade",
+    methods=["POST"],
+)
+@login_required
+def grade_assessment_answer(
+    assessment_id,
+    attempt_id,
+    answer_id,
+):
+    """
+    Grade one student answer and recalculate the attempt score.
+    """
+
+    if not teacher_has_access():
+        flash(
+            "You do not have access to the Teacher workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    assessment = (
+        Assessment.query
+        .filter_by(
+            id=assessment_id,
+            teacher_id=current_user.id,
+        )
+        .first_or_404()
+    )
+
+    attempt = (
+        AssessmentAttempt.query
+        .filter_by(
+            id=attempt_id,
+            assessment_id=assessment.id,
+        )
+        .first_or_404()
+    )
+
+    answer = (
+        AssessmentAnswer.query
+        .filter_by(
+            id=answer_id,
+            attempt_id=attempt.id,
+        )
+        .first_or_404()
+    )
+
+    marks_raw = request.form.get("marks_awarded", "").strip()
+    teacher_feedback = request.form.get(
+        "teacher_feedback",
+        "",
+    ).strip()
+
+    try:
+        marks_awarded = int(marks_raw)
+    except (TypeError, ValueError):
+        flash(
+            "Marks awarded must be a whole number.",
+            "danger",
+        )
+        return redirect(
+            url_for(
+                "teacher.view_assessment_attempt",
+                assessment_id=assessment.id,
+                attempt_id=attempt.id,
+            )
+        )
+
+    if marks_awarded < 0:
+        flash(
+            "Marks awarded cannot be negative.",
+            "danger",
+        )
+        return redirect(
+            url_for(
+                "teacher.view_assessment_attempt",
+                assessment_id=assessment.id,
+                attempt_id=attempt.id,
+            )
+        )
+
+    if marks_awarded > answer.question.marks:
+        flash(
+            f"Marks awarded cannot exceed the question's "
+            f"maximum of {answer.question.marks}.",
+            "danger",
+        )
+        return redirect(
+            url_for(
+                "teacher.view_assessment_attempt",
+                assessment_id=assessment.id,
+                attempt_id=attempt.id,
+            )
+        )
+
+    answer.marks_awarded = marks_awarded
+    answer.teacher_feedback = teacher_feedback
+
+    if marks_awarded == answer.question.marks:
+        answer.is_correct = True
+    elif marks_awarded == 0:
+        answer.is_correct = False
+    else:
+        answer.is_correct = None
+
+    total_score = sum(
+        (item.marks_awarded or 0)
+        for item in attempt.answers
+    )
+
+    attempt.score = total_score
+
+    db.session.commit()
+
+    flash(
+        "Answer graded successfully.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "teacher.view_assessment_attempt",
+            assessment_id=assessment.id,
+            attempt_id=attempt.id,
         )
     )

@@ -1,0 +1,540 @@
+{% extends "base.html" %}
+
+{% block title %}
+    View Assessment Attempt
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">
+                📊 Assessment Attempt
+            </h2>
+
+            <p class="text-muted mb-0">
+                {{ assessment.title }}
+            </p>
+        </div>
+
+        <div class="d-flex gap-2">
+
+            <a
+                href="{{ url_for(
+                    'teacher.assessment_attempts',
+                    assessment_id=assessment.id
+                ) }}"
+                class="btn btn-outline-secondary"
+            >
+                ← All Attempts
+            </a>
+
+            <a
+                href="{{ url_for(
+                    'teacher.manage_assessment',
+                    assessment_id=assessment.id
+                ) }}"
+                class="btn btn-outline-primary"
+            >
+                Manage Assessment
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- Student & Assessment Summary -->
+    <div class="row g-3 mb-4">
+
+        <!-- Student -->
+        <div class="col-md-4">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header">
+                    <strong>Student</strong>
+                </div>
+
+                <div class="card-body">
+
+                    <h5 class="mb-1">
+                        {{ attempt.student.full_name
+                           or attempt.student.username
+                           or attempt.student.email }}
+                    </h5>
+
+                    {% if attempt.student.username %}
+                        <div class="text-muted">
+                            @{{ attempt.student.username }}
+                        </div>
+                    {% endif %}
+
+                    {% if attempt.student.email %}
+                        <div class="small text-muted mt-1">
+                            {{ attempt.student.email }}
+                        </div>
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Attempt Status -->
+        <div class="col-md-4">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header">
+                    <strong>Attempt Status</strong>
+                </div>
+
+                <div class="card-body">
+
+                    {% if attempt.status == "submitted" %}
+
+                        <span class="badge bg-success fs-6">
+                            Submitted
+                        </span>
+
+                    {% elif attempt.status == "in_progress" %}
+
+                        <span class="badge bg-warning text-dark fs-6">
+                            In Progress
+                        </span>
+
+                    {% else %}
+
+                        <span class="badge bg-secondary fs-6">
+                            {{ attempt.status|replace(
+                                "_",
+                                " "
+                            )|title }}
+                        </span>
+
+                    {% endif %}
+
+                    <div class="small text-muted mt-3">
+
+                        {% if attempt.started_at %}
+                            <div>
+                                <strong>Started:</strong>
+                                {{ utc_to_nigeria(
+                                    attempt.started_at
+                                ).strftime(
+                                    '%d/%m/%Y %I:%M %p'
+                                ) }}
+                                WAT
+                            </div>
+                        {% endif %}
+
+                        {% if attempt.submitted_at %}
+                            <div class="mt-1">
+                                <strong>Submitted:</strong>
+                                {{ utc_to_nigeria(
+                                    attempt.submitted_at
+                                ).strftime(
+                                    '%d/%m/%Y %I:%M %p'
+                                ) }}
+                                WAT
+                            </div>
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Score -->
+        <div class="col-md-4">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header">
+                    <strong>Score</strong>
+                </div>
+
+                <div class="card-body">
+
+                    {% if attempt.score is not none %}
+
+                        <div class="fs-2 fw-bold">
+                            {{ attempt.score }}
+                            /
+                            {{ attempt.total_marks }}
+                        </div>
+
+                        {% if attempt.total_marks and attempt.total_marks > 0 %}
+
+                            <div class="text-muted">
+                                {{
+                                    (
+                                        attempt.score
+                                        / attempt.total_marks
+                                        * 100
+                                    )|round(1)
+                                }}%
+                            </div>
+
+                        {% endif %}
+
+                    {% else %}
+
+                        <div class="text-muted">
+                            Not yet graded
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Answers -->
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h5 class="mb-0">
+                Student Responses
+            </h5>
+        </div>
+
+        <div class="card-body">
+
+            {% if answers %}
+
+                {% for answer in answers %}
+
+                    <div class="border rounded p-4 mb-4">
+
+                        <!-- Question -->
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+
+                            <div>
+
+                                <strong>
+                                    Question
+                                </strong>
+
+                                <span class="badge bg-light text-dark ms-2">
+                                    {{ answer.question.question_type
+                                       |replace('_', ' ')
+                                       |title }}
+                                </span>
+
+                            </div>
+
+                            <span class="badge bg-secondary">
+                                {{ answer.question.marks }}
+                                mark{% if answer.question.marks != 1 %}s{% endif %}
+                            </span>
+
+                        </div>
+
+
+                        <div class="mb-3">
+
+                            <strong>
+                                {{ answer.question.question_text }}
+                            </strong>
+
+                        </div>
+
+
+                        <!-- MCQ Options -->
+                        {% if answer.question.question_type == "mcq" %}
+
+                            <div class="mb-3">
+
+                                {% if answer.question.option_a %}
+                                    <div class="mb-1">
+                                        <strong>A.</strong>
+                                        {{ answer.question.option_a }}
+                                    </div>
+                                {% endif %}
+
+                                {% if answer.question.option_b %}
+                                    <div class="mb-1">
+                                        <strong>B.</strong>
+                                        {{ answer.question.option_b }}
+                                    </div>
+                                {% endif %}
+
+                                {% if answer.question.option_c %}
+                                    <div class="mb-1">
+                                        <strong>C.</strong>
+                                        {{ answer.question.option_c }}
+                                    </div>
+                                {% endif %}
+
+                                {% if answer.question.option_d %}
+                                    <div class="mb-1">
+                                        <strong>D.</strong>
+                                        {{ answer.question.option_d }}
+                                    </div>
+                                {% endif %}
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <!-- Student Answer -->
+                        <div class="alert alert-light border">
+
+                            <strong>
+                                Student's Answer:
+                            </strong>
+
+                            <div class="mt-2">
+
+                                {% if answer.answer_text %}
+
+                                    {{ answer.answer_text }}
+
+                                {% else %}
+
+                                    <span class="text-muted">
+                                        No answer provided
+                                    </span>
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Automatic Result -->
+                        {% if answer.is_correct is not none %}
+
+                            {% if answer.is_correct %}
+
+                                <div class="alert alert-success mb-3">
+
+                                    <strong>
+                                        Correct
+                                    </strong>
+
+                                    {% if answer.marks_awarded is not none %}
+                                        — {{ answer.marks_awarded }}
+                                        mark{% if answer.marks_awarded != 1 %}s{% endif %}
+                                    {% endif %}
+
+                                </div>
+
+                            {% else %}
+
+                                <div class="alert alert-danger mb-3">
+
+                                    <strong>
+                                        Incorrect
+                                    </strong>
+
+                                    {% if answer.marks_awarded is not none %}
+                                        — {{ answer.marks_awarded }}
+                                        mark{% if answer.marks_awarded != 1 %}s{% endif %}
+                                    {% endif %}
+
+                                </div>
+
+                            {% endif %}
+
+                        {% endif %}
+
+
+                        <!-- Correct Answer -->
+                        {% if answer.question.correct_answer %}
+
+                            <div class="alert alert-success mb-3">
+
+                                <strong>
+                                    Correct Answer:
+                                </strong>
+
+                                {{ answer.question.correct_answer }}
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <!-- Explanation -->
+                        {% if answer.question.explanation %}
+
+                            <div class="alert alert-info mb-0">
+
+                                <strong>
+                                    Explanation:
+                                </strong>
+
+                                <div class="mt-1">
+                                    {{ answer.question.explanation }}
+                                </div>
+
+                            </div>
+
+                        {% endif %}
+
+                        {% if answer.question.question_type in ["short_answer", "theory"] %}
+
+                        <div class="card border-primary mt-3">
+
+                            <div class="card-header">
+                                <strong>Teacher Grading</strong>
+                            </div>
+
+                            <div class="card-body">
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for(
+                                        'teacher.grade_assessment_answer',
+                                        assessment_id=assessment.id,
+                                        attempt_id=attempt.id,
+                                        answer_id=answer.id
+                                    ) }}"
+                                >
+
+                                    <div class="row g-3">
+
+                                        <!-- Marks -->
+                                        <div class="col-md-3">
+
+                                            <label
+                                                for="marks_awarded_{{ answer.id }}"
+                                                class="form-label"
+                                            >
+                                                Marks Awarded
+                                            </label>
+
+                                            <div class="input-group">
+
+                                                <input
+                                                    type="number"
+                                                    id="marks_awarded_{{ answer.id }}"
+                                                    name="marks_awarded"
+                                                    class="form-control"
+                                                    min="0"
+                                                    max="{{ answer.question.marks }}"
+                                                    step="1"
+                                                    value="{{ answer.marks_awarded if answer.marks_awarded is not none else 0 }}"
+                                                    required
+                                                >
+
+                                                <span class="input-group-text">
+                                                    / {{ answer.question.marks }}
+                                                </span>
+
+                                            </div>
+
+                                        </div>
+
+
+                                        <!-- Feedback -->
+                                        <div class="col-md-9">
+
+                                            <label
+                                                for="teacher_feedback_{{ answer.id }}"
+                                                class="form-label"
+                                            >
+                                                Teacher Feedback
+                                            </label>
+
+                                            <textarea
+                                                id="teacher_feedback_{{ answer.id }}"
+                                                name="teacher_feedback"
+                                                class="form-control"
+                                                rows="2"
+                                                placeholder="Enter feedback for the student..."
+                                            >{{ answer.teacher_feedback or "" }}</textarea>
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <div class="mt-3">
+
+                                        <button
+                                            type="submit"
+                                            class="btn btn-primary"
+                                        >
+                                            Save Grade
+                                        </button>
+
+                                    </div>
+
+                                </form>
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+
+                        <!-- Teacher Feedback -->
+                        {% if answer.teacher_feedback %}
+
+                            <div class="alert alert-warning mt-3 mb-0">
+
+                                <strong>
+                                    Teacher Feedback:
+                                </strong>
+
+                                <div class="mt-1">
+                                    {{ answer.teacher_feedback }}
+                                </div>
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <div class="text-center py-5">
+
+                    <div class="display-5 mb-3">
+                        📭
+                    </div>
+
+                    <h5>
+                        No responses recorded
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        This attempt does not contain any recorded answers.
+                    </p>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
