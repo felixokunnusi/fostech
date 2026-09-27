@@ -8,3 +8,12 @@ from .assessment import Assessment
 from .assessment_question import AssessmentQuestion
 from .assessment_attempt import AssessmentAttempt
 from .assessment_answer import AssessmentAnswer
+from .school import School
+from .academic_session import AcademicSession
+from .school_class import SchoolClass
+from .class_group import ClassGroup
+from .subject import SchoolSubject
+from .student_subject_enrollment import StudentSubjectEnrollment
+from .school_membership import SchoolMembership
+from .teacher_subject_assignment import TeacherSubjectAssignment
+from .subject_category import SubjectCategory

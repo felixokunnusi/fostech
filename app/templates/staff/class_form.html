@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if school_class %}Edit Class{% else %}Add Class{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-lg-7">
+
+        <div class="card shadow-sm">
+
+            <div class="card-header">
+                <h4 class="mb-0">
+                    {% if school_class %}
+                        Edit Class
+                    {% else %}
+                        Add Class
+                    {% endif %}
+                </h4>
+            </div>
+
+            <div class="card-body">
+
+                <div class="alert alert-light border">
+                    <strong>School:</strong> {{ school.name }}<br>
+                    <strong>Session:</strong> {{ session.name }}
+                </div>
+
+                <form method="POST">
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">
+                            Class Name
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="name"
+                            name="name"
+                            value="{{ school_class.name if school_class else '' }}"
+                            placeholder="e.g. SS 2"
+                            required
+                        >
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="display_order" class="form-label">
+                            Display Order
+                        </label>
+
+                        <input
+                            type="number"
+                            class="form-control"
+                            id="display_order"
+                            name="display_order"
+                            value="{{ school_class.display_order if school_class else 0 }}"
+                            min="0"
+                        >
+
+                        <div class="form-text">
+                            Lower numbers appear first.
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+
+                        <a href="{{ url_for(
+                            'staff.school_classes',
+                            school_id=school.id,
+                            session_id=session.id
+                        ) }}"
+                           class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+
+                        <button type="submit"
+                                class="btn btn-primary">
+                            {% if school_class %}
+                                Save Changes
+                            {% else %}
+                                Create Class
+                            {% endif %}
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

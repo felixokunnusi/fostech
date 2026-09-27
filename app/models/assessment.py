@@ -110,6 +110,51 @@ class Assessment(db.Model):
         ),
     )
 
+    school_id = db.Column(
+        db.Integer,
+        db.ForeignKey("school.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    academic_session_id = db.Column(
+        db.Integer,
+        db.ForeignKey("academic_session.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    class_id = db.Column(
+        db.Integer,
+        db.ForeignKey("school_class.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    class_group_id = db.Column(
+        db.Integer,
+        db.ForeignKey("class_group.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    subject_id = db.Column(
+        db.Integer,
+        db.ForeignKey("school_subject.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    school = db.relationship("School")
+
+    academic_session = db.relationship("AcademicSession")
+
+    school_class = db.relationship("SchoolClass")
+
+    class_group = db.relationship("ClassGroup")
+
+    school_subject = db.relationship("SchoolSubject")
+
     def __repr__(self):
         return (
             f"<Assessment {self.id} "

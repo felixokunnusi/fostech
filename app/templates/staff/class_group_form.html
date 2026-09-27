@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- ============================================================
+         PAGE HEADER
+         ============================================================ -->
+
+    <div class="mb-4">
+
+        <h2>
+            {% if group %}
+                Edit Class Group
+            {% else %}
+                New Class Group
+            {% endif %}
+        </h2>
+
+        <p class="text-muted mb-1">
+            {{ school.name }}
+        </p>
+
+        <p class="text-muted mb-0">
+            {{ session.name }} —
+            {{ school_class.name }}
+        </p>
+
+    </div>
+
+
+    <!-- ============================================================
+         FORM
+         ============================================================ -->
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <form method="POST">
+
+                <!-- =================================================
+                     GROUP NAME
+                     ================================================= -->
+
+                <div class="mb-3">
+
+                    <label
+                        for="name"
+                        class="form-label"
+                    >
+                        Class Group Name
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="name"
+                        name="name"
+                        value="{{ group.name if group else '' }}"
+                        required
+                        maxlength="100"
+                    >
+
+                    <div class="form-text">
+                        Example: A, B, C.
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     ACADEMIC CATEGORY
+                     ================================================= -->
+
+                <div class="mb-3">
+
+                    <label
+                        for="category_id"
+                        class="form-label"
+                    >
+                        Academic Category
+                    </label>
+
+                    <select
+                        class="form-select"
+                        id="category_id"
+                        name="category_id"
+                    >
+
+                        <option value="">
+                            -- Select Category --
+                        </option>
+
+                        {% for category in categories %}
+
+                            <option
+                                value="{{ category.id }}"
+                                {% if group and group.category_id == category.id %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ category.name }}
+
+                                {% if not category.active %}
+                                    (Inactive)
+                                {% endif %}
+
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                    <div class="form-text">
+                        Assign this class group to an academic
+                        category or stream.
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     DISPLAY ORDER
+                     ================================================= -->
+
+                <div class="mb-3">
+
+                    <label
+                        for="display_order"
+                        class="form-label"
+                    >
+                        Display Order
+                    </label>
+
+                    <input
+                        type="number"
+                        class="form-control"
+                        id="display_order"
+                        name="display_order"
+                        value="{{ group.display_order if group else 0 }}"
+                    >
+
+                    <div class="form-text">
+                        Lower numbers appear first.
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     BUTTONS
+                     ================================================= -->
+
+                <div class="d-flex gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
+                        {% if group %}
+                            Save Changes
+                        {% else %}
+                            Create Group
+                        {% endif %}
+                    </button>
+
+                    <a
+                        href="{{ url_for(
+                            'staff.class_groups',
+                            school_id=school.id,
+                            session_id=session.id,
+                            class_id=school_class.id
+                        ) }}"
+                        class="btn btn-secondary"
+                    >
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

@@ -152,6 +152,7 @@ def create_app():
     from app.quiz import quiz_bp
     from app.admin import admin_bp
     from app.payments import payments_bp
+    from app.staff import staff_bp
     from .cli import register_cli
 
 
@@ -167,6 +168,7 @@ def create_app():
     app.register_blueprint(workspace_bp)
     app.register_blueprint(teacher_bp)
     app.register_blueprint(student_bp)
+    app.register_blueprint(staff_bp)
 
 
 

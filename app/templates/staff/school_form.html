@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if school %}Edit School{% else %}Add School{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-lg-7">
+
+        <div class="card shadow-sm">
+
+            <div class="card-header">
+                <h4 class="mb-0">
+                    {% if school %}
+                        Edit School
+                    {% else %}
+                        Add School
+                    {% endif %}
+                </h4>
+            </div>
+
+            <div class="card-body">
+
+                <form method="POST">
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">
+                            School Name
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="name"
+                            name="name"
+                            value="{{ school.name if school else '' }}"
+                            required
+                        >
+
+                        <div class="form-text">
+                            Enter the school's official name.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="short_name" class="form-label">
+                            Short Name
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="short_name"
+                            name="short_name"
+                            value="{{ school.short_name if school else '' }}"
+                            placeholder="e.g. MSSM"
+                        >
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="address" class="form-label">
+                            Address
+                        </label>
+
+                        <textarea
+                            class="form-control"
+                            id="address"
+                            name="address"
+                            rows="3"
+                        >{{ school.address if school else '' }}</textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+
+                        <a href="{{ url_for('staff.schools') }}"
+                           class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+
+                        <button type="submit"
+                                class="btn btn-primary">
+
+                            {% if school %}
+                                Save Changes
+                            {% else %}
+                                Create School
+                            {% endif %}
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

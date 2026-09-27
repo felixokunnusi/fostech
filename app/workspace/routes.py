@@ -135,11 +135,9 @@ def redirect_workspace():
     # STAFF
     # ----------------------------------------------------------
     if workspace == "staff":
-        return render_template(
-            "workspace/coming_soon.html",
-            workspace_name="Staff"
-        )
-
+        return redirect(
+            url_for("staff.dashboard")
+    )
     # ----------------------------------------------------------
     # NO VALID WORKSPACE
     # ----------------------------------------------------------

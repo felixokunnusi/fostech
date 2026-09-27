@@ -1,0 +1,748 @@
+{% extends "base.html" %}
+
+{% block title %}Student Placement{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">Student Placement</h2>
+
+            <p class="text-muted mb-0">
+                Assign {{ student.username }} to a school, academic session,
+                class and class group.
+            </p>
+        </div>
+
+        <a
+            href="{{ url_for('staff.students') }}"
+            class="btn btn-secondary"
+        >
+            Back to Students
+        </a>
+
+    </div>
+
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+
+        {% if messages %}
+
+            {% for category, message in messages %}
+
+                <div
+                    class="alert alert-{{ category }}"
+                    role="alert"
+                >
+                    {{ message }}
+                </div>
+
+            {% endfor %}
+
+        {% endif %}
+
+    {% endwith %}
+
+
+    <!-- ============================================================= -->
+    <!-- STUDENT INFORMATION -->
+    <!-- ============================================================= -->
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-header">
+            <strong>Student Information</strong>
+        </div>
+
+        <div class="card-body">
+
+            <div class="row">
+
+                <div class="col-md-6 mb-2">
+
+                    <strong>Username:</strong>
+                    {{ student.username }}
+
+                </div>
+
+                <div class="col-md-6 mb-2">
+
+                    <strong>Email:</strong>
+                    {{ student.email }}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ============================================================= -->
+    <!-- CURRENT PLACEMENT -->
+    <!-- ============================================================= -->
+
+    {% if current_membership %}
+
+        <div class="alert alert-secondary">
+
+            <strong>Current Placement:</strong>
+
+            {{ current_membership.school.name }}
+
+            {% if current_membership.school_class %}
+
+                —
+                {{ current_membership.school_class.name }}
+
+            {% endif %}
+
+            {% if current_membership.class_group %}
+
+                {{ current_membership.class_group.name }}
+
+            {% endif %}
+
+        </div>
+
+    {% endif %}
+
+
+    <!-- ============================================================= -->
+    <!-- PLACEMENT FORM -->
+    <!-- ============================================================= -->
+
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+
+            <strong>Assign Placement</strong>
+
+        </div>
+
+        <div class="card-body">
+
+            <form
+                method="POST"
+                id="placementForm"
+            >
+
+                <!-- SCHOOL -->
+
+                <div class="mb-3">
+
+                    <label
+                        for="school_id"
+                        class="form-label"
+                    >
+                        School
+                    </label>
+
+                    <select
+                        id="school_id"
+                        name="school_id"
+                        class="form-select"
+                        required
+                    >
+
+                        <option value="">
+                            -- Select School --
+                        </option>
+
+                        {% for school in schools %}
+
+                            <option
+                                value="{{ school.id }}"
+                            >
+                                {{ school.name }}
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <!-- SESSION -->
+
+                <div
+                    class="mb-3"
+                    id="sessionContainer"
+                    style="display: none;"
+                >
+
+                    <label
+                        for="academic_session_id"
+                        class="form-label"
+                    >
+                        Academic Session
+                    </label>
+
+                    <select
+                        id="academic_session_id"
+                        name="academic_session_id"
+                        class="form-select"
+                        disabled
+                    >
+
+                        <option value="">
+                            -- Select Academic Session --
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- CLASS -->
+
+                <div
+                    class="mb-3"
+                    id="classContainer"
+                    style="display: none;"
+                >
+
+                    <label
+                        for="class_id"
+                        class="form-label"
+                    >
+                        Class
+                    </label>
+
+                    <select
+                        id="class_id"
+                        name="class_id"
+                        class="form-select"
+                        disabled
+                    >
+
+                        <option value="">
+                            -- Select Class --
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- CLASS GROUP -->
+
+                <div
+                    class="mb-3"
+                    id="groupContainer"
+                    style="display: none;"
+                >
+
+                    <label
+                        for="class_group_id"
+                        class="form-label"
+                    >
+                        Class Group
+                    </label>
+
+                    <select
+                        id="class_group_id"
+                        name="class_group_id"
+                        class="form-select"
+                        disabled
+                    >
+
+                        <option value="">
+                            -- Select Class Group --
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- PLACEMENT PREVIEW -->
+
+                <div
+                    id="placementPreview"
+                    class="alert alert-info"
+                    style="display: none;"
+                >
+
+                    <strong>Selected Placement:</strong>
+
+                    <span id="placementText"></span>
+
+                </div>
+
+
+                <!-- SAVE -->
+
+                <div class="mt-4">
+
+                    <button
+                        type="submit"
+                        id="savePlacement"
+                        class="btn btn-primary"
+                        disabled
+                    >
+                        Save Student Placement
+                    </button>
+
+                    <a
+                        href="{{ url_for('staff.students') }}"
+                        class="btn btn-secondary ms-2"
+                    >
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const schoolSelect =
+        document.getElementById("school_id");
+
+    const sessionContainer =
+        document.getElementById("sessionContainer");
+
+    const sessionSelect =
+        document.getElementById("academic_session_id");
+
+    const classContainer =
+        document.getElementById("classContainer");
+
+    const classSelect =
+        document.getElementById("class_id");
+
+    const groupContainer =
+        document.getElementById("groupContainer");
+
+    const groupSelect =
+        document.getElementById("class_group_id");
+
+    const placementPreview =
+        document.getElementById("placementPreview");
+
+    const placementText =
+        document.getElementById("placementText");
+
+    const saveButton =
+        document.getElementById("savePlacement");
+
+
+    // ================================================================
+    // Helpers
+    // ================================================================
+
+    function resetSelect(selectElement, placeholder) {
+
+        selectElement.innerHTML = "";
+
+        const option =
+            document.createElement("option");
+
+        option.value = "";
+        option.textContent = placeholder;
+
+        selectElement.appendChild(option);
+
+        selectElement.value = "";
+        selectElement.disabled = true;
+    }
+
+
+    function hideElement(element) {
+
+        element.style.display = "none";
+
+    }
+
+
+    function showElement(element) {
+
+        element.style.display = "block";
+
+    }
+
+
+    function updateSaveButton() {
+
+        const ready =
+            schoolSelect.value &&
+            sessionSelect.value &&
+            classSelect.value &&
+            groupSelect.value;
+
+        saveButton.disabled = !ready;
+
+    }
+
+
+    function updatePreview() {
+
+        if (
+            !classSelect.value ||
+            !groupSelect.value
+        ) {
+
+            hideElement(placementPreview);
+
+            updateSaveButton();
+
+            return;
+
+        }
+
+
+        const classText =
+            classSelect.options[
+                classSelect.selectedIndex
+            ].textContent.trim();
+
+        const groupText =
+            groupSelect.options[
+                groupSelect.selectedIndex
+            ].textContent.trim();
+
+
+        placementText.textContent =
+            classText + groupText;
+
+
+        showElement(placementPreview);
+
+        updateSaveButton();
+
+    }
+
+
+    // ================================================================
+    // SCHOOL → SESSION
+    // ================================================================
+
+    schoolSelect.addEventListener(
+        "change",
+        async function () {
+
+            resetSelect(
+                sessionSelect,
+                "-- Select Academic Session --"
+            );
+
+            resetSelect(
+                classSelect,
+                "-- Select Class --"
+            );
+
+            resetSelect(
+                groupSelect,
+                "-- Select Class Group --"
+            );
+
+
+            hideElement(classContainer);
+            hideElement(groupContainer);
+            hideElement(placementPreview);
+
+            saveButton.disabled = true;
+
+
+            if (!schoolSelect.value) {
+
+                hideElement(sessionContainer);
+
+                return;
+
+            }
+
+
+            showElement(sessionContainer);
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "{{ url_for('staff.placement_sessions') }}"
+                        + "?school_id="
+                        + encodeURIComponent(
+                            schoolSelect.value
+                        )
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Unable to load academic sessions."
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                data.sessions.forEach(
+                    function (session) {
+
+                        const option =
+                            document.createElement("option");
+
+                        option.value =
+                            session.id;
+
+                        option.textContent =
+                            session.name;
+
+                        sessionSelect.appendChild(
+                            option
+                        );
+
+                    }
+                );
+
+
+                sessionSelect.disabled =
+                    data.sessions.length === 0;
+
+
+            } catch (error) {
+
+                console.error(error);
+
+                alert(
+                    "Unable to load academic sessions."
+                );
+
+            }
+
+        }
+    );
+
+
+    // ================================================================
+    // SESSION → CLASS
+    // ================================================================
+
+    sessionSelect.addEventListener(
+        "change",
+        async function () {
+
+            resetSelect(
+                classSelect,
+                "-- Select Class --"
+            );
+
+            resetSelect(
+                groupSelect,
+                "-- Select Class Group --"
+            );
+
+
+            hideElement(groupContainer);
+            hideElement(placementPreview);
+
+            saveButton.disabled = true;
+
+
+            if (!sessionSelect.value) {
+
+                hideElement(classContainer);
+
+                return;
+
+            }
+
+
+            showElement(classContainer);
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "{{ url_for('staff.placement_classes') }}"
+                        + "?school_id="
+                        + encodeURIComponent(
+                            schoolSelect.value
+                        )
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Unable to load classes."
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                data.classes.forEach(
+                    function (schoolClass) {
+
+                        const option =
+                            document.createElement("option");
+
+                        option.value =
+                            schoolClass.id;
+
+                        option.textContent =
+                            schoolClass.name;
+
+                        classSelect.appendChild(
+                            option
+                        );
+
+                    }
+                );
+
+
+                classSelect.disabled =
+                    data.classes.length === 0;
+
+
+            } catch (error) {
+
+                console.error(error);
+
+                alert(
+                    "Unable to load classes."
+                );
+
+            }
+
+        }
+    );
+
+
+    // ================================================================
+    // CLASS → GROUP
+    // ================================================================
+
+    classSelect.addEventListener(
+        "change",
+        async function () {
+
+            resetSelect(
+                groupSelect,
+                "-- Select Class Group --"
+            );
+
+
+            hideElement(placementPreview);
+
+            saveButton.disabled = true;
+
+
+            if (!classSelect.value) {
+
+                hideElement(groupContainer);
+
+                return;
+
+            }
+
+
+            showElement(groupContainer);
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "{{ url_for('staff.placement_groups') }}"
+                        + "?class_id="
+                        + encodeURIComponent(
+                            classSelect.value
+                        )
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Unable to load class groups."
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                data.groups.forEach(
+                    function (group) {
+
+                        const option =
+                            document.createElement("option");
+
+                        option.value =
+                            group.id;
+
+                        option.textContent =
+                            group.name;
+
+                        groupSelect.appendChild(
+                            option
+                        );
+
+                    }
+                );
+
+
+                groupSelect.disabled =
+                    data.groups.length === 0;
+
+
+            } catch (error) {
+
+                console.error(error);
+
+                alert(
+                    "Unable to load class groups."
+                );
+
+            }
+
+        }
+    );
+
+
+    // ================================================================
+    // GROUP → PREVIEW
+    // ================================================================
+
+    groupSelect.addEventListener(
+        "change",
+        function () {
+
+            updatePreview();
+
+        }
+    );
+
+});
+
+</script>
+
+{% endblock %}

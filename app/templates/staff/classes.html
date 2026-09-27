@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Classes{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Classes</h2>
+            <div class="text-muted">
+                {{ school.name }} &middot; {{ session.name }}
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('staff.school_sessions', school_id=school.id) }}"
+               class="btn btn-outline-secondary">
+                Back to Sessions
+            </a>
+
+            <a href="{{ url_for(
+                'staff.new_class',
+                school_id=school.id,
+                session_id=session.id
+            ) }}"
+               class="btn btn-primary">
+                Add Class
+            </a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show"
+                     role="alert">
+                    {{ message }}
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="alert"
+                            aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if classes %}
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Class</th>
+                                <th>Order</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for school_class in classes %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+
+                                    <td>
+                                        <strong>{{ school_class.name }}</strong>
+                                    </td>
+
+                                    <td>
+                                        {{ school_class.display_order }}
+                                    </td>
+
+                                    <td>
+                                        {% if school_class.active %}
+                                            <span class="badge bg-success">
+                                                Active
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                Inactive
+                                            </span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td class="text-end">
+                                        <div class="d-inline-flex gap-1">
+
+                                            <a href="{{ url_for(
+                                                'staff.class_groups',
+                                                school_id=school.id,
+                                                session_id=session.id,
+                                                class_id=school_class.id
+                                            ) }}"
+                                               class="btn btn-sm btn-outline-info">
+                                                Groups
+                                            </a>
+
+                                            <a href="{{ url_for(
+                                                'staff.edit_class',
+                                                school_id=school.id,
+                                                session_id=session.id,
+                                                class_id=school_class.id
+                                            ) }}"
+                                               class="btn btn-sm btn-outline-primary">
+                                                Edit
+                                            </a>
+
+                                            <form method="POST"
+                                                  action="{{ url_for(
+                                                      'staff.toggle_class',
+                                                      school_id=school.id,
+                                                      session_id=session.id,
+                                                      class_id=school_class.id
+                                                  ) }}"
+                                                  class="d-inline">
+
+                                                <button type="submit"
+                                                        class="btn btn-sm btn-outline-warning">
+                                                    {% if school_class.active %}
+                                                        Deactivate
+                                                    {% else %}
+                                                        Activate
+                                                    {% endif %}
+                                                </button>
+
+                                            </form>
+
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+
+                <h5>No classes yet</h5>
+
+                <p class="text-muted mb-4">
+                    No classes have been created for
+                    <strong>{{ session.name }}</strong>
+                    in
+                    <strong>{{ school.name }}</strong>.
+                </p>
+
+                <a href="{{ url_for(
+                    'staff.new_class',
+                    school_id=school.id,
+                    session_id=session.id
+                ) }}"
+                   class="btn btn-primary">
+                    Create First Class
+                </a>
+
+            </div>
+        </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="mb-4">
+
+        <h2>
+            {% if edit_mode %}
+                Edit Subject
+            {% else %}
+                New Subject
+            {% endif %}
+        </h2>
+
+        <p class="text-muted mb-0">
+            {{ school.name }}
+        </p>
+
+    </div>
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <form method="POST">
+
+                <div class="mb-3">
+
+                    <label
+                        for="name"
+                        class="form-label"
+                    >
+                        Subject Name
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="name"
+                        name="name"
+                        value="{{ subject.name if subject else '' }}"
+                        required
+                        maxlength="255"
+                    >
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label
+                        for="code"
+                        class="form-label"
+                    >
+                        Subject Code
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="code"
+                        name="code"
+                        value="{{ subject.code if subject and subject.code else '' }}"
+                        maxlength="50"
+                    >
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label
+                        for="category_id"
+                        class="form-label"
+                    >
+                        Subject Category
+                    </label>
+
+                    <select
+                        class="form-select"
+                        id="category_id"
+                        name="category_id"
+                    >
+
+                        <option value="">
+                            -- Select Category --
+                        </option>
+
+                        {% for category in categories %}
+
+                            <option
+                                value="{{ category.id }}"
+                                {% if subject and subject.category_id == category.id %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ category.name }}
+
+                                {% if not category.active %}
+                                    (Inactive)
+                                {% endif %}
+
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                    <div class="form-text">
+                        Assign this subject to an academic category.
+                    </div>
+
+                </div>
+
+
+                <div class="d-flex gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
+                        {% if edit_mode %}
+                            Save Changes
+                        {% else %}
+                            Create Subject
+                        {% endif %}
+                    </button>
+
+                    <a
+                        href="{{ url_for(
+                            'staff.subjects',
+                            school_id=school.id
+                        ) }}"
+                        class="btn btn-secondary"
+                    >
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
