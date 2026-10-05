@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Subject Selection
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- ========================================================= -->
+    <!-- HEADER -->
+    <!-- ========================================================= -->
+
+    <div class="mb-4">
+        <h2 class="mb-1">
+            📚 Subject Selection
+        </h2>
+
+        <p class="text-muted mb-0">
+            Select your subjects for the current academic session.
+        </p>
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- STUDENT PLACEMENT -->
+    <!-- ========================================================= -->
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <h5 class="card-title mb-3">
+                Your Placement
+            </h5>
+
+            <div class="row">
+
+                <div class="col-md-3 mb-3">
+                    <div class="text-muted small">
+                        School
+                    </div>
+
+                    <strong>
+                        {{ membership.school.name }}
+                    </strong>
+                </div>
+
+
+                <div class="col-md-3 mb-3">
+                    <div class="text-muted small">
+                        Academic Session
+                    </div>
+
+                    <strong>
+                        {{ membership.academic_session.name }}
+                    </strong>
+                </div>
+
+
+                <div class="col-md-3 mb-3">
+                    <div class="text-muted small">
+                        Class
+                    </div>
+
+                    <strong>
+                        {{ membership.school_class.name }}
+                        {% if class_group %}
+                            {{ class_group.name }}
+                        {% endif %}
+                    </strong>
+                </div>
+
+
+                <div class="col-md-3 mb-3">
+                    <div class="text-muted small">
+                        Stream
+                    </div>
+
+                    <strong class="text-primary">
+                        {{ stream_category.name }}
+                    </strong>
+                </div>
+
+            </div>
+
+
+            <div class="alert alert-info mb-0">
+
+                <strong>Subject Requirement:</strong>
+
+                You must select between
+                <strong>
+                    {{ selection_rule.minimum_subjects }}
+                </strong>
+                and
+                <strong>
+                    {{ selection_rule.maximum_subjects }}
+                </strong>
+                subjects.
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- SUBJECT SELECTION -->
+    <!-- ========================================================= -->
+
+    <form method="POST">
+
+        {% for category in allowed_categories %}
+
+            {% set category_subjects =
+                subjects_by_category.get(category.id, []) %}
+
+            {% if category_subjects %}
+
+                <div class="card shadow-sm mb-4">
+
+                    <div class="card-header">
+
+                        <div class="d-flex justify-content-between align-items-center">
+
+                            <div>
+                                <h5 class="mb-0">
+                                    {{ category.name }}
+                                </h5>
+                            </div>
+
+                            {% if category.name|lower == "core" %}
+
+                                <span class="badge bg-danger">
+                                    Compulsory
+                                </span>
+
+                            {% elif category.name|lower == "trade" %}
+
+                                <span class="badge bg-warning text-dark">
+                                    Choose 1
+                                </span>
+
+                            {% elif category.name|lower == "nigerian language" %}
+
+                                <span class="badge bg-secondary">
+                                    Optional
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge bg-primary">
+                                    {{ stream_category.name }}
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="card-body">
+
+                        <div class="row">
+
+                            {% for config in category_subjects %}
+
+                                <div class="col-md-6 col-lg-4 mb-3">
+
+                                    <div class="border rounded p-3 h-100">
+
+                                        <div class="form-check">
+
+                                            <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                name="subject_ids"
+                                                value="{{ config.subject_id }}"
+                                                id="subject_{{ config.subject_id }}"
+
+                                                {% if config.subject_id in selected_subject_ids %}
+                                                    checked
+                                                {% endif %}
+
+                                                {% if config.required %}
+                                                    disabled
+                                                {% endif %}
+                                            >
+
+                                            <label
+                                                class="form-check-label"
+                                                for="subject_{{ config.subject_id }}"
+                                            >
+
+                                                <strong>
+                                                    {{ config.subject.name }}
+                                                </strong>
+
+                                                {% if config.required %}
+
+                                                    <span class="badge bg-danger ms-1">
+                                                        Required
+                                                    </span>
+
+                                                {% endif %}
+
+                                            </label>
+
+                                        </div>
+
+
+                                        {% if config.required %}
+
+                                            <div class="small text-muted mt-2">
+                                                This subject is compulsory.
+                                            </div>
+
+                                        {% elif not config.selectable %}
+
+                                            <div class="small text-muted mt-2">
+                                                Not available for selection.
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+        {% endfor %}
+
+
+        <!-- ===================================================== -->
+        <!-- SUBMIT -->
+        <!-- ===================================================== -->
+
+        <div class="d-flex justify-content-between align-items-center mb-5">
+
+            <div class="text-muted">
+                Your compulsory subjects will be included automatically.
+            </div>
+
+            <button
+                type="submit"
+                class="btn btn-primary"
+            >
+                Submit Subject Selection
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

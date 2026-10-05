@@ -8,7 +8,6 @@ from flask import (
     request,
 )
 from flask_login import login_required, current_user
-
 from app.extensions import db
 from app.models.school import School
 from app.models.academic_session import AcademicSession
@@ -2908,6 +2907,7 @@ def subject_selection_rule(school_id):
         # ---------------------------------------------------------------
 
         if rule is None:
+
             rule = SubjectSelectionRule(
                 school_id=school.id,
             )

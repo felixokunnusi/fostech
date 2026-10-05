@@ -13,6 +13,13 @@ from app.models import (
 
 from . import student_bp
 from app.utils import now_utc
+from app.models.school_membership import SchoolMembership
+from app.models.category_subject_config import CategorySubjectConfig
+from app.models.subject_selection_rule import SubjectSelectionRule
+from app.models.student_subject_enrollment import StudentSubjectEnrollment
+from app.student.subject_selection import validate_subject_selection
+from app.models.class_group import ClassGroup
+from app.models.subject_category import SubjectCategory
 
 
 def student_has_access():
@@ -59,6 +66,413 @@ def dashboard():
         assessments=assessments,
     )
 
+# ============================================================================
+# STUDENT SUBJECT SELECTION
+# ============================================================================
+
+# ============================================================================
+# STUDENT SUBJECT SELECTION
+# ============================================================================
+
+@student_bp.route(
+    "/subjects",
+    methods=["GET", "POST"],
+)
+@login_required
+def subject_selection():
+    """
+    Display and process subject selection for the student's
+    current school placement and class-group stream.
+    """
+
+    if not student_has_access():
+        flash(
+            "You do not have access to the Student workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    # ---------------------------------------------------------------
+    # ACTIVE STUDENT PLACEMENT
+    # ---------------------------------------------------------------
+
+    membership = (
+        SchoolMembership.query
+        .filter_by(
+            user_id=current_user.id,
+            active=True,
+            membership_type="student",
+        )
+        .order_by(
+            SchoolMembership.created_at.desc()
+        )
+        .first()
+    )
+
+    if membership is None:
+        flash(
+            "You have not yet been placed in a school, class, and "
+            "academic session. Please contact your school administrator.",
+            "warning",
+        )
+        return redirect(url_for("student.dashboard"))
+
+    # ---------------------------------------------------------------
+    # GET THE STUDENT'S CLASS GROUP
+    # ---------------------------------------------------------------
+
+    class_group = None
+
+    if membership.class_group_id:
+        class_group = (
+            ClassGroup.query
+            .filter_by(
+                id=membership.class_group_id,
+                class_id=membership.class_id,
+                active=True,
+            )
+            .first()
+        )
+
+    if class_group is None:
+        flash(
+            "Your class stream has not been configured. "
+            "Please contact your school administrator.",
+            "warning",
+        )
+        return redirect(url_for("student.dashboard"))
+
+    # ---------------------------------------------------------------
+    # STREAM CATEGORY
+    # ---------------------------------------------------------------
+
+    if not class_group.category_id:
+        flash(
+            "Your class stream does not have a subject category "
+            "assigned to it.",
+            "warning",
+        )
+        return redirect(url_for("student.dashboard"))
+
+    stream_category = (
+        SubjectCategory.query
+        .filter_by(
+            id=class_group.category_id,
+            school_id=membership.school_id,
+            active=True,
+        )
+        .first()
+    )
+
+    if stream_category is None:
+        flash(
+            "Your class stream category is invalid. "
+            "Please contact your school administrator.",
+            "danger",
+        )
+        return redirect(url_for("student.dashboard"))
+
+    # ---------------------------------------------------------------
+    # SCHOOL-WIDE SUBJECT SELECTION RULE
+    # ---------------------------------------------------------------
+
+    selection_rule = (
+        SubjectSelectionRule.query
+        .filter_by(
+            school_id=membership.school_id,
+            active=True,
+        )
+        .first()
+    )
+
+    if selection_rule is None:
+        flash(
+            "Your school has not yet configured the subject "
+            "selection rules.",
+            "warning",
+        )
+        return redirect(url_for("student.dashboard"))
+
+    # ---------------------------------------------------------------
+    # DETERMINE ALLOWED CATEGORIES
+    #
+    # ALL students:
+    #     Core + Trade
+    #
+    # Science:
+    #     Core + Trade + Science
+    #
+    # Business:
+    #     Core + Trade + Business
+    #
+    # Humanities:
+    #     Core + Trade + Humanities + Nigerian Language
+    # ---------------------------------------------------------------
+
+    all_categories = (
+        SubjectCategory.query
+        .filter_by(
+            school_id=membership.school_id,
+            active=True,
+        )
+        .order_by(
+            SubjectCategory.name.asc()
+        )
+        .all()
+    )
+
+    category_by_name = {
+        category.name.strip().casefold(): category
+        for category in all_categories
+    }
+
+    allowed_categories = []
+
+    core_category = category_by_name.get("core")
+    trade_category = category_by_name.get("trade")
+
+    if core_category:
+        allowed_categories.append(core_category)
+
+    if trade_category:
+        allowed_categories.append(trade_category)
+
+    # Student's stream.
+    if stream_category.id not in {
+        category.id
+        for category in allowed_categories
+    }:
+        allowed_categories.append(stream_category)
+
+    # Humanities students also get Nigerian Language.
+    if (
+        stream_category.name.strip().casefold()
+        == "humanities"
+    ):
+        nigerian_language_category = category_by_name.get(
+            "nigerian language"
+        )
+
+        if (
+            nigerian_language_category
+            and nigerian_language_category.id
+            not in {
+                category.id
+                for category in allowed_categories
+            }
+        ):
+            allowed_categories.append(
+                nigerian_language_category
+            )
+
+    allowed_category_ids = {
+        category.id
+        for category in allowed_categories
+    }
+
+    # ---------------------------------------------------------------
+    # LOAD SUBJECT CONFIGURATIONS
+    # ---------------------------------------------------------------
+
+    subject_configs = (
+        CategorySubjectConfig.query
+        .filter(
+            CategorySubjectConfig.school_id
+            == membership.school_id,
+            CategorySubjectConfig.active.is_(True),
+            CategorySubjectConfig.category_id.in_(
+                allowed_category_ids
+            ),
+        )
+        .filter(
+            CategorySubjectConfig.subject.has(
+                active=True
+            )
+        )
+        .order_by(
+            CategorySubjectConfig.category_id.asc(),
+            CategorySubjectConfig.display_order.asc(),
+            CategorySubjectConfig.id.asc(),
+        )
+        .all()
+    )
+
+    # ---------------------------------------------------------------
+    # GROUP SUBJECTS BY CATEGORY
+    # ---------------------------------------------------------------
+
+    subjects_by_category = {
+        category.id: []
+        for category in allowed_categories
+    }
+
+    for config in subject_configs:
+        subjects_by_category.setdefault(
+            config.category_id,
+            [],
+        ).append(config)
+
+    # ---------------------------------------------------------------
+    # EXISTING ACTIVE ENROLLMENTS
+    # ---------------------------------------------------------------
+
+    existing_enrollments = (
+        StudentSubjectEnrollment.query
+        .filter_by(
+            student_id=current_user.id,
+            school_id=membership.school_id,
+            academic_session_id=membership.academic_session_id,
+            class_id=membership.class_id,
+            class_group_id=membership.class_group_id,
+            active=True,
+        )
+        .all()
+    )
+
+    existing_subject_ids = {
+        enrollment.subject_id
+        for enrollment in existing_enrollments
+    }
+
+    # Required subjects are always selected.
+    required_subject_ids = {
+        config.subject_id
+        for config in subject_configs
+        if config.required
+    }
+
+    # ===============================================================
+    # PROCESS SUBMISSION
+    # ===============================================================
+
+    if request.method == "POST":
+
+        submitted_subject_ids = request.form.getlist(
+            "subject_ids"
+        )
+
+        try:
+            selected_subject_ids = {
+                int(subject_id)
+                for subject_id in submitted_subject_ids
+            }
+
+        except (TypeError, ValueError):
+
+            flash(
+                "Invalid subject selection.",
+                "danger",
+            )
+
+            return render_template(
+                "student/subject_selection.html",
+                membership=membership,
+                class_group=class_group,
+                stream_category=stream_category,
+                selection_rule=selection_rule,
+                allowed_categories=allowed_categories,
+                subjects_by_category=subjects_by_category,
+                selected_subject_ids=(
+                    existing_subject_ids
+                    | required_subject_ids
+                ),
+            )
+
+        # Compulsory subjects cannot be removed.
+        selected_subject_ids.update(
+            required_subject_ids
+        )
+
+        # -----------------------------------------------------------
+        # SERVER-SIDE VALIDATION
+        # -----------------------------------------------------------
+
+        validation = validate_subject_selection(
+            membership.school_id,
+            selected_subject_ids,
+            stream_category.id,
+        )
+
+        if not validation["valid"]:
+
+            for error in validation["errors"]:
+                flash(
+                    error,
+                    "danger",
+                )
+
+            return render_template(
+                "student/subject_selection.html",
+                membership=membership,
+                class_group=class_group,
+                stream_category=stream_category,
+                selection_rule=selection_rule,
+                allowed_categories=allowed_categories,
+                subjects_by_category=subjects_by_category,
+                selected_subject_ids=selected_subject_ids,
+            )
+
+        # -----------------------------------------------------------
+        # SAVE VALID SELECTION
+        # -----------------------------------------------------------
+
+        for enrollment in existing_enrollments:
+
+            if enrollment.subject_id not in selected_subject_ids:
+                enrollment.active = False
+
+        existing_subject_ids = {
+            enrollment.subject_id
+            for enrollment in existing_enrollments
+        }
+
+        for subject_id in selected_subject_ids:
+
+            if subject_id in existing_subject_ids:
+                continue
+
+            enrollment = StudentSubjectEnrollment(
+                student_id=current_user.id,
+                school_id=membership.school_id,
+                academic_session_id=membership.academic_session_id,
+                class_id=membership.class_id,
+                class_group_id=membership.class_group_id,
+                subject_id=subject_id,
+                active=True,
+            )
+
+            db.session.add(enrollment)
+
+        db.session.commit()
+
+        flash(
+            "Your subject selection has been submitted successfully.",
+            "success",
+        )
+
+        return redirect(
+            url_for("student.subject_selection")
+        )
+
+    # ===============================================================
+    # DISPLAY
+    # ===============================================================
+
+    selected_subject_ids = (
+        existing_subject_ids
+        | required_subject_ids
+    )
+
+    return render_template(
+        "student/subject_selection.html",
+        membership=membership,
+        class_group=class_group,
+        stream_category=stream_category,
+        selection_rule=selection_rule,
+        allowed_categories=allowed_categories,
+        subjects_by_category=subjects_by_category,
+        selected_subject_ids=selected_subject_ids,
+    )
 
 
 @student_bp.route(

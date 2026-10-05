@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+
+{% block title %}
+    School Management — {{ school.name }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">
+                {{ school.name }}
+            </h2>
+
+            <p class="text-muted mb-0">
+                School Management
+            </p>
+        </div>
+
+        <a
+            href="{{ url_for('staff.schools') }}"
+            class="btn btn-outline-secondary"
+        >
+            Back to Schools
+        </a>
+
+    </div>
+
+
+    <!-- School Information -->
+    <div class="card mb-4 shadow-sm">
+
+        <div class="card-body">
+
+            <h5 class="card-title">
+                School Information
+            </h5>
+
+            <div class="row">
+
+                <div class="col-md-4">
+                    <strong>Name:</strong><br>
+                    {{ school.name }}
+                </div>
+
+                <div class="col-md-4">
+                    <strong>Short Name:</strong><br>
+                    {{ school.short_name or "—" }}
+                </div>
+
+                <div class="col-md-4">
+                    <strong>Status:</strong><br>
+
+                    {% if school.active %}
+
+                        <span class="badge bg-success">
+                            Active
+                        </span>
+
+                    {% else %}
+
+                        <span class="badge bg-secondary">
+                            Inactive
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Management Options -->
+    <div class="row g-4">
+
+
+        <!-- Academic Sessions -->
+        <div class="col-md-3">
+
+            <div class="card h-100 border">
+
+                <div class="card-body">
+
+                    <h6>
+                        Academic Sessions
+                    </h6>
+
+                    <p class="text-muted small">
+                        Create and manage academic sessions
+                        for this school.
+                    </p>
+
+                    <a
+                        href="{{ url_for(
+                            'staff.school_sessions',
+                            school_id=school.id
+                        ) }}"
+                        class="btn btn-outline-primary btn-sm"
+                    >
+                        Manage Sessions
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Classes & Groups -->
+        <div class="col-md-3">
+
+            <div class="card h-100 border">
+
+                <div class="card-body">
+
+                    <h6>
+                        Classes & Groups
+                    </h6>
+
+                    <p class="text-muted small">
+                        Manage school classes and their
+                        optional class groups.
+                    </p>
+
+                    {% if active_session %}
+
+                        <p class="small mb-2">
+
+                            <strong>
+                                Active Session:
+                            </strong>
+
+                            {{ active_session.name }}
+
+                        </p>
+
+                        <a
+                            href="{{ url_for(
+                                'staff.school_classes',
+                                school_id=school.id,
+                                session_id=active_session.id
+                            ) }}"
+                            class="btn btn-outline-primary btn-sm"
+                        >
+                            Manage Classes & Groups
+                        </a>
+
+                    {% else %}
+
+                        <p class="text-muted small">
+                            No active academic session has been
+                            configured for this school.
+                        </p>
+
+                        <a
+                            href="{{ url_for(
+                                'staff.school_sessions',
+                                school_id=school.id
+                            ) }}"
+                            class="btn btn-outline-warning btn-sm"
+                        >
+                            Manage Sessions
+                        </a>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Subjects -->
+        <div class="col-md-3">
+
+            <div class="card h-100 border">
+
+                <div class="card-body">
+
+                    <h6>
+                        Subjects
+                    </h6>
+
+                    <p class="text-muted small">
+                        Manage the school's subject catalogue.
+                    </p>
+
+                    <a
+                        href="{{ url_for(
+                            'staff.subjects',
+                            school_id=school.id
+                        ) }}"
+                        class="btn btn-outline-primary btn-sm"
+                    >
+                        Manage Subjects
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Subject Categories -->
+        <div class="col-md-3">
+
+            <div class="card h-100 border">
+
+                <div class="card-body">
+
+                    <h6>
+                        Subject Categories
+                    </h6>
+
+                    <p class="text-muted small">
+                        Configure categories and their
+                        subject-selection rules.
+                    </p>
+
+                    <a
+                        href="{{ url_for(
+                            'staff.subject_categories',
+                            school_id=school.id
+                        ) }}"
+                        class="btn btn-outline-primary btn-sm"
+                    >
+                        Manage Categories
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- School-wide Subject Selection -->
+        <div class="col-md-3">
+
+            <div class="card h-100 border">
+
+                <div class="card-body">
+
+                    <h6>
+                        Overall Subject Selection
+                    </h6>
+
+                    <p class="text-muted small">
+                        Set the minimum and maximum number
+                        of subjects a student may select.
+                    </p>
+
+                    <a
+                        href="{{ url_for(
+                            'staff.subject_selection_rule',
+                            school_id=school.id
+                        ) }}"
+                        class="btn btn-outline-success btn-sm"
+                    >
+                        Configure Selection Rule
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Students -->
+        <div class="col-md-3">
+
+            <div class="card h-100 border">
+
+                <div class="card-body">
+
+                    <h6>
+                        Students
+                    </h6>
+
+                    <p class="text-muted small">
+                        View students and manage their
+                        school placement.
+                    </p>
+
+                    <a
+                        href="{{ url_for(
+                            'staff.students'
+                        ) }}"
+                        class="btn btn-outline-primary btn-sm"
+                    >
+                        Manage Students
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Teachers -->
+        <div class="col-md-3">
+
+            <div class="card h-100 border">
+
+                <div class="card-body">
+
+                    <h6>
+                        Teachers
+                    </h6>
+
+                    <p class="text-muted small">
+                        Teacher management and subject
+                        assignments.
+                    </p>
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        disabled
+                    >
+                        Coming Soon
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Edit School -->
+        <div class="col-md-3">
+
+            <div class="card h-100 border">
+
+                <div class="card-body">
+
+                    <h6>
+                        School Settings
+                    </h6>
+
+                    <p class="text-muted small">
+                        Edit the school's basic information
+                        and settings.
+                    </p>
+
+                    <a
+                        href="{{ url_for(
+                            'staff.edit_school',
+                            school_id=school.id
+                        ) }}"
+                        class="btn btn-outline-secondary btn-sm"
+                    >
+                        Edit School
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

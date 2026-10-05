@@ -31,78 +31,93 @@
 
             <div class="row g-3">
 
+                <!-- Schools -->
                 <div class="col-md-3">
                     <div class="card h-100 border">
                         <div class="card-body">
+
                             <h6>Schools</h6>
+
                             <p class="text-muted small">
                                 Create and manage schools on the platform.
                             </p>
 
-                            <a href="{{ url_for('staff.schools') }}"
-                                class="btn btn-sm btn-outline-primary">
-                                Manage
+                            <a
+                                href="{{ url_for('staff.schools') }}"
+                                class="btn btn-sm btn-outline-primary"
+                            >
+                                Manage Schools
                             </a>
+
                         </div>
                     </div>
                 </div>
 
 
+                <!-- Academic Sessions -->
                 <div class="col-md-3">
                     <div class="card h-100 border">
                         <div class="card-body">
+
                             <h6>Academic Sessions</h6>
+
                             <p class="text-muted small">
                                 Configure academic sessions for schools.
                             </p>
 
-                            <button
-                                type="button"
-                                class="btn btn-outline-primary btn-sm"
-                                disabled
+                            <a
+                                href="{{ url_for('staff.schools') }}"
+                                class="btn btn-sm btn-outline-primary"
                             >
-                                Coming Soon
-                            </button>
+                                Select School
+                            </a>
+
                         </div>
                     </div>
                 </div>
 
 
+                <!-- Classes & Groups -->
                 <div class="col-md-3">
                     <div class="card h-100 border">
                         <div class="card-body">
+
                             <h6>Classes & Groups</h6>
+
                             <p class="text-muted small">
                                 Configure classes and optional class groups.
                             </p>
 
-                            <button
-                                type="button"
-                                class="btn btn-outline-primary btn-sm"
-                                disabled
+                            <a
+                                href="{{ url_for('staff.schools') }}"
+                                class="btn btn-sm btn-outline-primary"
                             >
-                                Coming Soon
-                            </button>
+                                Select School
+                            </a>
+
                         </div>
                     </div>
                 </div>
 
 
+                <!-- Subjects -->
                 <div class="col-md-3">
                     <div class="card h-100 border">
                         <div class="card-body">
+
                             <h6>Subjects</h6>
+
                             <p class="text-muted small">
                                 Manage subjects belonging to each school.
                             </p>
 
-                            <button
-                                type="button"
-                                class="btn btn-outline-primary btn-sm"
-                                disabled
+                            <a
+                                href="{{ url_for('staff.schools') }}"
+                                class="btn btn-sm btn-outline-primary"
                             >
-                                Coming Soon
-                            </button>
+                                Select School
+                            </a>
+
                         </div>
                     </div>
                 </div>
@@ -126,10 +141,13 @@
 
             <div class="row g-3">
 
+                <!-- Teachers -->
                 <div class="col-md-4">
                     <div class="card h-100 border">
                         <div class="card-body">
+
                             <h6>Teachers</h6>
+
                             <p class="text-muted small">
                                 Manage teacher school assignments.
                             </p>
@@ -141,35 +159,42 @@
                             >
                                 Coming Soon
                             </button>
+
                         </div>
                     </div>
                 </div>
 
 
+                <!-- Students -->
                 <div class="col-md-4">
                     <div class="card h-100 border">
                         <div class="card-body">
+
                             <h6>Students</h6>
+
                             <p class="text-muted small">
                                 Manage student school memberships.
                             </p>
 
-                            <button
-                                type="button"
+                            <a
+                                href="{{ url_for('staff.students') }}"
                                 class="btn btn-outline-primary btn-sm"
-                                disabled
                             >
-                                Coming Soon
-                            </button>
+                                Manage Students
+                            </a>
+
                         </div>
                     </div>
                 </div>
 
 
+                <!-- Subject Assignments -->
                 <div class="col-md-4">
                     <div class="card h-100 border">
                         <div class="card-body">
+
                             <h6>Subject Assignments</h6>
+
                             <p class="text-muted small">
                                 Assign teachers and students to subjects.
                             </p>
@@ -181,6 +206,7 @@
                             >
                                 Coming Soon
                             </button>
+
                         </div>
                     </div>
                 </div>
@@ -204,10 +230,13 @@
 
             <div class="row g-3">
 
+                <!-- Assessments -->
                 <div class="col-md-4">
                     <div class="card h-100 border">
                         <div class="card-body">
+
                             <h6>Assessments</h6>
+
                             <p class="text-muted small">
                                 View and manage school assessments.
                             </p>
@@ -218,15 +247,19 @@
                             >
                                 View Assessments
                             </a>
+
                         </div>
                     </div>
                 </div>
 
 
+                <!-- Result Setup -->
                 <div class="col-md-4">
                     <div class="card h-100 border">
                         <div class="card-body">
+
                             <h6>Result Setup</h6>
+
                             <p class="text-muted small">
                                 Configure assessment slots and result structures.
                             </p>
@@ -238,15 +271,19 @@
                             >
                                 Coming Soon
                             </button>
+
                         </div>
                     </div>
                 </div>
 
 
+                <!-- Result Reports -->
                 <div class="col-md-4">
                     <div class="card h-100 border">
                         <div class="card-body">
+
                             <h6>Result Reports</h6>
+
                             <p class="text-muted small">
                                 Generate student result reports.
                             </p>
@@ -258,6 +295,7 @@
                             >
                                 Coming Soon
                             </button>
+
                         </div>
                     </div>
                 </div>

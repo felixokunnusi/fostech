@@ -1,159 +1,315 @@
 {% extends "base.html" %}
 
-{% block title %}Academic Sessions{% endblock %}
+{% block title %}
+    Academic Sessions - {{ school.name }}
+{% endblock %}
 
 {% block content %}
+
 <div class="container py-4">
 
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
+
         <div>
-            <h2>Academic Sessions</h2>
+            <h2 class="mb-1">
+                Academic Sessions
+            </h2>
+
             <p class="text-muted mb-0">
                 {{ school.name }}
             </p>
         </div>
 
-        <a href="{{ url_for('staff.new_session', school_id=school.id) }}"
-           class="btn btn-primary">
-            Add Session
-        </a>
+        <div class="d-flex gap-2">
+
+            <a
+                href="{{ url_for(
+                    'staff.manage_school',
+                    school_id=school.id
+                ) }}"
+                class="btn btn-outline-secondary"
+            >
+                School Management
+            </a>
+
+            <a
+                href="{{ url_for(
+                    'staff.new_session',
+                    school_id=school.id
+                ) }}"
+                class="btn btn-primary"
+            >
+                Add Session
+            </a>
+
+        </div>
+
     </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endwith %}
+
+    <!-- Information -->
+    <div class="alert alert-info">
+
+        <strong>Academic Session:</strong>
+
+        Create and manage the academic years/terms used by
+        {{ school.name }}.
+
+        Only one academic session can be active at a time.
+
+    </div>
+
 
     {% if sessions %}
 
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover align-middle">
+        <div class="card shadow-sm">
 
-                <thead class="table-light">
-                    <tr>
-                        <th>#</th>
-                        <th>Session</th>
-                        <th>Start</th>
-                        <th>End</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
+            <div class="card-header">
+                <h5 class="mb-0">
+                    Academic Sessions
+                </h5>
+            </div>
 
-                <tbody>
+            <div class="card-body p-0">
 
-                    {% for session in sessions %}
+                <div class="table-responsive">
 
-                        <tr>
+                    <table class="table table-hover mb-0">
 
-                            <td>{{ loop.index }}</td>
+                        <thead>
+                            <tr>
 
-                            <td>
-                                <strong>{{ session.name }}</strong>
-                            </td>
+                                <th>
+                                    Session
+                                </th>
 
-                            <td>
-                                {% if session.start_date %}
-                                    {{ session.start_date.strftime('%d %b %Y') }}
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
+                                <th>
+                                    Start Date
+                                </th>
 
-                            <td>
-                                {% if session.end_date %}
-                                    {{ session.end_date.strftime('%d %b %Y') }}
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
+                                <th>
+                                    End Date
+                                </th>
 
-                            <td>
-                                {% if session.active %}
-                                    <span class="badge bg-success">
-                                        Active
-                                    </span>
-                                {% else %}
-                                    <span class="badge bg-secondary">
-                                        Inactive
-                                    </span>
-                                {% endif %}
-                            </td>
+                                <th>
+                                    Status
+                                </th>
 
-                            <td>
+                                <th class="text-end">
+                                    Actions
+                                </th>
 
-                                <div class="d-flex flex-wrap gap-2">
+                            </tr>
+                        </thead>
 
-                                    <!-- CLASSES -->
-                                    <a href="{{ url_for(
-                                        'staff.school_classes',
-                                        school_id=school.id,
-                                        session_id=session.id
-                                    ) }}"
-                                       class="btn btn-sm btn-info">
-                                        Classes
-                                    </a>
+                        <tbody>
 
-                                    <!-- EDIT -->
-                                    <a href="{{ url_for(
-                                        'staff.edit_session',
-                                        school_id=school.id,
-                                        session_id=session.id
-                                    ) }}"
-                                       class="btn btn-sm btn-primary">
-                                        Edit
-                                    </a>
+                            {% for session in sessions %}
 
-                                    <!-- TOGGLE -->
-                                    <form method="POST"
-                                          action="{{ url_for(
-                                              'staff.toggle_session',
-                                              school_id=school.id,
-                                              session_id=session.id
-                                          ) }}"
-                                          class="d-inline">
+                                <tr>
 
-                                        <button type="submit"
-                                                class="btn btn-sm btn-warning">
+                                    <!-- Session Name -->
+                                    <td>
+
+                                        <strong>
+                                            {{ session.name }}
+                                        </strong>
+
+                                    </td>
+
+
+                                    <!-- Start Date -->
+                                    <td>
+
+                                        {% if session.start_date %}
+
+                                            {{ session.start_date.strftime(
+                                                "%d %b %Y"
+                                            ) }}
+
+                                        {% else %}
+
+                                            —
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- End Date -->
+                                    <td>
+
+                                        {% if session.end_date %}
+
+                                            {{ session.end_date.strftime(
+                                                "%d %b %Y"
+                                            ) }}
+
+                                        {% else %}
+
+                                            —
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- Status -->
+                                    <td>
+
+                                        {% if session.active %}
+
+                                            <span class="badge bg-success">
+                                                Active
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="badge bg-secondary">
+                                                Inactive
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <!-- Actions -->
+                                    <td class="text-end">
+
+                                        {% if session.active %}
+
+                                            <a
+                                                href="{{ url_for(
+                                                    'staff.school_classes',
+                                                    school_id=school.id,
+                                                    session_id=session.id
+                                                ) }}"
+                                                class="btn btn-sm btn-outline-primary"
+                                            >
+                                                Classes & Groups
+                                            </a>
+
+                                        {% else %}
+
+                                            <span
+                                                class="text-muted small me-2"
+                                            >
+                                                Activate to manage classes
+                                            </span>
+
+                                        {% endif %}
+
+
+                                        <a
+                                            href="{{ url_for(
+                                                'staff.edit_session',
+                                                school_id=school.id,
+                                                session_id=session.id
+                                            ) }}"
+                                            class="btn btn-sm btn-outline-secondary"
+                                        >
+                                            Edit
+                                        </a>
+
+
+                                        <form
+                                            method="POST"
+                                            action="{{ url_for(
+                                                'staff.toggle_session',
+                                                school_id=school.id,
+                                                session_id=session.id
+                                            ) }}"
+                                            class="d-inline"
+                                        >
+
                                             {% if session.active %}
-                                                Deactivate
+
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-sm btn-outline-danger"
+                                                >
+                                                    Deactivate
+                                                </button>
+
                                             {% else %}
-                                                Activate
+
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-sm btn-outline-success"
+                                                >
+                                                    Activate
+                                                </button>
+
                                             {% endif %}
-                                        </button>
 
-                                    </form>
+                                        </form>
 
-                                </div>
+                                    </td>
 
-                            </td>
+                                </tr>
 
-                        </tr>
+                            {% endfor %}
 
-                    {% endfor %}
+                        </tbody>
 
-                </tbody>
+                    </table>
 
-            </table>
+                </div>
+
+            </div>
+
         </div>
 
     {% else %}
 
-        <div class="alert alert-info">
-            No academic sessions have been created yet.
+        <!-- No Sessions -->
+        <div class="card shadow-sm">
+
+            <div class="card-body text-center py-5">
+
+                <h5>
+                    No academic sessions yet
+                </h5>
+
+                <p class="text-muted mb-4">
+                    Create the first academic session for
+                    {{ school.name }}.
+                </p>
+
+                <a
+                    href="{{ url_for(
+                        'staff.new_session',
+                        school_id=school.id
+                    ) }}"
+                    class="btn btn-primary"
+                >
+                    Create First Session
+                </a>
+
+            </div>
+
         </div>
 
     {% endif %}
 
-    <div class="mt-3">
-        <a href="{{ url_for('staff.schools') }}"
-           class="btn btn-outline-secondary">
-            Back to Schools
+
+    <!-- Footer Navigation -->
+    <div class="mt-4">
+
+        <a
+            href="{{ url_for(
+                'staff.manage_school',
+                school_id=school.id
+            ) }}"
+            class="btn btn-outline-secondary"
+        >
+            ← Back to School Management
         </a>
+
     </div>
 
 </div>
+
 {% endblock %}

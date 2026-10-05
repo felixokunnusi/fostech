@@ -77,6 +77,19 @@
 
                                     <td class="text-end">
 
+                                        <!-- Configure -->
+                                        <a
+                                            href="{{ url_for(
+                                                'staff.configure_subject_category',
+                                                school_id=school.id,
+                                                category_id=category.id
+                                            ) }}"
+                                            class="btn btn-sm btn-outline-success"
+                                        >
+                                            Configure
+                                        </a>
+
+                                        <!-- Edit -->
                                         <a
                                             href="{{ url_for(
                                                 'staff.edit_subject_category',
@@ -88,6 +101,7 @@
                                             Edit
                                         </a>
 
+                                        <!-- Activate / Deactivate -->
                                         <form
                                             method="POST"
                                             action="{{ url_for(

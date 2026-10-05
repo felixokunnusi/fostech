@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}Configure {{ category.name }}{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">
+                Configure {{ category.name }}
+            </h2>
+
+            <p class="text-muted mb-0">
+                {{ school.name }}
+            </p>
+        </div>
+
+        <a
+            href="{{ url_for(
+                'staff.subject_categories',
+                school_id=school.id
+            ) }}"
+            class="btn btn-outline-secondary"
+        >
+            ← Back to Categories
+        </a>
+
+    </div>
+
+
+    <!-- Category Selection Rules -->
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-header">
+            <h5 class="mb-0">
+                Category Selection Rules
+            </h5>
+        </div>
+
+        <div class="card-body">
+
+            <form method="POST">
+
+                <div class="row g-3">
+
+                    <!-- Category Required -->
+                    <div class="col-md-4">
+
+                        <label class="form-label">
+                            Category Required
+                        </label>
+
+                        <select
+                            name="required"
+                            class="form-select"
+                        >
+
+                            <option
+                                value="0"
+                                {% if rule and not rule.required %}
+                                    selected
+                                {% endif %}
+                            >
+                                No
+                            </option>
+
+                            <option
+                                value="1"
+                                {% if rule and rule.required %}
+                                    selected
+                                {% endif %}
+                            >
+                                Yes
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Minimum Subjects -->
+                    <div class="col-md-4">
+
+                        <label class="form-label">
+                            Minimum Subjects
+                        </label>
+
+                        <input
+                            type="number"
+                            name="minimum_subjects"
+                            class="form-control"
+                            min="0"
+                            value="{{
+                                rule.minimum_subjects
+                                if rule
+                                else 0
+                            }}"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Maximum Subjects -->
+                    <div class="col-md-4">
+
+                        <label class="form-label">
+                            Maximum Subjects
+                        </label>
+
+                        <input
+                            type="number"
+                            name="maximum_subjects"
+                            class="form-control"
+                            min="0"
+                            value="{{
+                                rule.maximum_subjects
+                                if rule and rule.maximum_subjects is not none
+                                else ''
+                            }}"
+                        >
+
+                        <small class="text-muted">
+                            Leave blank for no maximum.
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <hr class="my-4">
+
+
+                <!-- Subject Configuration -->
+
+                <h5 class="mb-3">
+                    Subject Configuration
+                </h5>
+
+                <div class="table-responsive">
+
+                    <table class="table table-bordered table-hover align-middle">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>
+                                    Subject
+                                </th>
+
+                                <th class="text-center">
+                                    Required
+                                </th>
+
+                                <th class="text-center">
+                                    Default
+                                </th>
+
+                                <th class="text-center">
+                                    Selectable
+                                </th>
+
+                                <th style="width: 140px;">
+                                    Display Order
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            {% for subject in subjects %}
+
+                                {% set config = subject_configs.get(subject.id) %}
+
+                                <tr>
+
+                                    <td>
+
+                                        <strong>
+                                            {{ subject.name }}
+                                        </strong>
+
+                                    </td>
+
+
+                                    <!-- Required -->
+
+                                    <td class="text-center">
+
+                                        <select
+                                            name="required_{{ subject.id }}"
+                                            class="form-select form-select-sm"
+                                        >
+
+                                            <option
+                                                value="0"
+                                                {% if not config or not config.required %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                No
+                                            </option>
+
+                                            <option
+                                                value="1"
+                                                {% if config and config.required %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                Yes
+                                            </option>
+
+                                        </select>
+
+                                    </td>
+
+
+                                    <!-- Default -->
+
+                                    <td class="text-center">
+
+                                        <select
+                                            name="default_{{ subject.id }}"
+                                            class="form-select form-select-sm"
+                                        >
+
+                                            <option
+                                                value="0"
+                                                {% if not config or not config.is_default %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                No
+                                            </option>
+
+                                            <option
+                                                value="1"
+                                                {% if config and config.is_default %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                Yes
+                                            </option>
+
+                                        </select>
+
+                                    </td>
+
+
+                                    <!-- Selectable -->
+
+                                    <td class="text-center">
+
+                                        <select
+                                            name="selectable_{{ subject.id }}"
+                                            class="form-select form-select-sm"
+                                        >
+
+                                            <option
+                                                value="0"
+                                                {% if not config or not config.selectable %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                No
+                                            </option>
+
+                                            <option
+                                                value="1"
+                                                {% if config and config.selectable %}
+                                                    selected
+                                                {% endif %}
+                                            >
+                                                Yes
+                                            </option>
+
+                                        </select>
+
+                                    </td>
+
+
+                                    <!-- Display Order -->
+
+                                    <td>
+
+                                        <input
+                                            type="number"
+                                            name="display_order_{{ subject.id }}"
+                                            class="form-control form-control-sm"
+                                            min="0"
+                                            value="{{
+                                                config.display_order
+                                                if config
+                                                else 0
+                                            }}"
+                                        >
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+
+                {% if not subjects %}
+
+                    <div class="alert alert-warning">
+                        No active subjects are currently assigned to
+                        this category.
+                    </div>
+
+                {% endif %}
+
+
+                <div class="mt-4">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
+                        Save Category Configuration
+                    </button>
+
+                    <a
+                        href="{{ url_for(
+                            'staff.subject_categories',
+                            school_id=school.id
+                        ) }}"
+                        class="btn btn-outline-secondary ms-2"
+                    >
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

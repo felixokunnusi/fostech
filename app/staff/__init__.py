@@ -6,4 +6,4 @@ staff_bp = Blueprint(
     url_prefix="/staff",
 )
 
-from app.staff import routes  # noqa: E402,F401
+from app.staff import routes_bkp  # noqa: E402,F401

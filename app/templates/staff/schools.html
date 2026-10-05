@@ -1,170 +1,251 @@
 {% extends "base.html" %}
 
-{% block title %}Schools{% endblock %}
+{% block title %}Schools - FOSTech Staff{% endblock %}
 
 {% block content %}
 
-<div class="container-fluid">
+<div class="container py-4">
 
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
+
         <div>
-            <h2 class="mb-1">Schools</h2>
+            <h2 class="mb-1">
+                Schools
+            </h2>
+
             <p class="text-muted mb-0">
                 Manage schools registered on the FOSTech platform.
             </p>
         </div>
 
-        <a href="{{ url_for('staff.new_school') }}"
-           class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i>
-            Add School
-        </a>
+        <div class="d-flex gap-2">
+
+            <a
+                href="{{ url_for('staff.dashboard') }}"
+                class="btn btn-outline-secondary"
+            >
+                Staff Dashboard
+            </a>
+
+            <a
+                href="{{ url_for('staff.new_school') }}"
+                class="btn btn-primary"
+            >
+                Add School
+            </a>
+
+        </div>
+
     </div>
 
+
+    <!-- Schools List -->
     {% if schools %}
 
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
+        <div class="card shadow-sm">
 
-            <div class="table-responsive">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    Registered Schools
+                </h5>
+            </div>
 
-                <table class="table table-hover align-middle mb-0">
+            <div class="card-body p-0">
 
-                    <thead class="table-light">
-                        <tr>
-                            <th>#</th>
-                            <th>School</th>
-                            <th>Short Name</th>
-                            <th>Address</th>
-                            <th>Status</th>
-                            <th class="text-end">Actions</th>
-                        </tr>
-                    </thead>
+                <div class="table-responsive">
 
-                    <tbody>
+                    <table class="table table-hover mb-0">
 
-                    {% for school in schools %}
+                        <thead>
+                            <tr>
 
-                        <tr>
+                                <th>
+                                    School
+                                </th>
 
-                            <td>{{ loop.index }}</td>
+                                <th>
+                                    Short Name
+                                </th>
 
-                            <td>
-                                <strong>{{ school.name }}</strong>
-                            </td>
+                                <th>
+                                    Address
+                                </th>
 
-                            <td>
-                                {{ school.short_name or "—" }}
-                            </td>
+                                <th>
+                                    Status
+                                </th>
 
-                            <td>
-                                {{ school.address or "—" }}
-                            </td>
+                                <th class="text-end">
+                                    Actions
+                                </th>
 
-                            <td>
-                                {% if school.active %}
-                                    <span class="badge bg-success">
-                                        Active
-                                    </span>
-                                {% else %}
-                                    <span class="badge bg-secondary">
-                                        Inactive
-                                    </span>
-                                {% endif %}
-                            </td>
+                            </tr>
+                        </thead>
 
-                            <td class="text-end">
-                                <a href="{{ url_for(
-                                    'staff.school_sessions',
-                                    school_id=school.id
-                                ) }}"
-                                class="btn btn-sm btn-outline-info">
-                                    Sessions
-                                </a>
+                        <tbody>
 
-                                <a href="{{ url_for('staff.subjects', school_id=school.id) }}"
-                                class="btn btn-sm btn-outline-success">
-                                    Subjects
-                                </a>
+                            {% for school in schools %}
 
-                                <a href="{{ url_for(
-                                    'staff.edit_school',
-                                    school_id=school.id
-                                ) }}"
-                                   class="btn btn-sm btn-outline-primary">
-                                    Edit
-                                </a>
+                                <tr>
 
-                                <form method="POST"
-                                      action="{{ url_for(
-                                          'staff.toggle_school',
-                                          school_id=school.id
-                                      ) }}"
-                                      class="d-inline">
+                                    <!-- School -->
+                                    <td>
 
-                                    <button type="submit"
-                                            class="btn btn-sm
-                                            {% if school.active %}
-                                                btn-outline-warning
-                                            {% else %}
-                                                btn-outline-success
-                                            {% endif %}"
-                                            onclick="return confirm(
-                                                'Are you sure you want to {% if school.active %}deactivate{% else %}activate{% endif %} this school?'
-                                            );">
+                                        <strong>
+                                            {{ school.name }}
+                                        </strong>
+
+                                    </td>
+
+
+                                    <!-- Short Name -->
+                                    <td>
+                                        {{ school.short_name or "—" }}
+                                    </td>
+
+
+                                    <!-- Address -->
+                                    <td>
+                                        {{ school.address or "—" }}
+                                    </td>
+
+
+                                    <!-- Status -->
+                                    <td>
 
                                         {% if school.active %}
-                                            Deactivate
+
+                                            <span class="badge bg-success">
+                                                Active
+                                            </span>
+
                                         {% else %}
-                                            Activate
+
+                                            <span class="badge bg-secondary">
+                                                Inactive
+                                            </span>
+
                                         {% endif %}
 
-                                    </button>
+                                    </td>
 
-                                </form>
 
-                            </td>
+                                    <!-- Actions -->
+                                    <td class="text-end">
 
-                        </tr>
+                                        <!-- Manage -->
+                                        <a
+                                            href="{{ url_for(
+                                                'staff.manage_school',
+                                                school_id=school.id
+                                            ) }}"
+                                            class="btn btn-sm btn-outline-primary"
+                                        >
+                                            Manage
+                                        </a>
 
-                    {% endfor %}
 
-                    </tbody>
+                                        <!-- Edit -->
+                                        <a
+                                            href="{{ url_for(
+                                                'staff.edit_school',
+                                                school_id=school.id
+                                            ) }}"
+                                            class="btn btn-sm btn-outline-secondary"
+                                        >
+                                            Edit
+                                        </a>
 
-                </table>
+
+                                        <!-- Activate / Deactivate -->
+                                        <form
+                                            method="POST"
+                                            action="{{ url_for(
+                                                'staff.toggle_school',
+                                                school_id=school.id
+                                            ) }}"
+                                            class="d-inline"
+                                        >
+
+                                            {% if school.active %}
+
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-sm btn-outline-danger"
+                                                >
+                                                    Deactivate
+                                                </button>
+
+                                            {% else %}
+
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-sm btn-outline-success"
+                                                >
+                                                    Activate
+                                                </button>
+
+                                            {% endif %}
+
+                                        </form>
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
 
             </div>
 
         </div>
-    </div>
 
     {% else %}
 
-    <div class="card shadow-sm">
-        <div class="card-body text-center py-5">
+        <!-- No Schools -->
+        <div class="card shadow-sm">
 
-            <h4>No schools yet</h4>
+            <div class="card-body text-center py-5">
 
-            <p class="text-muted">
-                Create the first school to begin setting up
-                the school structure.
-            </p>
+                <h5>
+                    No schools registered
+                </h5>
 
-            <a href="{{ url_for('staff.new_school') }}"
-               class="btn btn-primary">
-                Add First School
-            </a>
+                <p class="text-muted mb-4">
+                    Create the first school to begin configuring
+                    the academic structure.
+                </p>
+
+                <a
+                    href="{{ url_for('staff.new_school') }}"
+                    class="btn btn-primary"
+                >
+                    Create First School
+                </a>
+
+            </div>
 
         </div>
-    </div>
 
     {% endif %}
 
+
+    <!-- Navigation -->
     <div class="mt-4">
-        <a href="{{ url_for('staff.dashboard') }}"
-           class="btn btn-outline-secondary">
+
+        <a
+            href="{{ url_for('staff.dashboard') }}"
+            class="btn btn-outline-secondary"
+        >
             ← Back to Staff Dashboard
         </a>
+
     </div>
 
 </div>
