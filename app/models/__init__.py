@@ -20,3 +20,7 @@ from .subject_category import SubjectCategory
 from app.models.category_rule import CategoryRule
 from app.models.category_subject_config import CategorySubjectConfig
 from .subject_selection_rule import SubjectSelectionRule
+from .student_subject_selection import (
+    StudentSubjectSelection,
+    StudentSubjectSelectionItem,
+)

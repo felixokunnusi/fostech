@@ -6,7 +6,10 @@ from app.extensions import db
 class StudentSubjectEnrollment(db.Model):
     __tablename__ = "student_subject_enrollment"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
 
     student_id = db.Column(
         db.Integer,
@@ -105,6 +108,18 @@ class StudentSubjectEnrollment(db.Model):
 
     subject = db.relationship(
         "SchoolSubject",
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "student_id",
+            "school_id",
+            "academic_session_id",
+            "class_id",
+            "class_group_id",
+            "subject_id",
+            name="uq_student_subject_enrollment_context",
+        ),
     )
 
     def __repr__(self):
