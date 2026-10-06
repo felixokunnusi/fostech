@@ -257,6 +257,146 @@ def autosave(session_id: int, question_id: int):
     return jsonify({"ok": True})
 
 
+@quiz_bp.post("/sync/<int:session_id>")
+@login_required
+def sync_answers(session_id: int):
+    """Persist a batch of answers without blocking the candidate's navigation."""
+    session = QuizSession.query.get_or_404(session_id)
+
+    if session.user_id != current_user.id:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+
+    if session.is_submitted:
+        return jsonify({"ok": False, "error": "Already submitted"}), 400
+
+    if session.mode == "exam" and session.expires_at and datetime.utcnow() > session.expires_at:
+        session.is_submitted = True
+        session.completed_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"ok": False, "error": "Exam time has expired"}), 400
+
+    data = request.get_json(silent=True) or {}
+    raw_answers = data.get("answers") or {}
+    if not isinstance(raw_answers, dict):
+        return jsonify({"ok": False, "error": "Invalid answers payload"}), 400
+
+    allowed_question_ids = set(session.get_question_ids())
+
+    # Validate the complete batch before changing the database.
+    validated = []
+    for raw_question_id, raw_choice_id in raw_answers.items():
+        try:
+            question_id = int(raw_question_id)
+            choice_id = int(raw_choice_id)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Invalid answer data"}), 400
+
+        if question_id not in allowed_question_ids:
+            return jsonify({"ok": False, "error": "Invalid question"}), 400
+
+        choice = Choice.query.filter_by(id=choice_id, question_id=question_id).first()
+        if not choice:
+            return jsonify({"ok": False, "error": "Invalid choice"}), 400
+
+        validated.append((question_id, choice_id))
+
+    for question_id, choice_id in validated:
+        existing = UserAnswer.query.filter_by(
+            session_id=session.id,
+            question_id=question_id,
+        ).first()
+
+        if existing:
+            existing.choice_id = choice_id
+        else:
+            db.session.add(UserAnswer(
+                session_id=session.id,
+                question_id=question_id,
+                choice_id=choice_id,
+            ))
+
+    db.session.commit()
+    return jsonify({"ok": True, "saved": len(validated)})
+
+
+@quiz_bp.post("/submit/<int:session_id>")
+@login_required
+def submit_attempt(session_id: int):
+    """Atomically save the candidate's complete local answer set and submit."""
+    session = QuizSession.query.get_or_404(session_id)
+
+    if session.user_id != current_user.id:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+
+    if session.is_submitted:
+        return jsonify({
+            "ok": True,
+            "redirect_url": url_for("quiz.result", session_id=session.id),
+        })
+
+    # The server remains authoritative for exam expiry even if the browser
+    # timer was delayed, backgrounded, or manipulated.
+    if session.mode == "exam" and session.expires_at and datetime.utcnow() > session.expires_at:
+        session.is_submitted = True
+        session.completed_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({
+            "ok": True,
+            "redirect_url": url_for("quiz.result", session_id=session.id),
+            "expired": True,
+        })
+
+    data = request.get_json(silent=True) or {}
+    raw_answers = data.get("answers") or {}
+    if not isinstance(raw_answers, dict):
+        return jsonify({"ok": False, "error": "Invalid answers payload"}), 400
+
+    allowed_question_ids = set(session.get_question_ids())
+    validated = []
+
+    for raw_question_id, raw_choice_id in raw_answers.items():
+        try:
+            question_id = int(raw_question_id)
+            choice_id = int(raw_choice_id)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Invalid answer data"}), 400
+
+        if question_id not in allowed_question_ids:
+            return jsonify({"ok": False, "error": "Invalid question"}), 400
+
+        choice = Choice.query.filter_by(id=choice_id, question_id=question_id).first()
+        if not choice:
+            return jsonify({"ok": False, "error": "Invalid choice"}), 400
+
+        validated.append((question_id, choice_id))
+
+    # Save the complete answer set in one transaction.
+    for question_id, choice_id in validated:
+        existing = UserAnswer.query.filter_by(
+            session_id=session.id,
+            question_id=question_id,
+        ).first()
+
+        if existing:
+            existing.choice_id = choice_id
+        else:
+            db.session.add(UserAnswer(
+                session_id=session.id,
+                question_id=question_id,
+                choice_id=choice_id,
+            ))
+
+    # The server remains authoritative for exam expiry.
+    session.is_submitted = True
+    session.completed_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "redirect_url": url_for("quiz.result", session_id=session.id),
+    })
+
+
 @quiz_bp.route("/start/<level>")
 @login_required
 def start(level: str):
@@ -307,9 +447,10 @@ def start(level: str):
     return redirect(url_for("quiz.take", session_id=session.id, q=1))
 
 
-@quiz_bp.route("/take/<int:session_id>", methods=["GET", "POST"])
+@quiz_bp.route("/take/<int:session_id>", methods=["GET"])
 @login_required
 def take(session_id: int):
+    """Render the entire attempt once; question navigation is client-side."""
     session = QuizSession.query.get_or_404(session_id)
 
     if session.user_id != current_user.id:
@@ -319,7 +460,7 @@ def take(session_id: int):
     if session.is_submitted:
         return redirect(url_for("quiz.result", session_id=session.id))
 
-    # Timer (exam)
+    # Timer is enforced server-side as the final authority.
     if session.mode == "exam" and session.expires_at and datetime.utcnow() > session.expires_at:
         session.is_submitted = True
         session.completed_at = datetime.utcnow()
@@ -334,52 +475,33 @@ def take(session_id: int):
     q_index = int(request.args.get("q", 1))
     q_index = max(1, min(q_index, len(question_ids)))
 
-    current_q_id = question_ids[q_index - 1]
-    question = Question.query.get_or_404(current_q_id)
+    # Load the complete fixed question set in one request. This is what makes
+    # Prev/Next instant and independent of network speed after the page loads.
+    questions = (
+        Question.query
+        .options(joinedload(Question.choices))
+        .filter(Question.id.in_(question_ids))
+        .all()
+    )
+    question_map = {question.id: question for question in questions}
 
-    if request.method == "POST":
-        chosen_id = request.form.get("choice_id")
+    # Preserve the session's original question order.
+    quiz_questions = []
+    for question_id in question_ids:
+        question = question_map.get(question_id)
+        if not question:
+            continue
+        quiz_questions.append({
+            "id": question.id,
+            "text": question.text,
+            "choices": [
+                {"id": choice.id, "text": choice.text}
+                for choice in question.choices
+            ],
+        })
 
-        if chosen_id:
-            existing = UserAnswer.query.filter_by(session_id=session.id, question_id=question.id).first()
-            if existing:
-                existing.choice_id = int(chosen_id)
-            else:
-                db.session.add(UserAnswer(
-                    session_id=session.id,
-                    question_id=question.id,
-                    choice_id=int(chosen_id)
-                ))
-            db.session.commit()
-
-        action = request.form.get("action") or request.form.get("action_field")
-
-        if action == "submit":
-            session.is_submitted = True
-            session.completed_at = datetime.utcnow()
-            db.session.commit()
-            return redirect(url_for("quiz.result", session_id=session.id))
-
-        if action == "next":
-            return redirect(url_for("quiz.take", session_id=session.id, q=q_index + 1))
-
-        if action == "prev":
-            return redirect(url_for("quiz.take", session_id=session.id, q=q_index - 1))
-
-        jump_to = request.form.get("jump_to")
-        if jump_to:
-            return redirect(url_for("quiz.take", session_id=session.id, q=int(jump_to)))
-
-    answered_q_ids = {
-        a.question_id for a in UserAnswer.query.filter_by(session_id=session.id).all()
-    }
-
-    existing_answer = UserAnswer.query.filter_by(
-        session_id=session.id,
-        question_id=question.id
-    ).first()
-
-    selected_choice_id = existing_answer.choice_id if existing_answer else None
+    existing_answers = UserAnswer.query.filter_by(session_id=session.id).all()
+    answer_map = {str(answer.question_id): answer.choice_id for answer in existing_answers}
 
     remaining_seconds = None
     if session.mode == "exam" and session.expires_at:
@@ -393,13 +515,11 @@ def take(session_id: int):
     return render_template(
         "quiz/take.html",
         session=session,
-        question=question,
-        choices=question.choices,
+        question_ids=question_ids,
+        quiz_questions=quiz_questions,
+        answer_map=answer_map,
         q_index=q_index,
         total=len(question_ids),
-        question_ids=question_ids,
-        answered_q_ids=answered_q_ids,
-        selected_choice_id=selected_choice_id,
         remaining_seconds=remaining_seconds,
         grid_count=grid_count,
     )

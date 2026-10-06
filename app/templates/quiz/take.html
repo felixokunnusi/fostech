@@ -2,91 +2,46 @@
 {% block content %}
 <div class="container py-3">
 
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="m-0">Question {{ q_index }} of {{ total }}</h4>
+  <div class="d-flex justify-content-between align-items-center mb-3 gap-3">
+    <h4 class="m-0">Question <span id="questionNumber">{{ q_index }}</span> of {{ total }}</h4>
 
     {% if remaining_seconds is not none %}
-      <div class="badge bg-warning text-dark">
+      <div id="examTimer" class="badge bg-warning text-dark px-3 py-2">
         Time left: <span id="timer"></span>
       </div>
-      <script>
-        (function () {
-          let s = {{ remaining_seconds|int }};
-          const el = document.getElementById("timer");
-          function tick() {
-            const m = Math.floor(s / 60);
-            const r = s % 60;
-            el.textContent = `${m}:${String(r).padStart(2, "0")}`;
-            if (s > 0) { s -= 1; setTimeout(tick, 1000); }
-          }
-          tick();
-        })();
-      </script>
     {% endif %}
   </div>
 
-  <!-- Question text -->
-  <div class="card mb-3">
-    <div class="card-body">
-      <div class="mb-2 fw-semibold">Question</div>
-      <div style="white-space: pre-wrap;">{{ question.text }}</div>
-    </div>
-  </div>
+  <!-- The complete attempt is loaded once. Navigation is then client-side. -->
+  <div id="questionContainer"></div>
 
-  <!-- Options -->
-  <form id="quizForm" method="POST" class="card mb-3">
+  <form id="quizForm" class="card mb-3" onsubmit="return false;">
     <div class="card-body">
       <div class="mb-2 fw-semibold">Choose an answer</div>
-
-      {% if choices and choices|length > 0 %}
-        {% for c in choices %}
-          <div class="form-check mb-2">
-            <input class="form-check-input"
-                   type="radio"
-                   name="choice_id"
-                   id="choice{{ c.id }}"
-                   value="{{ c.id }}"
-                   data-autosave="1"
-                   {% if selected_choice_id == c.id %}checked{% endif %}>
-            <label class="form-check-label" for="choice{{ c.id }}">
-              {{ c.text }}
-            </label>
-          </div>
-        {% endfor %}
-      {% else %}
-        <div class="alert alert-warning mb-0">
-          No choices found for this question.
-        </div>
-      {% endif %}
-
-      <!-- submit confirmation flag + action (single source of truth) -->
-      <input type="hidden" name="confirm_submit" id="confirm_submit" value="0">
-      <input type="hidden" name="action" id="action_field" value="">
+      <div id="optionsContainer"></div>
+      <div id="connectionStatus" class="small text-muted mt-3" aria-live="polite"></div>
     </div>
 
-    <div class="card-footer d-flex justify-content-between align-items-center">
-      <!-- NOTE: These are type="button" so we control submission via JS -->
-      <button id="prevBtn" class="btn btn-outline-secondary" type="button"
-              {% if q_index <= 1 %}disabled{% endif %}>
+    <div class="card-footer d-flex justify-content-between align-items-center gap-2 flex-wrap">
+      <button id="prevBtn" class="btn btn-outline-secondary" type="button">
         Prev
       </button>
 
-      <div class="d-flex align-items-center gap-2">
-        <div id="autosave-indicator" class="text-muted" style="font-size:12px;"></div>
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <div id="autosave-indicator" class="text-muted small" aria-live="polite"></div>
 
         <button id="submitBtn" class="btn btn-success" type="button">
           Submit
         </button>
 
-        <button id="nextBtn" class="btn btn-primary" type="button"
-                {% if q_index >= total %}disabled{% endif %}>
+        <button id="nextBtn" class="btn btn-primary" type="button">
           Next
         </button>
       </div>
     </div>
   </form>
 
-  <!-- Confirm Submit Modal (simple, no dependency) -->
+  <!-- Confirm Submit Modal -->
   <div id="submitModalBackdrop"
        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1040;"></div>
 
@@ -115,167 +70,488 @@
   <div class="card">
     <div class="card-body">
       <div class="mb-2 fw-semibold">Question Board</div>
-
-      <div class="d-flex flex-wrap gap-2" id="questionBoard">
-        {% for i in range(1, total + 1) %}
-          {% set qid = question_ids[i-1] %}
-          {% set answered = qid in answered_q_ids %}
-          <a href="{{ url_for('quiz.take', session_id=session.id, q=i) }}"
-             class="btn btn-sm {{ 'btn-success' if answered else 'btn-outline-secondary' }} {{ 'active' if i == q_index else '' }}"
-             data-qid="{{ qid }}">
-            {{ i }}
-          </a>
-        {% endfor %}
-      </div>
-
+      <div class="d-flex flex-wrap gap-2" id="questionBoard"></div>
       <small class="text-muted d-block mt-2">Green = answered</small>
     </div>
   </div>
 
 </div>
 
-<!-- Shared quiz state for JS -->
+<style>
+  /* Approximately 2x the old timer, but responsive across screen sizes. */
+  #examTimer {
+    font-size: clamp(1.35rem, 3.2vw, 2.25rem);
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  #timer {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .03em;
+  }
+
+  .quiz-option-label {
+    display: block;
+    width: 100%;
+    cursor: pointer;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    padding: .75rem .9rem;
+    transition: background-color .12s ease, border-color .12s ease;
+  }
+
+  .quiz-option-label:hover {
+    background: #f8f9fa;
+  }
+
+  .quiz-option-label.selected {
+    border-color: #0d6efd;
+    background: rgba(13, 110, 253, .08);
+  }
+
+  .quiz-option-label input {
+    margin-right: .5rem;
+  }
+
+  @media (max-width: 576px) {
+    #examTimer {
+      font-size: 1.35rem;
+    }
+
+    #questionNumber {
+      font-size: .95em;
+    }
+  }
+</style>
+
 <script>
-  window.__quiz = {
+(function () {
+  "use strict";
+
+  const q = window.__quiz = {
     sessionId: {{ session.id }},
-    questionId: {{ question.id }},
     questionIds: {{ question_ids|tojson }},
-    answeredIds: new Set({{ answered_q_ids|list|tojson }})
+    questions: {{ quiz_questions|tojson }},
+    answersFromServer: {{ answer_map|tojson }},
+    startIndex: {{ q_index|int }},
+    remainingSeconds: {{ remaining_seconds|int if remaining_seconds is not none else 'null' }}
   };
-</script>
 
-<!-- Autosave on click -->
-<script>
-  (function () {
-    const q = window.__quiz;
-    const url = `/quiz/autosave/${q.sessionId}/${q.questionId}`;
-    const indicator = document.getElementById("autosave-indicator");
-    const board = document.getElementById("questionBoard");
+  const storageKey = `fostech_quiz_answers_${q.sessionId}`;
+  const answers = {};
+  const dirty = new Set();
+  let currentIndex = Math.max(0, Math.min(q.startIndex - 1, q.questionIds.length - 1));
+  let isSubmitting = false;
+  let syncInProgress = false;
 
-    function markAnsweredOnBoard() {
-      // Update current question tile to green (if present)
-      const btn = board?.querySelector(`[data-qid="${q.questionId}"]`);
-      if (btn) {
-        btn.classList.remove("btn-outline-secondary");
-        btn.classList.add("btn-success");
-      }
-    }
+  const questionNumber = document.getElementById("questionNumber");
+  const optionsContainer = document.getElementById("optionsContainer");
+  const questionContainer = document.getElementById("questionContainer");
+  const questionBoard = document.getElementById("questionBoard");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const submitBtn = document.getElementById("submitBtn");
+  const indicator = document.getElementById("autosave-indicator");
+  const connectionStatus = document.getElementById("connectionStatus");
+  const timerEl = document.getElementById("timer");
+  const timerBox = document.getElementById("examTimer");
 
-    document.querySelectorAll('input[data-autosave="1"][name="choice_id"]').forEach((radio) => {
-      radio.addEventListener("change", async (e) => {
-        const choiceId = e.target.value;
-        if (indicator) indicator.textContent = "Saving...";
+  const modal = document.getElementById("submitModal");
+  const backdrop = document.getElementById("submitModalBackdrop");
+  const msg = document.getElementById("unansweredMsg");
+  const cancelSubmit = document.getElementById("cancelSubmit");
+  const confirmSubmit = document.getElementById("confirmSubmit");
 
-        try {
-          const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
-            body: JSON.stringify({ choice_id: parseInt(choiceId, 10) })
-          });
+  const questionsById = new Map(q.questions.map(item => [String(item.id), item]));
 
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok || !data.ok) throw new Error(data.error || "Save failed");
-
-          // Mark answered in JS state (so modal counts update immediately)
-          q.answeredIds.add(q.questionId);
-          markAnsweredOnBoard();
-
-          if (indicator) {
-            indicator.textContent = "Saved ✓";
-            setTimeout(() => { indicator.textContent = ""; }, 1200);
+  function loadLocalAnswers() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
+      if (saved && typeof saved === "object") {
+        for (const [questionId, choiceId] of Object.entries(saved)) {
+          const item = questionsById.get(String(questionId));
+          const validChoice = item && item.choices.some(choice => Number(choice.id) === Number(choiceId));
+          if (validChoice) {
+            answers[String(questionId)] = Number(choiceId);
+            if (String((q.answersFromServer || {})[String(questionId)]) !== String(choiceId)) {
+              dirty.add(String(questionId));
+            }
           }
-        } catch (err) {
-          if (indicator) indicator.textContent = "Save failed. Try again.";
         }
+      }
+    } catch (err) {
+      // Local storage may be unavailable; the server answers still work.
+    }
+
+    for (const [questionId, choiceId] of Object.entries(q.answersFromServer || {})) {
+      if (questionsById.has(String(questionId)) && answers[String(questionId)] == null) {
+        answers[String(questionId)] = Number(choiceId);
+      }
+    }
+  }
+
+  function saveLocalAnswers() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(answers));
+    } catch (err) {
+      // Continue working even if localStorage is unavailable.
+    }
+  }
+
+  function currentQuestion() {
+    return q.questions[currentIndex];
+  }
+
+  function answeredCount() {
+    return q.questionIds.reduce((count, questionId) => {
+      return count + (answers[String(questionId)] != null ? 1 : 0);
+    }, 0);
+  }
+
+  function unansweredCount() {
+    return q.questionIds.length - answeredCount();
+  }
+
+  function setStatus(text, isError) {
+    if (!connectionStatus) return;
+    connectionStatus.textContent = text || "";
+    connectionStatus.classList.toggle("text-danger", !!isError);
+  }
+
+  function updateBoard() {
+    questionBoard.innerHTML = "";
+
+    q.questionIds.forEach((questionId, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn btn-sm";
+      button.textContent = String(index + 1);
+      button.dataset.qid = String(questionId);
+
+      if (answers[String(questionId)] != null) {
+        button.classList.add("btn-success");
+      } else {
+        button.classList.add("btn-outline-secondary");
+      }
+
+      if (index === currentIndex) {
+        button.classList.add("active");
+        button.setAttribute("aria-current", "true");
+      }
+
+      button.addEventListener("click", function () {
+        goToQuestion(index);
       });
+
+      questionBoard.appendChild(button);
     });
-  })();
+  }
+
+  function renderQuestion() {
+    const item = currentQuestion();
+    if (!item) return;
+
+    questionNumber.textContent = String(currentIndex + 1);
+    questionContainer.innerHTML = "";
+    optionsContainer.innerHTML = "";
+
+    const card = document.createElement("div");
+    card.className = "card mb-3";
+
+    const body = document.createElement("div");
+    body.className = "card-body";
+
+    const heading = document.createElement("div");
+    heading.className = "mb-2 fw-semibold";
+    heading.textContent = "Question";
+
+    const text = document.createElement("div");
+    text.style.whiteSpace = "pre-wrap";
+    text.textContent = item.text || "";
+
+    body.appendChild(heading);
+    body.appendChild(text);
+    card.appendChild(body);
+    questionContainer.appendChild(card);
+
+    const selectedChoice = answers[String(item.id)];
+
+    if (!item.choices || item.choices.length === 0) {
+      const warning = document.createElement("div");
+      warning.className = "alert alert-warning mb-0";
+      warning.textContent = "No choices found for this question.";
+      optionsContainer.appendChild(warning);
+    } else {
+      item.choices.forEach(function (choice) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "mb-2";
+
+        const label = document.createElement("label");
+        label.className = "quiz-option-label";
+        if (Number(selectedChoice) === Number(choice.id)) {
+          label.classList.add("selected");
+        }
+
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "choice_id";
+        radio.value = String(choice.id);
+        radio.checked = Number(selectedChoice) === Number(choice.id);
+        radio.addEventListener("change", function () {
+          selectAnswer(item.id, choice.id);
+        });
+
+        const optionText = document.createElement("span");
+        optionText.textContent = choice.text || "";
+
+        label.appendChild(radio);
+        label.appendChild(optionText);
+        wrapper.appendChild(label);
+        optionsContainer.appendChild(wrapper);
+      });
+    }
+
+    prevBtn.disabled = currentIndex <= 0;
+    nextBtn.disabled = currentIndex >= q.questionIds.length - 1;
+    updateBoard();
+  }
+
+  function selectAnswer(questionId, choiceId) {
+    // This is deliberately synchronous and local: there is NO network request here.
+    answers[String(questionId)] = Number(choiceId);
+    dirty.add(String(questionId));
+    saveLocalAnswers();
+
+    const labels = optionsContainer.querySelectorAll(".quiz-option-label");
+    labels.forEach(label => label.classList.remove("selected"));
+    const checked = optionsContainer.querySelector("input[name='choice_id']:checked");
+    if (checked) checked.closest(".quiz-option-label")?.classList.add("selected");
+
+    updateBoard();
+    setStatus(navigator.onLine ? "Answer saved on this device." : "Offline — answer saved on this device.");
+
+    // Fire-and-forget background sync. Navigation never waits for this.
+    scheduleSync();
+  }
+
+  let syncTimer = null;
+  function scheduleSync() {
+    if (syncTimer) return;
+    syncTimer = setTimeout(function () {
+      syncTimer = null;
+      syncDirtyAnswers();
+    }, 1200);
+  }
+
+  async function syncDirtyAnswers() {
+    if (syncInProgress || dirty.size === 0 || isSubmitting) return;
+    if (!navigator.onLine) return;
+
+    syncInProgress = true;
+    const batch = {};
+    dirty.forEach(questionId => {
+      if (answers[questionId] != null) batch[questionId] = answers[questionId];
+    });
+
+    try {
+      const response = await fetch(`/quiz/sync/${q.sessionId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "fetch"
+        },
+        body: JSON.stringify({ answers: batch }),
+        keepalive: true
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Sync failed");
+      }
+
+      Object.keys(batch).forEach(questionId => dirty.delete(questionId));
+      if (indicator) indicator.textContent = "Synced ✓";
+      setTimeout(() => {
+        if (indicator && indicator.textContent === "Synced ✓") indicator.textContent = "";
+      }, 1200);
+      setStatus("Answers are being protected in the background.");
+    } catch (err) {
+      // Keep the answers dirty. They will be retried later.
+      if (indicator) indicator.textContent = "Offline — retrying in background";
+      setStatus("Connection is slow/unavailable. Your answers are saved on this device.", true);
+    } finally {
+      syncInProgress = false;
+    }
+  }
+
+  function goToQuestion(index) {
+    if (index < 0 || index >= q.questionIds.length) return;
+
+    // No await here. The question changes immediately.
+    currentIndex = index;
+    renderQuestion();
+
+    const newUrl = `${window.location.pathname}?q=${currentIndex + 1}`;
+    window.history.replaceState({ q: currentIndex + 1 }, "", newUrl);
+
+    // Background sync may happen after navigation, but never blocks it.
+    scheduleSync();
+    window.scrollTo(0, 0);
+  }
+
+  function openModal(text) {
+    msg.textContent = text;
+    backdrop.style.display = "block";
+    modal.style.display = "block";
+  }
+
+  function closeModal() {
+    backdrop.style.display = "none";
+    modal.style.display = "none";
+  }
+
+  async function submitAttempt() {
+    if (isSubmitting) return;
+    isSubmitting = true;
+
+    submitBtn.disabled = true;
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    if (indicator) indicator.textContent = "Submitting...";
+    setStatus("Submitting your answers. Please wait...");
+
+    try {
+      const response = await fetch(`/quiz/submit/${q.sessionId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "fetch"
+        },
+        body: JSON.stringify({ answers }),
+        keepalive: true
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Submission failed");
+      }
+
+      try { localStorage.removeItem(storageKey); } catch (err) {}
+      window.location.href = data.redirect_url;
+    } catch (err) {
+      isSubmitting = false;
+      submitBtn.disabled = false;
+      renderQuestion();
+      if (indicator) indicator.textContent = "Submission failed — please try again.";
+      setStatus("Your answers are still on this device. Check your connection and try Submit again.", true);
+    }
+  }
+
+  function startTimer() {
+    if (!timerEl || q.remainingSeconds == null) return;
+
+    let seconds = Number(q.remainingSeconds);
+
+    function tick() {
+      const safeSeconds = Math.max(0, seconds);
+      const hours = Math.floor(safeSeconds / 3600);
+      const minutes = Math.floor((safeSeconds % 3600) / 60);
+      const secs = safeSeconds % 60;
+
+      if (hours > 0) {
+        timerEl.textContent = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+      } else {
+        timerEl.textContent = `${minutes}:${String(secs).padStart(2, "0")}`;
+      }
+
+      if (safeSeconds <= 60 && timerBox) {
+        timerBox.classList.remove("bg-warning", "text-dark");
+        timerBox.classList.add("bg-danger", "text-white");
+      }
+
+      if (seconds > 0) {
+        seconds -= 1;
+        setTimeout(tick, 1000);
+      } else {
+        // Server remains the final authority on expiry.
+        submitAttempt();
+      }
+    }
+
+    tick();
+  }
+
+  prevBtn.addEventListener("click", function () {
+    if (currentIndex > 0) goToQuestion(currentIndex - 1);
+  });
+
+  nextBtn.addEventListener("click", function () {
+    if (currentIndex < q.questionIds.length - 1) goToQuestion(currentIndex + 1);
+  });
+
+  submitBtn.addEventListener("click", function () {
+    const remaining = unansweredCount();
+    if (remaining > 0) {
+      openModal(`You have ${remaining} unanswered question${remaining === 1 ? "" : "s"}. Submit anyway?`);
+    } else {
+      submitAttempt();
+    }
+  });
+
+  cancelSubmit.addEventListener("click", closeModal);
+  backdrop.addEventListener("click", closeModal);
+  confirmSubmit.addEventListener("click", function () {
+    closeModal();
+    submitAttempt();
+  });
+
+  window.addEventListener("online", function () {
+    setStatus("Connection restored. Synchronizing answers...");
+    syncDirtyAnswers();
+  });
+
+  window.addEventListener("offline", function () {
+    setStatus("Offline — answers continue to be saved on this device.", true);
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") {
+      syncDirtyAnswers();
+    }
+  });
+
+  window.addEventListener("pagehide", function () {
+    if (isSubmitting || dirty.size === 0 || !navigator.onLine) return;
+
+    const batch = {};
+    dirty.forEach(questionId => {
+      if (answers[questionId] != null) batch[questionId] = answers[questionId];
+    });
+
+    try {
+      const blob = new Blob([JSON.stringify({ answers: batch })], { type: "application/json" });
+      navigator.sendBeacon(`/quiz/sync/${q.sessionId}`, blob);
+    } catch (err) {
+      // localStorage remains the fallback.
+    }
+  });
+
+  // Initial state.
+  loadLocalAnswers();
+  renderQuestion();
+  startTimer();
+
+  // Periodic background protection without blocking the candidate.
+  setInterval(syncDirtyAnswers, 10000);
+  setTimeout(syncDirtyAnswers, 1500);
+})();
 </script>
 
-<!-- Controlled navigation + submit warning -->
+<!-- Shared quiz data is deliberately JSON only; the client handles navigation. -->
 <script>
-  (function () {
-    const q = window.__quiz;
-
-    const form = document.getElementById("quizForm");
-    const actionField = document.getElementById("action_field");
-    const confirmField = document.getElementById("confirm_submit");
-
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-    const submitBtn = document.getElementById("submitBtn");
-
-    const modal = document.getElementById("submitModal");
-    const backdrop = document.getElementById("submitModalBackdrop");
-    const msg = document.getElementById("unansweredMsg");
-
-    const cancel = document.getElementById("cancelSubmit");
-    const confirm = document.getElementById("confirmSubmit");
-
-    function unansweredCount() {
-      let count = 0;
-      for (const qid of q.questionIds) {
-        if (!q.answeredIds.has(qid)) count++;
-      }
-      return count;
-    }
-
-    function openModal(text) {
-      msg.textContent = text;
-      backdrop.style.display = "block";
-      modal.style.display = "block";
-    }
-    function closeModal() {
-      backdrop.style.display = "none";
-      modal.style.display = "none";
-    }
-
-    // Prev / Next submit with hidden action
-    if (prevBtn) {
-      prevBtn.addEventListener("click", () => {
-        actionField.value = "prev";
-        form.submit();
-      });
-    }
-    if (nextBtn) {
-      nextBtn.addEventListener("click", () => {
-        actionField.value = "next";
-        form.submit();
-      });
-    }
-
-    // Submit with warning
-    if (submitBtn) {
-      submitBtn.addEventListener("click", (e) => {
-        actionField.value = "submit";
-
-        // Already confirmed => submit immediately
-        if (confirmField.value === "1") {
-          form.submit();
-          return;
-        }
-
-        const remaining = unansweredCount();
-        if (remaining > 0) {
-          e.preventDefault();
-          openModal(`You have ${remaining} unanswered question${remaining === 1 ? "" : "s"}. Submit anyway?`);
-        } else {
-          // All answered => submit immediately
-          form.submit();
-        }
-      });
-    }
-
-    cancel.addEventListener("click", closeModal);
-    backdrop.addEventListener("click", closeModal);
-
-    confirm.addEventListener("click", function () {
-      confirmField.value = "1";
-      actionField.value = "submit";
-      closeModal();
-      form.submit();
-    });
-  })();
+  // This object is replaced immediately by the main script above.
+  // It exists only to keep the template data easy to inspect in the page source.
 </script>
 
 {% endblock %}
