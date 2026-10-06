@@ -17,9 +17,14 @@ from app.models.school_membership import SchoolMembership
 from app.models.category_subject_config import CategorySubjectConfig
 from app.models.subject_selection_rule import SubjectSelectionRule
 from app.models.student_subject_enrollment import StudentSubjectEnrollment
+from app.models.student_subject_selection import (
+    StudentSubjectSelection,
+    StudentSubjectSelectionItem,
+)
 from app.student.subject_selection import validate_subject_selection
 from app.models.class_group import ClassGroup
 from app.models.subject_category import SubjectCategory
+
 
 
 def student_has_access():
@@ -83,6 +88,10 @@ def subject_selection():
     """
     Display and process subject selection for the student's
     current school placement and class-group stream.
+
+    Student selections are submitted for staff approval.
+    Official StudentSubjectEnrollment records are created
+    only after staff approval.
     """
 
     if not student_has_access():
@@ -313,7 +322,9 @@ def subject_selection():
         ).append(config)
 
     # ---------------------------------------------------------------
-    # EXISTING ACTIVE ENROLLMENTS
+    # CURRENT OFFICIAL ENROLLMENTS
+    #
+    # These are still the official approved subjects.
     # ---------------------------------------------------------------
 
     existing_enrollments = (
@@ -334,16 +345,127 @@ def subject_selection():
         for enrollment in existing_enrollments
     }
 
-    # Required subjects are always selected.
+    # ---------------------------------------------------------------
+    # LATEST SUBJECT SELECTION SUBMISSION
+    #
+    # One student may have several historical submissions, but only
+    # the latest one matters for the current selection workflow.
+    # ---------------------------------------------------------------
+
+    latest_selection = (
+        StudentSubjectSelection.query
+        .filter_by(
+            student_id=current_user.id,
+            school_id=membership.school_id,
+            academic_session_id=membership.academic_session_id,
+            class_id=membership.class_id,
+            class_group_id=membership.class_group_id,
+        )
+        .order_by(
+            StudentSubjectSelection.submitted_at.desc(),
+            StudentSubjectSelection.id.desc(),
+        )
+        .first()
+    )
+
+    latest_selection_subject_ids = set()
+
+    if latest_selection is not None:
+        latest_selection_subject_ids = {
+            item.subject_id
+            for item in latest_selection.items
+        }
+
+    # ---------------------------------------------------------------
+    # DETERMINE CURRENT WORKFLOW STATE
+    # ---------------------------------------------------------------
+
+    submission_status = (
+        latest_selection.status
+        if latest_selection is not None
+        else None
+    )
+
+    # ---------------------------------------------------------------
+    # REQUIRED SUBJECTS
+    # ---------------------------------------------------------------
+
     required_subject_ids = {
         config.subject_id
         for config in subject_configs
         if config.required
     }
 
-    # ===============================================================
+    # ---------------------------------------------------------------
+    # PENDING SUBMISSION
+    #
+    # A pending submission cannot be replaced by another submission.
+    # ---------------------------------------------------------------
+
+    if submission_status == "pending":
+        flash(
+            "Your subject selection is awaiting staff approval. "
+            "You cannot submit another selection until it has been reviewed.",
+            "info",
+        )
+
+        selected_subject_ids = (
+            latest_selection_subject_ids
+            | required_subject_ids
+        )
+
+        return render_template(
+            "student/subject_selection.html",
+            membership=membership,
+            class_group=class_group,
+            stream_category=stream_category,
+            selection_rule=selection_rule,
+            allowed_categories=allowed_categories,
+            subjects_by_category=subjects_by_category,
+            selected_subject_ids=selected_subject_ids,
+            submission_status=submission_status,
+            submission=latest_selection,
+            can_submit=False,
+        )
+
+    # ---------------------------------------------------------------
+    # APPROVED SUBMISSION
+    #
+    # Official enrollments already exist. Changes will require a
+    # future change-request workflow.
+    # ---------------------------------------------------------------
+
+    if submission_status == "approved":
+        selected_subject_ids = (
+            existing_subject_ids
+            | required_subject_ids
+        )
+
+        return render_template(
+            "student/subject_selection.html",
+            membership=membership,
+            class_group=class_group,
+            stream_category=stream_category,
+            selection_rule=selection_rule,
+            allowed_categories=allowed_categories,
+            subjects_by_category=subjects_by_category,
+            selected_subject_ids=selected_subject_ids,
+            submission_status=submission_status,
+            submission=latest_selection,
+            can_submit=False,
+        )
+
+    # ---------------------------------------------------------------
     # PROCESS SUBMISSION
-    # ===============================================================
+    #
+    # This is allowed when:
+    #
+    #     - there is no previous submission
+    #     - the previous submission was rejected
+    #
+    # A rejected submission is retained as history. A new submission
+    # is created instead of modifying the rejected record.
+    # ---------------------------------------------------------------
 
     if request.method == "POST":
 
@@ -373,9 +495,12 @@ def subject_selection():
                 allowed_categories=allowed_categories,
                 subjects_by_category=subjects_by_category,
                 selected_subject_ids=(
-                    existing_subject_ids
+                    latest_selection_subject_ids
                     | required_subject_ids
                 ),
+                submission_status=submission_status,
+                submission=latest_selection,
+                can_submit=True,
             )
 
         # Compulsory subjects cannot be removed.
@@ -410,43 +535,45 @@ def subject_selection():
                 allowed_categories=allowed_categories,
                 subjects_by_category=subjects_by_category,
                 selected_subject_ids=selected_subject_ids,
+                submission_status=submission_status,
+                submission=latest_selection,
+                can_submit=True,
             )
 
         # -----------------------------------------------------------
-        # SAVE VALID SELECTION
+        # CREATE PENDING SUBMISSION
         # -----------------------------------------------------------
 
-        for enrollment in existing_enrollments:
+        selection = StudentSubjectSelection(
+            student_id=current_user.id,
+            school_id=membership.school_id,
+            academic_session_id=membership.academic_session_id,
+            class_id=membership.class_id,
+            class_group_id=membership.class_group_id,
+            status="pending",
+            submitted_at=datetime.utcnow(),
+        )
 
-            if enrollment.subject_id not in selected_subject_ids:
-                enrollment.active = False
+        db.session.add(selection)
 
-        existing_subject_ids = {
-            enrollment.subject_id
-            for enrollment in existing_enrollments
-        }
+        # Flush so the selection receives its database ID before
+        # creating the selection items.
+        db.session.flush()
 
         for subject_id in selected_subject_ids:
 
-            if subject_id in existing_subject_ids:
-                continue
-
-            enrollment = StudentSubjectEnrollment(
-                student_id=current_user.id,
-                school_id=membership.school_id,
-                academic_session_id=membership.academic_session_id,
-                class_id=membership.class_id,
-                class_group_id=membership.class_group_id,
+            item = StudentSubjectSelectionItem(
+                selection_id=selection.id,
                 subject_id=subject_id,
-                active=True,
             )
 
-            db.session.add(enrollment)
+            db.session.add(item)
 
         db.session.commit()
 
         flash(
-            "Your subject selection has been submitted successfully.",
+            "Your subject selection has been submitted and is now "
+            "awaiting staff approval.",
             "success",
         )
 
@@ -454,14 +581,20 @@ def subject_selection():
             url_for("student.subject_selection")
         )
 
-    # ===============================================================
+    # ---------------------------------------------------------------
     # DISPLAY
-    # ===============================================================
+    # ---------------------------------------------------------------
 
-    selected_subject_ids = (
-        existing_subject_ids
-        | required_subject_ids
-    )
+    if submission_status == "rejected":
+        selected_subject_ids = (
+            latest_selection_subject_ids
+            | required_subject_ids
+        )
+    else:
+        selected_subject_ids = (
+            existing_subject_ids
+            | required_subject_ids
+        )
 
     return render_template(
         "student/subject_selection.html",
@@ -472,6 +605,9 @@ def subject_selection():
         allowed_categories=allowed_categories,
         subjects_by_category=subjects_by_category,
         selected_subject_ids=selected_subject_ids,
+        submission_status=submission_status,
+        submission=latest_selection,
+        can_submit=True,
     )
 
 
