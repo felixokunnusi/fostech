@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def _getenv(key: str, default: str | None = None) -> str | None:
     """Small wrapper to read environment variables."""
     val = os.getenv(key)
@@ -29,12 +30,17 @@ def _as_float(value: str | None, default: float) -> float:
 
 
 def _normalize_db_url(db_url: str) -> str:
-    """
-    Render/Heroku sometimes provide 'postgres://';
-    SQLAlchemy prefers 'postgresql://'.
-    """
+    """Normalize PostgreSQL URLs to use the installed Psycopg 2 driver."""
     if db_url.startswith("postgres://"):
-        return db_url.replace("postgres://", "postgresql://", 1)
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace(
+            "postgresql://",
+            "postgresql+psycopg2://",
+            1,
+        )
+
     return db_url
 
 
@@ -124,10 +130,10 @@ class BaseConfig:
     # Referrals / Verification
     # -------------------
     DEFAULT_REFERRAL_CODE = _getenv("DEFAULT_REFERRAL_CODE", "SYSTEM")
-    REFERRAL_PERCENT = _as_float(_getenv("REFERRAL_PERCENT"),default=0.025)
+    REFERRAL_PERCENT = _as_float(_getenv("REFERRAL_PERCENT"), default=0.025)
     EMAIL_VERIFICATION_EXPIRY_HOURS = _as_int(
         _getenv("EMAIL_VERIFICATION_EXPIRY_HOURS"),
-        default=1
+        default=1,
     )
 
     # -------------------
@@ -160,7 +166,7 @@ class DevelopmentConfig(BaseConfig):
 
     REQUIRE_EMAIL_CONFIG = _as_bool(
         _getenv("REQUIRE_EMAIL_CONFIG"),
-        default=False
+        default=False,
     )
 
 
@@ -173,7 +179,7 @@ class ProductionConfig(BaseConfig):
 
     REQUIRE_EMAIL_CONFIG = _as_bool(
         _getenv("REQUIRE_EMAIL_CONFIG"),
-        default=True
+        default=True,
     )
 
 
