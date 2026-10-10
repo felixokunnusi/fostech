@@ -125,64 +125,11 @@ def downgrade():
             type_="foreignkey",
         )
 
-        batch_op.drop_index(
-            batch_op.f("ix_assessment_subject_id")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_assessment_school_id")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_assessment_class_id")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_assessment_class_group_id")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_assessment_academic_session_id")
-        )
-
-        batch_op.drop_column("subject_id")
-        batch_op.drop_column("class_group_id")
-        batch_op.drop_column("class_id")
-        batch_op.drop_column("academic_session_id")
-        batch_op.drop_column("school_id")
-    with op.batch_alter_table("assessment", schema=None) as batch_op:
-        batch_op.drop_constraint(
-            "fk_assessment_class_id_school_class",
-            type_="foreignkey",
-        )
-        batch_op.drop_constraint(
-            "fk_assessment_class_group_id_class_group",
-            type_="foreignkey",
-        )
-        batch_op.drop_constraint(
-            "fk_assessment_academic_session_id_session",
-            type_="foreignkey",
-        )
-        batch_op.drop_constraint(
-            "fk_assessment_school_id_school",
-            type_="foreignkey",
-        )
-        batch_op.drop_constraint(
-            "fk_assessment_subject_id_school_subject",
-            type_="foreignkey",
-        )
-
-        batch_op.drop_index(
-            batch_op.f("ix_assessment_subject_id")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_assessment_school_id")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_assessment_class_id")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_assessment_class_group_id")
-        )
-        batch_op.drop_index(
-            batch_op.f("ix_assessment_academic_session_id")
-        )
+        batch_op.drop_index("ix_assessment_subject_id")
+        batch_op.drop_index("ix_assessment_school_id")
+        batch_op.drop_index("ix_assessment_class_id")
+        batch_op.drop_index("ix_assessment_class_group_id")
+        batch_op.drop_index("ix_assessment_academic_session_id")
 
         batch_op.drop_column("subject_id")
         batch_op.drop_column("class_group_id")

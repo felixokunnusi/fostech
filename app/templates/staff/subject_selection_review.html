@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Review Subject Selection{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Review Subject Selection</h2>
+            <p class="text-muted mb-0">
+                Review the student's submitted subject choices.
+            </p>
+        </div>
+
+        <a href="{{ url_for('staff.subject_selections') }}"
+           class="btn btn-outline-secondary">
+            Back to Submissions
+        </a>
+    </div>
+
+    <!-- Student / Placement Information -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <strong>Student Information</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-3">
+
+                <div class="col-md-6">
+                    <strong>Student:</strong><br>
+                    {{ selection.student.username }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Status:</strong><br>
+
+                    {% if selection.status == "pending" %}
+                        <span class="badge bg-warning text-dark">
+                            Pending Review
+                        </span>
+                    {% elif selection.status == "approved" %}
+                        <span class="badge bg-success">
+                            Approved
+                        </span>
+                    {% elif selection.status == "rejected" %}
+                        <span class="badge bg-danger">
+                            Rejected
+                        </span>
+                    {% else %}
+                        <span class="badge bg-secondary">
+                            {{ selection.status|capitalize }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>School:</strong><br>
+                    {{ selection.school.name }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Academic Session:</strong><br>
+                    {{ selection.academic_session.name }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Class:</strong><br>
+                    {{ selection.school_class.name }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Class Group:</strong><br>
+                    {% if selection.class_group %}
+                        {{ selection.class_group.name }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Submitted:</strong><br>
+                    {% if selection.submitted_at %}
+                        {{ selection.submitted_at.strftime('%d %B %Y, %H:%M') }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+
+                {% if selection.reviewed_at %}
+                    <div class="col-md-6">
+                        <strong>Reviewed:</strong><br>
+                        {{ selection.reviewed_at.strftime('%d %B %Y, %H:%M') }}
+                    </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Selected Subjects -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <strong>Selected Subjects</strong>
+        </div>
+
+        <div class="card-body">
+
+            {% if selection.items %}
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0">
+
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 80px;">#</th>
+                                <th>Subject</th>
+                                <th>Code</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for item in selection.items %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        <strong>
+                                            {{ item.subject.name }}
+                                        </strong>
+                                    </td>
+                                    <td>
+                                        {% if item.subject.code %}
+                                            {{ item.subject.code }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-warning mb-0">
+                    No subjects were found in this submission.
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+
+    <!-- Review Decision -->
+    {% if selection.status == "pending" %}
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>Review Decision</strong>
+            </div>
+
+            <div class="card-body">
+
+                <div class="row g-3">
+
+                    <!-- Approve -->
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+
+                            <h5 class="text-success">
+                                Approve Selection
+                            </h5>
+
+                            <p class="text-muted small">
+                                Approving this submission will make these
+                                subjects the student's official subject
+                                enrollments.
+                            </p>
+
+                            <form method="POST"
+                                  action="{{ url_for(
+                                      'staff.approve_subject_selection',
+                                      selection_id=selection.id
+                                  ) }}">
+
+                                <button type="submit"
+                                        class="btn btn-success">
+                                    Approve Selection
+                                </button>
+
+                            </form>
+
+                        </div>
+                    </div>
+
+
+                    <!-- Reject -->
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+
+                            <h5 class="text-danger">
+                                Reject Selection
+                            </h5>
+
+                            <p class="text-muted small">
+                                Provide a reason so the student knows what
+                                needs to be corrected before resubmitting.
+                            </p>
+
+                            <form method="POST"
+                                  action="{{ url_for(
+                                      'staff.reject_subject_selection',
+                                      selection_id=selection.id
+                                  ) }}">
+
+                                <div class="mb-3">
+                                    <label for="review_note"
+                                           class="form-label">
+                                        Reason for rejection
+                                    </label>
+
+                                    <textarea
+                                        name="review_note"
+                                        id="review_note"
+                                        class="form-control"
+                                        rows="4"
+                                        required
+                                        placeholder="Explain why this subject selection is being rejected..."
+                                    ></textarea>
+                                </div>
+
+                                <button type="submit"
+                                        class="btn btn-danger">
+                                    Reject Selection
+                                </button>
+
+                            </form>
+
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+    {% else %}
+
+        <!-- Existing Review Information -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>Review Information</strong>
+            </div>
+
+            <div class="card-body">
+
+                {% if selection.reviewed_at %}
+                    <p>
+                        <strong>Reviewed:</strong>
+                        {{ selection.reviewed_at.strftime('%d %B %Y, %H:%M') }}
+                    </p>
+                {% endif %}
+
+                {% if selection.reviewer %}
+                    <p>
+                        <strong>Reviewed by:</strong>
+                        {{ selection.reviewer.username }}
+                    </p>
+                {% endif %}
+
+                {% if selection.review_note %}
+                    <div class="alert alert-secondary mb-0">
+                        <strong>Review Note:</strong><br>
+                        {{ selection.review_note }}
+                    </div>
+                {% endif %}
+
+            </div>
+        </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}

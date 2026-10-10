@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Subject Selection Approvals{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Student Subject Selection Approvals</h2>
+            <p class="text-muted mb-0">
+                Review and approve student subject-selection submissions.
+            </p>
+        </div>
+
+        <a href="{{ url_for('staff.dashboard') }}"
+           class="btn btn-outline-secondary">
+            Back to Staff Dashboard
+        </a>
+    </div>
+
+    {% if selections %}
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+                            <tr>
+                                <th>Student</th>
+                                <th>School</th>
+                                <th>Session</th>
+                                <th>Class</th>
+                                <th>Group</th>
+                                <th>Submitted</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for selection in selections %}
+                                <tr>
+                                    <td>
+                                        <strong>
+                                            {{ selection.student.username }}
+                                        </strong>
+                                    </td>
+
+                                    <td>
+                                        {{ selection.school.name }}
+                                    </td>
+
+                                    <td>
+                                        {{ selection.academic_session.name }}
+                                    </td>
+
+                                    <td>
+                                        {{ selection.school_class.name }}
+                                    </td>
+
+                                    <td>
+                                        {% if selection.class_group %}
+                                            {{ selection.class_group.name }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        {% if selection.submitted_at %}
+                                            {{ selection.submitted_at.strftime('%d %b %Y %H:%M') }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+
+                                    <td class="text-end">
+                                        <a href="{{ url_for(
+                                            'staff.subject_selection_review',
+                                            selection_id=selection.id
+                                        ) }}"
+                                           class="btn btn-primary btn-sm">
+                                            Review
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+    {% else %}
+
+        <div class="alert alert-info">
+            <strong>No pending subject selections.</strong>
+            There are currently no student submissions waiting for review.
+        </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}

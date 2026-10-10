@@ -116,7 +116,6 @@ class StudentSubjectEnrollment(db.Model):
             "school_id",
             "academic_session_id",
             "class_id",
-            "class_group_id",
             "subject_id",
             name="uq_student_subject_enrollment_context",
         ),

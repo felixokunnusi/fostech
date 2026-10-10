@@ -69,7 +69,7 @@ def upgrade():
         """
         INSERT INTO user_role (user_id, role)
         SELECT id, user_type
-        FROM user
+        FROM "user"
         WHERE user_type IS NOT NULL
         """
     )
@@ -110,7 +110,7 @@ def downgrade():
     # ----------------------------------------------------------
     op.execute(
         """
-        UPDATE user
+        UPDATE "user"
         SET user_type = (
             SELECT ur.role
             FROM user_role ur

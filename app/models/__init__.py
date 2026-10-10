@@ -17,8 +17,8 @@ from .student_subject_enrollment import StudentSubjectEnrollment
 from .school_membership import SchoolMembership
 from .teacher_subject_assignment import TeacherSubjectAssignment
 from .subject_category import SubjectCategory
-from app.models.category_rule import CategoryRule
-from app.models.category_subject_config import CategorySubjectConfig
+from .category_rule import CategoryRule
+from .category_subject_config import CategorySubjectConfig
 from .subject_selection_rule import SubjectSelectionRule
 from .student_subject_selection import (
     StudentSubjectSelection,

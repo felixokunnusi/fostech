@@ -50,7 +50,7 @@ def upgrade():
     # ----------------------------------------------------------
     op.execute(
         """
-        UPDATE user
+        UPDATE "user"
         SET user_type = role
         WHERE user_type IS NULL
         """
@@ -62,8 +62,8 @@ def upgrade():
     # ----------------------------------------------------------
     op.execute(
         """
-        UPDATE user
-        SET is_staff = 0
+        UPDATE "user"
+        SET is_staff = FALSE
         WHERE is_staff IS NULL
         """
     )
@@ -108,7 +108,7 @@ def downgrade():
     # Restore role from user_type.
     op.execute(
         """
-        UPDATE user
+        UPDATE "user"
         SET role = user_type
         WHERE role IS NULL
         """

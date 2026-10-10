@@ -28,9 +28,9 @@ def upgrade():
             )
         )
 
-    # Existing users are staff.
+    # Existing production users are civil servants.
     op.execute(
-        "UPDATE user SET role = 'staff' WHERE role IS NULL"
+        'UPDATE "user" SET role = \'civil_servant\' WHERE role IS NULL'
     )
 
     # Make the role column mandatory after existing users

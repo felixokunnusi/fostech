@@ -21,7 +21,11 @@ from app.models.subject_category import SubjectCategory
 from app.models.category_rule import CategoryRule
 from app.models.category_subject_config import CategorySubjectConfig
 from app.models.subject_selection_rule import SubjectSelectionRule
-
+from app.models.student_subject_selection import (
+    StudentSubjectSelection,
+    StudentSubjectSelectionItem,
+)
+from app.models.student_subject_enrollment import StudentSubjectEnrollment
 from . import staff_bp
 
 
@@ -34,7 +38,6 @@ def staff_has_access():
         current_user.is_authenticated
         and current_user.is_staff
     )
-
 
 def require_staff():
     """
@@ -2247,6 +2250,176 @@ def students():
     return render_template(
         "staff/students.html",
         students=students,
+    )
+
+
+@staff_bp.route("/subject-selections", methods=["GET"])
+@login_required
+def subject_selections():
+    """List pending student subject-selection submissions for Staff review."""
+    access_response = require_staff()
+    if access_response:
+        return access_response
+
+    selections = (
+        StudentSubjectSelection.query
+        .filter(StudentSubjectSelection.status == "pending")
+        .order_by(StudentSubjectSelection.submitted_at.desc())
+        .all()
+    )
+
+    return render_template(
+        "staff/subject_selections.html",
+        selections=selections,
+    )
+
+
+@staff_bp.route("/subject-selections/<int:selection_id>", methods=["GET"])
+@login_required
+def subject_selection_review(selection_id):
+    """Review an individual student subject-selection submission."""
+    access_response = require_staff()
+    if access_response:
+        return access_response
+
+    selection = StudentSubjectSelection.query.get_or_404(selection_id)
+
+    return render_template(
+        "staff/subject_selection_review.html",
+        selection=selection,
+    )
+
+@staff_bp.route(
+    "/subject-selections/<int:selection_id>/approve",
+    methods=["POST"],
+)
+@login_required
+def approve_subject_selection(selection_id):
+    """Approve a student subject selection and create official enrollments."""
+    access_response = require_staff()
+    if access_response:
+        return access_response
+
+    selection = StudentSubjectSelection.query.get_or_404(selection_id)
+
+    if selection.status != "pending":
+        flash(
+            "This subject selection has already been reviewed.",
+            "warning",
+        )
+        return redirect(url_for("staff.subject_selection_review",
+                                selection_id=selection.id))
+
+    selected_subject_ids = {
+        item.subject_id
+        for item in selection.items
+    }
+
+    # Create or reactivate the official enrollments.
+    for subject_id in selected_subject_ids:
+        enrollment = (
+            StudentSubjectEnrollment.query
+            .filter_by(
+                student_id=selection.student_id,
+                school_id=selection.school_id,
+                academic_session_id=selection.academic_session_id,
+                class_id=selection.class_id,
+                subject_id=subject_id,
+            )
+            .first()
+        )
+
+        if enrollment:
+            enrollment.active = True
+        else:
+            enrollment = StudentSubjectEnrollment(
+                student_id=selection.student_id,
+                school_id=selection.school_id,
+                academic_session_id=selection.academic_session_id,
+                class_id=selection.class_id,
+                class_group_id=selection.class_group_id,
+                subject_id=subject_id,
+                active=True,
+                enrolled_at=datetime.utcnow(),
+            )
+            db.session.add(enrollment)
+
+    selection.status = "approved"
+    selection.reviewed_at = datetime.utcnow()
+    selection.reviewed_by = current_user.id
+    selection.review_note = None
+
+    db.session.commit()
+
+    flash(
+        "Subject selection approved and official enrollments created.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "staff.subject_selection_review",
+            selection_id=selection.id,
+        )
+    )
+
+
+@staff_bp.route(
+    "/subject-selections/<int:selection_id>/reject",
+    methods=["POST"],
+)
+@login_required
+def reject_subject_selection(selection_id):
+    """Reject a student subject selection and record the review reason."""
+    access_response = require_staff()
+    if access_response:
+        return access_response
+
+    selection = StudentSubjectSelection.query.get_or_404(selection_id)
+
+    if selection.status != "pending":
+        flash(
+            "This subject selection has already been reviewed.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "staff.subject_selection_review",
+                selection_id=selection.id,
+            )
+        )
+
+    review_note = request.form.get("review_note", "").strip()
+
+    if not review_note:
+        flash(
+            "Please provide a reason for rejecting the subject selection.",
+            "danger",
+        )
+        return redirect(
+            url_for(
+                "staff.subject_selection_review",
+                selection_id=selection.id,
+            )
+        )
+
+    selection.status = "rejected"
+    selection.reviewed_at = datetime.utcnow()
+    selection.reviewed_by = current_user.id
+    selection.review_note = review_note
+
+    db.session.commit()
+
+    flash(
+        "Subject selection rejected. The student can submit a new selection.",
+        "warning",
+    )
+
+    return redirect(
+        url_for(
+            "staff.subject_selection_review",
+            selection_id=selection.id,
+        )
     )
 
 
