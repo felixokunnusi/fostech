@@ -1,0 +1,81 @@
+
+{% extends "base.html" %}
+
+{% block title %}Complete Your Profile{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h4 class="mb-0">Complete Your Profile</h4>
+                </div>
+
+                <div class="card-body">
+
+                    <p class="text-muted">
+                        Please provide your correct names before continuing
+                        to your dashboard.
+                    </p>
+
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.first_name.label(class="form-label") }}
+                            {{ form.first_name(
+                                class="form-control",
+                                placeholder="Enter your first name"
+                            ) }}
+
+                            {% for error in form.first_name.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.surname.label(class="form-label") }}
+                            {{ form.surname(
+                                class="form-control",
+                                placeholder="Enter your surname"
+                            ) }}
+
+                            {% for error in form.surname.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.other_name.label(class="form-label") }}
+                            {{ form.other_name(
+                                class="form-control",
+                                placeholder="Enter other name (optional)"
+                            ) }}
+
+                            {% for error in form.other_name.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

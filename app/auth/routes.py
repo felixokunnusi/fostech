@@ -18,6 +18,7 @@ from datetime import timedelta, datetime
 import random
 from .utils import generate_reset_token
 import secrets
+from app.auth.profile_forms import ProfileCompletionForm
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
@@ -448,6 +449,44 @@ def resend_confirmation():
     return redirect(
         url_for("auth.confirm_email")
     )
+
+
+# --------------------------------------------------------------
+# Complete profile
+# --------------------------------------------------------------
+
+@auth_bp.route("/complete-profile", methods=["GET", "POST"])
+@login_required
+def complete_profile():
+    from flask import flash, redirect, render_template, request, session, url_for
+
+    form = ProfileCompletionForm()
+
+    if form.validate_on_submit():
+        current_user.first_name = form.first_name.data.strip()
+        current_user.surname = form.surname.data.strip()
+        current_user.other_name = (
+            form.other_name.data.strip()
+            if form.other_name.data
+            else None
+        )
+
+        db.session.commit()
+        flash("Your profile has been completed successfully.", "success")
+
+        next_url = session.pop("profile_completion_next", None)
+        if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+            return redirect(next_url)
+
+        return redirect(url_for("workspace.index"))
+
+    if request.method == "GET":
+        form.first_name.data = current_user.first_name or ""
+        form.surname.data = current_user.surname or ""
+        form.other_name.data = current_user.other_name or ""
+
+    return render_template("auth/complete_profile.html", form=form)
+
 
 
 # --------------------------------------------------------------

@@ -6,6 +6,7 @@ from flask import (
     url_for,
     flash,
     request,
+    current_app,
 )
 from flask_login import login_required, current_user
 
@@ -26,6 +27,7 @@ from app.models.student_subject_selection import (
     StudentSubjectSelectionItem,
 )
 from app.models.student_subject_enrollment import StudentSubjectEnrollment
+from app.models.student_exam_number import StudentExamNumber
 from . import staff_bp
 
 
@@ -3109,4 +3111,255 @@ def subject_selection_rule(school_id):
         "staff/subject_selection_rule.html",
         school=school,
         rule=rule,
+    )
+
+
+# ============================================================================
+# STUDENT EXAM NUMBER MANAGEMENT
+# ============================================================================
+
+@staff_bp.route("/student-exam-numbers", methods=["GET", "POST"])
+@login_required
+def student_exam_numbers():
+    """Assign or update student exam numbers for a school and session."""
+
+    access_response = require_staff()
+    if access_response:
+        return access_response
+
+    schools = (
+        School.query
+        .filter_by(active=True)
+        .order_by(School.name.asc())
+        .all()
+    )
+
+    school_id = request.values.get("school_id", type=int)
+    session_id = request.values.get("academic_session_id", type=int)
+
+    selected_school = None
+    selected_session = None
+    students = []
+    exam_numbers = {}
+
+    if school_id:
+        selected_school = (
+            School.query
+            .filter_by(id=school_id, active=True)
+            .first()
+        )
+
+    if selected_school and session_id:
+        selected_session = (
+            AcademicSession.query
+            .filter_by(
+                id=session_id,
+                school_id=selected_school.id,
+            )
+            .first()
+        )
+
+    if request.method == "POST":
+        if not selected_school or not selected_session:
+            flash(
+                "Please select a valid school and academic session.",
+                "danger",
+            )
+            return redirect(url_for("staff.student_exam_numbers"))
+
+        memberships = (
+            SchoolMembership.query
+            .filter_by(
+                school_id=selected_school.id,
+                academic_session_id=selected_session.id,
+                membership_type="student",
+                active=True,
+            )
+            .all()
+        )
+
+        students = sorted(
+            [membership.user for membership in memberships
+             if membership.user],
+            key=lambda student: (
+                student.full_name or student.username
+            ).lower(),
+        )
+
+        submitted_numbers = {}
+        number_owners = {}
+
+        for student in students:
+            raw_number = request.form.get(
+                f"exam_number_{student.id}", ""
+            ).strip()
+
+            if len(raw_number) > 50:
+                flash(
+                    f"Exam number for {student.full_name} "
+                    "must not exceed 50 characters.",
+                    "danger",
+                )
+                return redirect(url_for(
+                    "staff.student_exam_numbers",
+                    school_id=selected_school.id,
+                    academic_session_id=selected_session.id,
+                ))
+
+            submitted_numbers[student.id] = raw_number
+
+            if raw_number:
+                normalized_number = raw_number.casefold()
+
+                if normalized_number in number_owners:
+                    flash(
+                        f"The exam number '{raw_number}' was "
+                        "entered for more than one student.",
+                        "danger",
+                    )
+                    return redirect(url_for(
+                        "staff.student_exam_numbers",
+                        school_id=selected_school.id,
+                        academic_session_id=selected_session.id,
+                    ))
+
+                number_owners[normalized_number] = student.id
+
+        # Check for numbers already assigned to other students
+        # in this school and academic session.
+        existing_numbers = (
+            StudentExamNumber.query
+            .filter_by(
+                school_id=selected_school.id,
+                academic_session_id=selected_session.id,
+            )
+            .all()
+        )
+
+        existing_by_student = {
+            record.student_id: record
+            for record in existing_numbers
+        }
+
+        for student_id, exam_number in submitted_numbers.items():
+            if not exam_number:
+                continue
+
+            normalized_number = exam_number.casefold()
+
+            for record in existing_numbers:
+                if (
+                    record.student_id != student_id
+                    and record.exam_number.casefold()
+                    == normalized_number
+                ):
+                    flash(
+                        f"The exam number '{exam_number}' "
+                        "is already assigned to another student.",
+                        "danger",
+                    )
+                    return redirect(url_for(
+                        "staff.student_exam_numbers",
+                        school_id=selected_school.id,
+                        academic_session_id=selected_session.id,
+                    ))
+
+        for student in students:
+            exam_number = submitted_numbers[student.id]
+            record = existing_by_student.get(student.id)
+
+            if not exam_number:
+                # An empty field removes the existing assignment.
+                if record:
+                    db.session.delete(record)
+                continue
+
+            if record:
+                record.exam_number = exam_number
+            else:
+                db.session.add(
+                    StudentExamNumber(
+                        student_id=student.id,
+                        school_id=selected_school.id,
+                        academic_session_id=selected_session.id,
+                        exam_number=exam_number,
+                    )
+                )
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception(
+                "Failed to save student exam numbers."
+            )
+            flash(
+                "The exam numbers could not be saved. "
+                "Please check for duplicates and try again.",
+                "danger",
+            )
+        else:
+            flash(
+                "Student exam numbers saved successfully.",
+                "success",
+            )
+
+        return redirect(url_for(
+            "staff.student_exam_numbers",
+            school_id=selected_school.id,
+            academic_session_id=selected_session.id,
+        ))
+
+    if selected_school and selected_session:
+        memberships = (
+            SchoolMembership.query
+            .filter_by(
+                school_id=selected_school.id,
+                academic_session_id=selected_session.id,
+                membership_type="student",
+                active=True,
+            )
+            .all()
+        )
+
+        students = sorted(
+            [membership.user for membership in memberships
+             if membership.user],
+            key=lambda student: (
+                student.full_name or student.username
+            ).lower(),
+        )
+
+        records = (
+            StudentExamNumber.query
+            .filter_by(
+                school_id=selected_school.id,
+                academic_session_id=selected_session.id,
+            )
+            .all()
+        )
+
+        exam_numbers = {
+            record.student_id: record.exam_number
+            for record in records
+        }
+
+    sessions = (
+        AcademicSession.query
+        .filter_by(
+            school_id=selected_school.id,
+            active=True,
+        )
+        .order_by(AcademicSession.name.desc())
+        .all()
+    ) if selected_school else []
+
+    return render_template(
+        "staff/student_exam_numbers.html",
+        schools=schools,
+        sessions=sessions,
+        selected_school=selected_school,
+        selected_session=selected_session,
+        students=students,
+        exam_numbers=exam_numbers,
     )

@@ -1,6 +1,6 @@
 import os
 from flask import Flask, redirect, url_for, request, session, flash, has_request_context, send_from_directory
-from .extensions import db, login_manager, migrate, mail
+from .extensions import db, login_manager, migrate, mail, csrf
 from flask_login import current_user, logout_user
 from app.models.subscription import Subscription
 from app.models.quiz import Question
@@ -48,6 +48,7 @@ def create_app():
     login_manager.init_app(app)
     migrate.init_app(app, db)
     mail.init_app(app)
+    csrf.init_app(app)
 
     # 🔐 Email verification guard (safe + predictable)
     @app.before_request
@@ -77,7 +78,7 @@ def create_app():
         # Avoid crashes if attribute missing (old sessions / stale rows)
         if not getattr(current_user, "is_email_verified", False):
             return redirect(url_for("auth.confirm_email"))
-        
+
 
     @app.before_request
     def enforce_single_session():
@@ -97,8 +98,55 @@ def create_app():
             session.clear()
             flash("Your account was logged in from another device.", "warning")
             return redirect(url_for("auth.login"))
-        
- 
+
+
+    # ----------------------------------------------------------
+    # Require complete profiles in Student and Teacher workspaces
+    # ----------------------------------------------------------
+    @app.before_request
+    def require_complete_profile():
+        if not current_user.is_authenticated:
+            return
+
+        endpoint = request.endpoint
+
+        if not endpoint:
+            return
+
+        # Only enforce this rule inside Student and Teacher pages.
+        is_student_page = endpoint.startswith("student.")
+        is_teacher_page = endpoint.startswith("teacher.")
+
+        if not (is_student_page or is_teacher_page):
+            return
+
+        user_roles = {
+            role.role for role in current_user.roles
+        }
+
+        # Confirm the user actually has access to that workspace.
+        if is_student_page and "student" not in user_roles:
+            return
+
+        if is_teacher_page and "teacher" not in user_roles:
+            return
+
+        first_name = (
+            getattr(current_user, "first_name", None) or ""
+        ).strip()
+
+        surname = (
+            getattr(current_user, "surname", None) or ""
+        ).strip()
+
+        if not first_name or not surname:
+            # Remember the page the user was trying to access.
+            session["profile_completion_next"] = request.full_path
+
+            return redirect(url_for("auth.complete_profile"))
+
+
+
     # Include subscription CTA globally
     @app.context_processor
     def inject_subscription_cta():
@@ -178,8 +226,8 @@ def create_app():
     def inject_globals():
         endpoint = request.endpoint if has_request_context() else None
         return dict(endpoint=endpoint)
-    
-    
+
+
     @app.route('/favicon.ico')
     def favicon():
         return send_from_directory(
@@ -195,5 +243,5 @@ def create_app():
             'robots.txt',
             mimetype='text/plain'
         )
-        
+
     return app

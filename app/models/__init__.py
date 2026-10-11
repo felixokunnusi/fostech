@@ -24,3 +24,4 @@ from .student_subject_selection import (
     StudentSubjectSelection,
     StudentSubjectSelectionItem,
 )
+from .student_exam_number import StudentExamNumber

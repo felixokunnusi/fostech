@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,9 +13,7 @@
   <link rel="icon" href="{{ url_for('static', filename='icons/favicon.ico') }}">
   <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32x32.png') }}">
   <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='icons/favicon-16x16.png') }}">
-
   <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
-
   <link rel="manifest" href="{{ url_for('static', filename='icons/site.webmanifest') }}">
   <meta name="theme-color" content="#06113a">
 </head>
@@ -22,6 +21,7 @@
 <body class="bg-light">
 
 {% set path = request.path %}
+{% set is_student_user = current_user.is_authenticated and (current_user.roles | selectattr('role', 'equalto', 'student') | list | length > 0) %}
 
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top" style="background:#062e6b;">
   <div class="container">
@@ -32,8 +32,10 @@
     </a>
 
     <!-- Toggler -->
-    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain"
-            aria-controls="navMain" aria-expanded="false" aria-label="Toggle navigation">
+    <button class="navbar-toggler border-0" type="button"
+            data-bs-toggle="collapse" data-bs-target="#navMain"
+            aria-controls="navMain" aria-expanded="false"
+            aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
 
@@ -59,17 +61,18 @@
         {% endif %}
 
         <li class="nav-item">
-          <!-- Ensure footer has id="contact" -->
           <a class="nav-link" href="#contact">Contact</a>
         </li>
+
       </ul>
 
-      <!-- Right actions (mobile first: full width, desktop: inline) -->
+      <!-- Right actions -->
       <div class="d-grid gap-2 d-lg-flex align-items-center mt-3 mt-lg-0">
 
         {% if current_user.is_authenticated %}
 
-          {% if show_subscribe_cta %}
+          <!-- Civil-servant subscription promotion: hidden for students -->
+          {% if show_subscribe_cta and not is_student_user %}
           <a class="btn btn-warning fw-semibold text-dark"
              href="{{ url_for('subscription.start_subscription') }}">
             <i class="bi bi-stars me-1"></i> Subscribe
@@ -82,56 +85,47 @@
           </a>
 
           {% if current_user.is_admin %}
-            <div class="dropdown admin-dropdown">
-              <button
-                class="btn btn-success dropdown-toggle w-100 w-lg-auto
-                      {% if endpoint and endpoint.startswith('admin.') %}fw-semibold{% endif %}"
-                type="button"
-                id="adminDropdown"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                Admin
-              </button>
+          <div class="dropdown admin-dropdown">
 
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="adminDropdown"
-              >
-                <li>
-                  <a
-                    class="dropdown-item
-                          {% if endpoint == 'admin.upload_questions' %}active{% endif %}"
-                    href="{{ url_for('admin.upload_questions') }}"
-                  >
-                    Upload Questions
-                  </a>
-                </li>
+            <button
+              class="btn btn-success dropdown-toggle w-100 w-lg-auto {% if endpoint and endpoint.startswith('admin.') %}fw-semibold{% endif %}"
+              type="button"
+              id="adminDropdown"
+              data-bs-toggle="dropdown"
+              aria-expanded="false">
+              Admin
+            </button>
 
-                <li>
-                  <a
-                    class="dropdown-item
-                          {% if endpoint == 'admin.manage_subscriptions' %}active{% endif %}"
-                    href="{{ url_for('admin.manage_subscriptions') }}"
-                  >
-                    Manage Subscriptions
-                  </a>
-                </li>
+            <ul class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="adminDropdown">
 
-                <li>
-                  <a
-                    class="dropdown-item
-                          {% if endpoint == 'admin.withdrawals' %}active{% endif %}"
-                    href="{{ url_for('admin.withdrawals') }}"
-                  >
-                    Withdrawals
-                  </a>
-                </li>
-              </ul>
-            </div>
-            {% endif %}
+              <li>
+                <a class="dropdown-item {% if endpoint == 'admin.upload_questions' %}active{% endif %}"
+                   href="{{ url_for('admin.upload_questions') }}">
+                  Upload Questions
+                </a>
+              </li>
 
-          <a class="btn btn-outline-light" href="{{ url_for('auth.logout') }}">
+              <li>
+                <a class="dropdown-item {% if endpoint == 'admin.manage_subscriptions' %}active{% endif %}"
+                   href="{{ url_for('admin.manage_subscriptions') }}">
+                  Manage Subscriptions
+                </a>
+              </li>
+
+              <li>
+                <a class="dropdown-item {% if endpoint == 'admin.withdrawals' %}active{% endif %}"
+                   href="{{ url_for('admin.withdrawals') }}">
+                  Withdrawals
+                </a>
+              </li>
+
+            </ul>
+          </div>
+          {% endif %}
+
+          <a class="btn btn-outline-light"
+             href="{{ url_for('auth.logout') }}">
             Logout
           </a>
 
@@ -155,38 +149,50 @@
 </nav>
 
 <main class="container py-3 py-md-4">
+
+  <!-- Flash messages -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close"
+                data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
       {% endfor %}
     {% endif %}
   {% endwith %}
 
-  {% if current_user.is_authenticated and show_subscribe_cta %}
+  <!-- Civil-servant Premium banner: hidden for students -->
+  {% if current_user.is_authenticated and show_subscribe_cta and not is_student_user %}
   <div class="alert alert-warning border-0 shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+
     <div>
       <div class="fw-bold mb-1">Upgrade to Premium</div>
+
       <div class="small text-muted">
-         <span class="small text-muted">You are on trial mode. Promotion is getting more competitive. Subscribe to unlock premium practice, full timed exam simulation, access more than <strong>{{ total_questions }}</strong> questions.</span>
-  
+        You are on trial mode. Promotion is getting more competitive.
+        Subscribe to unlock premium practice, full timed exam simulation,
+        and access to more than
+        <strong>{{ total_questions }}</strong> questions.
       </div>
     </div>
+
     <div>
-      <a href="{{ url_for('subscription.start_subscription') }}" class="btn btn-success">
+      <a href="{{ url_for('subscription.start_subscription') }}"
+         class="btn btn-success">
         <i class="bi bi-stars me-1"></i> Subscribe Now
       </a>
     </div>
+
   </div>
   {% endif %}
 
   {% block content %}{% endblock %}
+
 </main>
 
-<footer id="contact"  class="bg-white border-top mt-5">
+<footer id="contact" class="bg-white border-top mt-5">
   <div class="container py-4">
 
     <div class="row text-center text-md-start g-3">
@@ -203,19 +209,16 @@
 
         <div class="d-grid gap-2">
 
-          <!-- WhatsApp -->
           <a href="https://wa.me/2349023373671"
-            target="_blank"
-            class="btn btn-success d-flex align-items-center justify-content-center justify-content-md-start gap-2">
-
+             target="_blank"
+             rel="noopener noreferrer"
+             class="btn btn-success d-flex align-items-center justify-content-center justify-content-md-start gap-2">
             <span><i class="bi bi-whatsapp"></i></span>
             <span>Chat on WhatsApp</span>
           </a>
 
-          <!-- Email -->
           <a href="mailto:admin@fotmas.site"
              class="btn btn-outline-success d-flex align-items-center justify-content-center justify-content-md-start gap-2">
-
             <span><i class="bi bi-envelope-fill"></i></span>
             <span>admin@fotmas.site</span>
           </a>
@@ -226,10 +229,18 @@
       <!-- Quick Links -->
       <div class="col-12 col-md-4">
         <h6 class="fw-bold mb-2">Quick Links</h6>
+
         <div class="d-grid gap-2">
-          <a href="{{ url_for('main.index') }}" class="btn btn-light border">Home</a>
+          <a href="{{ url_for('main.index') }}"
+             class="btn btn-light border">
+            Home
+          </a>
+
           {% if current_user.is_authenticated %}
-          <a href="{{ url_for('quiz.history') }}" class="btn btn-light border">My History</a>
+          <a href="{{ url_for('quiz.history') }}"
+             class="btn btn-light border">
+            My History
+          </a>
           {% endif %}
         </div>
       </div>
@@ -239,77 +250,66 @@
     <hr class="my-4">
 
     <div class="text-center small text-muted">
-    © {{ now.year if now else 2026 }} FOSTech. All rights reserved.
+      © {{ now.year if now else 2026 }} FOSTech. All rights reserved.
     </div>
 
   </div>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
-  // Auto-collapse navbar on mobile after clicking a link/button inside it
-  document.addEventListener("DOMContentLoaded", function () {
-    const nav = document.querySelector(".navbar");
-    const navCollapseEl = document.getElementById("navMain");
+document.addEventListener("DOMContentLoaded", function () {
+  const nav = document.querySelector(".navbar");
+  const navCollapseEl = document.getElementById("navMain");
 
-    <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const nav = document.querySelector(".navbar");
-    const navCollapseEl = document.getElementById("navMain");
+  if (!nav || !navCollapseEl) return;
 
-    if (!nav || !navCollapseEl) return;
+  // Collapse the mobile navbar after clicking a navigation link.
+  navCollapseEl.addEventListener("click", function (e) {
+    const clicked = e.target.closest("a, button");
 
-    navCollapseEl.addEventListener("click", function (e) {
-      const clicked = e.target.closest("a, button");
+    if (!clicked) return;
 
-      if (!clicked) return;
+    const isNavbarToggler =
+      clicked.classList.contains("navbar-toggler");
 
-      /*
-       * Do not collapse the navbar when:
-       * 1. The navbar toggler is clicked.
-       * 2. A dropdown toggle such as the Admin button is clicked.
-       */
-      const isNavbarToggler =
-        clicked.classList.contains("navbar-toggler");
+    const isDropdownToggle =
+      clicked.matches('[data-bs-toggle="dropdown"]');
 
-      const isDropdownToggle =
-        clicked.matches('[data-bs-toggle="dropdown"]');
+    if (isNavbarToggler || isDropdownToggle) {
+      return;
+    }
 
-      if (isNavbarToggler || isDropdownToggle) {
-        return;
-      }
+    const isNavigationLink = clicked.tagName === "A";
 
-      /*
-       * Collapse only after clicking an actual navigation link,
-       * such as Home, History, Logout, or a dropdown menu item.
-       */
-      const isNavigationLink = clicked.tagName === "A";
+    if (
+      isNavigationLink &&
+      navCollapseEl.classList.contains("show")
+    ) {
+      const bsCollapse =
+        bootstrap.Collapse.getOrCreateInstance(navCollapseEl);
 
-      if (
-        isNavigationLink &&
-        navCollapseEl.classList.contains("show")
-      ) {
-        const bsCollapse =
-          bootstrap.Collapse.getOrCreateInstance(navCollapseEl);
-
-        bsCollapse.hide();
-      }
-    });
-
-    const onScroll = function () {
-      if (window.scrollY > 20) {
-        nav.classList.add("nav--shrink");
-      } else {
-        nav.classList.remove("nav--shrink");
-      }
-    };
-
-    onScroll();
-
-    window.addEventListener("scroll", onScroll, {
-      passive: true,
-    });
+      bsCollapse.hide();
+    }
   });
+
+  // Shrink the navbar when scrolling.
+  const onScroll = function () {
+    if (window.scrollY > 20) {
+      nav.classList.add("nav--shrink");
+    } else {
+      nav.classList.remove("nav--shrink");
+    }
+  };
+
+  onScroll();
+
+  window.addEventListener("scroll", onScroll, {
+    passive: true,
+  });
+});
 </script>
+
 </body>
 </html>

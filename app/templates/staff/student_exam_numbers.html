@@ -1,0 +1,199 @@
+
+{% extends "base.html" %}
+
+{% block title %}Student Exam Numbers{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Student Exam Numbers</h2>
+            <p class="text-muted mb-0">
+                Assign and manage student examination numbers by school and academic session.
+            </p>
+        </div>
+
+        <a href="{{ url_for('staff.students') }}"
+           class="btn btn-outline-secondary btn-sm mt-2">
+            Back to Students
+        </a>
+    </div>
+
+    <div class="card border mb-4">
+        <div class="card-body">
+            <form method="GET"
+                  action="{{ url_for('staff.student_exam_numbers') }}">
+                <div class="row g-3 align-items-end">
+
+                    <div class="col-md-5">
+                        <label for="school_id" class="form-label">
+                            School
+                        </label>
+
+                        <select name="school_id"
+                                id="school_id"
+                                class="form-select"
+                                required
+                                onchange="this.form.submit()">
+                            <option value="">Select school</option>
+
+                            {% for school in schools %}
+                                <option value="{{ school.id }}"
+                                    {% if selected_school and selected_school.id == school.id %}
+                                        selected
+                                    {% endif %}>
+                                    {{ school.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-5">
+                        <label for="academic_session_id" class="form-label">
+                            Academic Session
+                        </label>
+
+                        <select name="academic_session_id"
+                                id="academic_session_id"
+                                class="form-select"
+                                required
+                                {% if not selected_school %}disabled{% endif %}>
+                            <option value="">Select session</option>
+
+                            {% for session in sessions %}
+                                <option value="{{ session.id }}"
+                                    {% if selected_session and selected_session.id == session.id %}
+                                        selected
+                                    {% endif %}>
+                                    {{ session.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <button type="submit"
+                                class="btn btn-primary w-100">
+                            Load Students
+                        </button>
+                    </div>
+
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if selected_school and selected_session %}
+
+        <div class="card border">
+            <div class="card-header bg-light">
+                <div class="d-flex flex-wrap justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ selected_school.name }}</strong>
+                        <div class="small text-muted">
+                            Academic Session: {{ selected_session.name }}
+                        </div>
+                    </div>
+
+                    <span class="badge bg-primary">
+                        {{ students|length }} student(s)
+                    </span>
+                </div>
+            </div>
+
+            <div class="card-body">
+
+                {% if students %}
+                    <form method="POST"
+                          action="{{ url_for(
+                              'staff.student_exam_numbers',
+                              school_id=selected_school.id,
+                              academic_session_id=selected_session.id
+                          ) }}">
+
+                        <input type="hidden"
+                               name="csrf_token"
+                               value="{{ csrf_token() }}">
+
+                        <div class="alert alert-info small">
+                            Enter each student's exam number. Leave a field blank
+                            only if you want to remove an existing assignment.
+                            Exam numbers must be unique within this school and session.
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60px;">S/N</th>
+                                        <th>Student Name</th>
+                                        <th>Username</th>
+                                        <th style="min-width: 220px;">
+                                            Exam Number
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {% for student in students %}
+                                        <tr>
+                                            <td>{{ loop.index }}</td>
+
+                                            <td>
+                                                <strong>
+                                                    {{ student.full_name }}
+                                                </strong>
+                                            </td>
+
+                                            <td>
+                                                <span class="text-muted small">
+                                                    {{ student.username }}
+                                                </span>
+                                            </td>
+
+                                            <td>
+                                                <input type="text"
+                                                       name="exam_number_{{ student.id }}"
+                                                       class="form-control"
+                                                       maxlength="50"
+                                                       value="{{ exam_numbers.get(student.id, '') }}"
+                                                       placeholder="Enter exam number"
+                                                       autocomplete="off">
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-3">
+                            <button type="submit"
+                                    class="btn btn-success">
+                                Save Exam Numbers
+                            </button>
+                        </div>
+
+                    </form>
+
+                {% else %}
+                    <div class="text-center py-5">
+                        <h5>No Active Students Found</h5>
+                        <p class="text-muted mb-0">
+                            No students have an active membership in this school
+                            and academic session.
+                        </p>
+                    </div>
+                {% endif %}
+
+            </div>
+        </div>
+
+    {% else %}
+        <div class="alert alert-secondary">
+            Select a school and academic session to manage exam numbers.
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

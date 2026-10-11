@@ -74,6 +74,24 @@ class User(UserMixin, db.Model):
         nullable=False
     )
 
+    # ----------------------------------------------------------
+    # PROFILE DETAILS
+    # ----------------------------------------------------------
+    first_name = db.Column(
+        db.String(80),
+        nullable=True
+    )
+
+    surname = db.Column(
+        db.String(80),
+        nullable=True
+    )
+
+    other_name = db.Column(
+        db.String(80),
+        nullable=True
+    )
+
     password_hash = db.Column(
         db.String(256),
         nullable=False
@@ -195,6 +213,28 @@ class User(UserMixin, db.Model):
         lazy=True,
         cascade="all, delete-orphan"
     )
+
+    # ----------------------------------------------------------
+    # DISPLAY NAME
+    # ----------------------------------------------------------
+    @property
+    def full_name(self):
+        """Return the user's full name, falling back to username."""
+        name_parts = [
+            self.first_name,
+            self.other_name,
+            self.surname,
+        ]
+
+        full_name = " ".join(
+            part.strip()
+            for part in name_parts
+            if part and part.strip()
+        )
+
+        return full_name or self.username
+
+
 
     # ----------------------------------------------------------
     # PASSWORD METHODS
