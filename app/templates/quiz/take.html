@@ -164,6 +164,8 @@
   const cancelSubmit = document.getElementById("cancelSubmit");
   const confirmSubmit = document.getElementById("confirmSubmit");
 
+  const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+
   const questionsById = new Map(q.questions.map(item => [String(item.id), item]));
 
   function loadLocalAnswers() {
@@ -360,7 +362,8 @@
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Requested-With": "fetch"
+          "X-Requested-With": "fetch",
+          "X-CSRFToken": csrfToken
         },
         body: JSON.stringify({ answers: batch }),
         keepalive: true
@@ -427,7 +430,8 @@
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Requested-With": "fetch"
+          "X-Requested-With": "fetch",
+          "X-CSRFToken": csrfToken
         },
         body: JSON.stringify({ answers }),
         keepalive: true
