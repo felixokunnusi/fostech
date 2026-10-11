@@ -28,6 +28,48 @@
             </a>
         </div>
     </div>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Bulk Import Subjects</h5>
+            <p class="text-muted">
+                Upload an Excel (.xlsx) or CSV (.csv) file with the columns
+                Subject Name, Subject Code and Category. Category names must
+                match this school's active subject categories.
+            </p>
+
+            <form method="POST"
+                  action="{{ url_for(
+                      'staff.import_subjects',
+                      school_id=school.id
+                  ) }}"
+                  enctype="multipart/form-data">
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-8">
+                        <label for="subject_file" class="form-label">
+                            Excel or CSV file
+                        </label>
+                        <input type="file"
+                               class="form-control"
+                               id="subject_file"
+                               name="file"
+                               accept=".xlsx,.csv"
+                               required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-success w-100">
+                            Import Subjects
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}

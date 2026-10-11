@@ -28,6 +28,9 @@ from app.models.student_subject_selection import (
 )
 from app.models.student_subject_enrollment import StudentSubjectEnrollment
 from app.models.student_exam_number import StudentExamNumber
+import csv
+import io
+from openpyxl import load_workbook
 from . import staff_bp
 
 
@@ -2186,6 +2189,236 @@ def edit_subject(school_id, subject_id):
         categories=categories,
         edit_mode=True,
     )
+
+
+
+@staff_bp.route("/schools/<int:school_id>/subjects/import", methods=["POST"])
+@login_required
+def import_subjects(school_id):
+    """Bulk import school subjects from an Excel or CSV file."""
+
+    access_response = require_staff()
+    if access_response:
+        return access_response
+
+    school = School.query.get_or_404(school_id)
+    upload = request.files.get("file")
+
+    if not upload or not upload.filename:
+        flash("Please select an Excel (.xlsx) or CSV (.csv) file.", "warning")
+        return redirect(url_for("staff.subjects", school_id=school.id))
+
+    filename = upload.filename.lower()
+
+    if not filename.endswith((".xlsx", ".csv")):
+        flash("Unsupported file type. Please upload an .xlsx or .csv file.", "danger")
+        return redirect(url_for("staff.subjects", school_id=school.id))
+
+    try:
+        file_bytes = upload.read()
+
+        if not file_bytes:
+            raise ValueError("The uploaded file is empty.")
+
+        if len(file_bytes) > 2 * 1024 * 1024:
+            raise ValueError("The file exceeds the 2 MB upload limit.")
+
+        if filename.endswith(".csv"):
+            try:
+                text = file_bytes.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                raise ValueError(
+                    "The CSV file must use UTF-8 encoding. "
+                    "Save it as CSV UTF-8 in Excel."
+                )
+
+            rows = list(csv.reader(io.StringIO(text)))
+        else:
+            workbook = load_workbook(
+                io.BytesIO(file_bytes),
+                read_only=True,
+                data_only=True,
+            )
+            worksheet = workbook.active
+            rows = list(worksheet.iter_rows(values_only=True))
+            workbook.close()
+
+        if not rows:
+            raise ValueError("The file contains no rows.")
+
+        def normalize_header(value):
+            return " ".join(str(value or "").strip().lower().split())
+
+        headers = [normalize_header(value) for value in rows[0]]
+
+        aliases = {
+            "name": {"subject name", "subject", "name"},
+            "code": {"subject code", "code"},
+            "category": {"category", "subject category"},
+        }
+
+        column_indexes = {}
+
+        for field, accepted_headers in aliases.items():
+            matches = [
+                index for index, header in enumerate(headers)
+                if header in accepted_headers
+            ]
+
+            if not matches:
+                raise ValueError(
+                    f"Missing required column: "
+                    f"{field.title()}. "
+                    "Required columns: Subject Name, Subject Code, Category."
+                )
+
+            column_indexes[field] = matches[0]
+
+        categories = SubjectCategory.query.filter_by(
+            school_id=school.id,
+            active=True,
+        ).all()
+
+        category_lookup = {
+            category.name.strip().casefold(): category
+            for category in categories
+        }
+
+        existing_subjects = SchoolSubject.query.filter_by(
+            school_id=school.id,
+        ).all()
+
+        existing_names = {
+            subject.name.strip().casefold()
+            for subject in existing_subjects
+        }
+
+        imported_names = set()
+        prepared_subjects = []
+        errors = []
+
+        for row_number, row in enumerate(rows[1:], start=2):
+            if not any(
+                str(value or "").strip() for value in row
+            ):
+                continue
+
+            def cell(field):
+                index = column_indexes[field]
+                return row[index] if index < len(row) else None
+
+            name = str(cell("name") or "").strip()
+            code = str(cell("code") or "").strip()
+            category_name = str(cell("category") or "").strip()
+
+            if not name:
+                errors.append(f"Row {row_number}: Subject name is required.")
+                continue
+
+            if len(name) > 150:
+                errors.append(
+                    f"Row {row_number}: Subject name exceeds 150 characters."
+                )
+                continue
+
+            if len(code) > 50:
+                errors.append(
+                    f"Row {row_number}: Subject code exceeds 50 characters."
+                )
+                continue
+
+            if not category_name:
+                errors.append(
+                    f"Row {row_number}: Subject category is required."
+                )
+                continue
+
+            name_key = name.casefold()
+
+            if name_key in existing_names:
+                errors.append(
+                    f"Row {row_number}: '{name}' already exists in this school."
+                )
+                continue
+
+            if name_key in imported_names:
+                errors.append(
+                    f"Row {row_number}: '{name}' appears more than once in the file."
+                )
+                continue
+
+            category = category_lookup.get(category_name.casefold())
+
+            if not category:
+                errors.append(
+                    f"Row {row_number}: Category '{category_name}' "
+                    "does not match an active category for this school."
+                )
+                continue
+
+            if len(prepared_subjects) >= 1000:
+                errors.append(
+                    "The file exceeds the limit of 1,000 subjects per import."
+                )
+                break
+
+            prepared_subjects.append(
+                SchoolSubject(
+                    school_id=school.id,
+                    name=name,
+                    code=code or None,
+                    category_id=category.id,
+                    active=True,
+                )
+            )
+            imported_names.add(name_key)
+
+        if errors:
+            for error in errors[:15]:
+                flash(error, "danger")
+
+            if len(errors) > 15:
+                flash(
+                    f"{len(errors) - 15} additional error(s) were omitted. "
+                    "Correct the file and try again.",
+                    "warning",
+                )
+
+            flash(
+                "Nothing was imported. Correct all errors and upload the file again.",
+                "warning",
+            )
+            return redirect(url_for("staff.subjects", school_id=school.id))
+
+        if not prepared_subjects:
+            flash("No subject rows were found to import.", "warning")
+            return redirect(url_for("staff.subjects", school_id=school.id))
+
+        db.session.add_all(prepared_subjects)
+        db.session.commit()
+
+        flash(
+            f"Successfully imported {len(prepared_subjects)} subject(s) "
+            f"for {school.name}.",
+            "success",
+        )
+
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Bulk subject import failed.")
+        flash(
+            "The import failed. No changes were saved. "
+            "Check the file format and application logs.",
+            "danger",
+        )
+
+    return redirect(url_for("staff.subjects", school_id=school.id))
+
+
 
 @staff_bp.route(
     "/schools/<int:school_id>/subjects/<int:subject_id>/toggle",
