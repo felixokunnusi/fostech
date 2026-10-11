@@ -67,6 +67,7 @@
         <div class="card-header d-flex justify-content-between align-items-center">
           <div class="fw-bold">Question {{ q_index }} of {{ total }}</div>
           <form method="POST" action="{{ url_for('quiz.submit', session_id=session.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline-primary btn-sm" type="submit">
               Submit Quiz
             </button>
@@ -87,6 +88,7 @@
             <p class="fs-5">{{ question.text }}</p>
 
             <form method="POST" action="{{ url_for('quiz.save_answer', session_id=session.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="question_id" value="{{ question.id }}">
 
               {% for c in question.choices %}

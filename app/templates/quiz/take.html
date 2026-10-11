@@ -16,6 +16,7 @@
   <div id="questionContainer"></div>
 
   <form id="quizForm" class="card mb-3" onsubmit="return false;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="card-body">
       <div class="mb-2 fw-semibold">Choose an answer</div>
       <div id="optionsContainer"></div>
