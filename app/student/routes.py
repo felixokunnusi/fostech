@@ -72,8 +72,31 @@ def dashboard():
     )
 
 # ============================================================================
-# STUDENT SUBJECT SELECTION
+# STUDENT ASSESSment HISTORY
 # ============================================================================
+
+@student_bp.route("/history")
+@login_required
+def history():
+    """Show the logged-in student's assessment history."""
+    if not student_has_access():
+        flash(
+            "You do not have access to the Student workspace.",
+            "danger",
+        )
+        return redirect(url_for("workspace.index"))
+
+    attempts = (
+        AssessmentAttempt.query
+        .filter_by(student_id=current_user.id)
+        .order_by(AssessmentAttempt.started_at.desc())
+        .all()
+    )
+
+    return render_template(
+        "student/history.html",
+        attempts=attempts,
+    )
 
 # ============================================================================
 # STUDENT SUBJECT SELECTION

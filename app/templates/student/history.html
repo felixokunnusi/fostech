@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}My History - Student Workspace{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="d-flex flex-wrap justify-content-between
+                align-items-center mb-4 gap-2">
+        <div>
+            <h1 class="h3 mb-1">My History</h1>
+            <p class="text-muted mb-0">
+                View your school assignments and assessment results.
+            </p>
+        </div>
+
+        <a href="{{ url_for('student.dashboard') }}"
+           class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Student Dashboard
+        </a>
+    </div>
+
+    {% if attempts %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Assessment</th>
+                    <th>Subject</th>
+                    <th>Date Started</th>
+                    <th>Status</th>
+                    <th>Score</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for attempt in attempts %}
+                <tr>
+                    <td>
+                        <strong>
+                            {{ attempt.assessment.title
+                               if attempt.assessment else 'Assessment unavailable' }}
+                        </strong>
+                    </td>
+
+                    <td>
+                        {{ attempt.assessment.subject
+                           if attempt.assessment else '—' }}
+                    </td>
+
+                    <td>
+                        {{ attempt.started_at.strftime('%d %b %Y, %I:%M %p')
+                           if attempt.started_at else '—' }}
+                    </td>
+
+                    <td>
+                        {% if attempt.status == 'submitted' %}
+                            <span class="badge bg-success">Completed</span>
+                        {% elif attempt.status == 'in_progress' %}
+                            <span class="badge bg-warning text-dark">
+                                In progress
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">
+                                {{ attempt.status|replace('_', ' ')|title }}
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {% if attempt.status == 'submitted'
+                              and attempt.score is not none %}
+                            {{ attempt.score }} / {{ attempt.total_marks }}
+                        {% elif attempt.status == 'submitted' %}
+                            Awaiting grading
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {% if attempt.status == 'submitted' %}
+                            <a href="{{ url_for(
+                                'student.assessment_result',
+                                attempt_id=attempt.id
+                            ) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                View Result
+                            </a>
+                        {% elif attempt.status == 'in_progress' %}
+                            <a href="{{ url_for(
+                                'student.take_assessment',
+                                attempt_id=attempt.id
+                            ) }}"
+                               class="btn btn-sm btn-outline-warning">
+                                Resume
+                            </a>
+                        {% else %}
+                            <span class="text-muted">No action</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-journal-text display-4 text-muted"></i>
+
+            <h2 class="h5 mt-3">No assessment history yet</h2>
+
+            <p class="text-muted mb-3">
+                Your school assignments and assessment attempts
+                will appear here when you begin.
+            </p>
+
+            <a href="{{ url_for('student.dashboard') }}"
+               class="btn btn-primary">
+                View My Assignments
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

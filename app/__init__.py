@@ -222,10 +222,20 @@ def create_app():
 
     #
     # ✅ ADD THIS BLOCK HERE
+
     @app.context_processor
     def inject_globals():
-        endpoint = request.endpoint if has_request_context() else None
-        return dict(endpoint=endpoint)
+        if has_request_context():
+            endpoint = request.endpoint
+            selected_workspace = session.get("workspace")
+        else:
+            endpoint = None
+            selected_workspace = None
+
+        return {
+            "endpoint": endpoint,
+            "selected_workspace": selected_workspace,
+        }
 
 
     @app.route('/favicon.ico')

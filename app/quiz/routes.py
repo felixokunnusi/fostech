@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from functools import wraps
 from typing import Any
 
 from flask import (
@@ -12,6 +13,7 @@ from flask import (
     flash,
     jsonify,
     current_app,
+    abort,
 )
 from flask_login import login_required, current_user
 from sqlalchemy import desc, func
@@ -121,10 +123,29 @@ def resolve_band(level: str) -> str | None:
     return band if band in ALLOWED_BANDS else None
 
 
+def civil_servant_required(view_func):
+    """Restrict the Civil Servant CBT service to users with that role."""
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        has_civil_servant_role = (
+            current_user.is_authenticated
+            and any(
+                role.role == "civil_servant"
+                for role in current_user.roles
+            )
+        )
+        if not has_civil_servant_role:
+            abort(403)
+        return view_func(*args, **kwargs)
+
+    return wrapped
+
+
 # -------------------- routes --------------------
 
 @quiz_bp.route("/")
 @login_required
+@civil_servant_required
 def choose_level():
     qtypes = [
         r[0]
@@ -139,6 +160,7 @@ def choose_level():
 
 @quiz_bp.route("/history")
 @login_required
+@civil_servant_required
 def history():
     mode = request.args.get("mode", "").strip()  # "exam" / "trial"
     band = request.args.get("band", "").strip()
@@ -224,6 +246,7 @@ def history():
 
 @quiz_bp.post("/autosave/<int:session_id>/<int:question_id>")
 @login_required
+@civil_servant_required
 def autosave(session_id: int, question_id: int):
     session = QuizSession.query.get_or_404(session_id)
 
@@ -259,6 +282,7 @@ def autosave(session_id: int, question_id: int):
 
 @quiz_bp.post("/sync/<int:session_id>")
 @login_required
+@civil_servant_required
 def sync_answers(session_id: int):
     """Persist a batch of answers without blocking the candidate's navigation."""
     session = QuizSession.query.get_or_404(session_id)
@@ -321,6 +345,7 @@ def sync_answers(session_id: int):
 
 @quiz_bp.post("/submit/<int:session_id>")
 @login_required
+@civil_servant_required
 def submit_attempt(session_id: int):
     """Atomically save the candidate's complete local answer set and submit."""
     session = QuizSession.query.get_or_404(session_id)
@@ -399,6 +424,7 @@ def submit_attempt(session_id: int):
 
 @quiz_bp.route("/start/<level>")
 @login_required
+@civil_servant_required
 def start(level: str):
     qt = request.args.get("qt", type=str)
     if not qt:
@@ -449,6 +475,7 @@ def start(level: str):
 
 @quiz_bp.route("/take/<int:session_id>", methods=["GET"])
 @login_required
+@civil_servant_required
 def take(session_id: int):
     """Render the entire attempt once; question navigation is client-side."""
     session = QuizSession.query.get_or_404(session_id)
@@ -527,6 +554,7 @@ def take(session_id: int):
 
 @quiz_bp.route("/result/<int:session_id>")
 @login_required
+@civil_servant_required
 def result(session_id: int):
     session = QuizSession.query.get_or_404(session_id)
 
