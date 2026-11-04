@@ -133,7 +133,7 @@ class BaseConfig:
     REFERRAL_PERCENT = _as_float(_getenv("REFERRAL_PERCENT"), default=0.025)
     EMAIL_VERIFICATION_EXPIRY_HOURS = _as_int(
         _getenv("EMAIL_VERIFICATION_EXPIRY_HOURS"),
-        default=1,
+        default=6,
     )
 
     # -------------------
