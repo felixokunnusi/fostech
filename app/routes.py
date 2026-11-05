@@ -4,7 +4,7 @@ from flask_login import login_user, logout_user
 from app.extensions import db
 from app.models.user import User
 from app.auth import auth_bp
-from auth.forms import RegisterForm, LoginForm
+from app.auth.forms import RegisterForm, LoginForm
 from main import main_bp
 
 @main_bp.route('/')
