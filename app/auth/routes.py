@@ -10,7 +10,8 @@ from .. utils import (
     code_is_expired,
     generate_referral_code,
     delete_if_expired_unverified,
-    generate_unique_referral_code
+    generate_unique_referral_code,
+    cleanup_expired_unverified_users
 )
 from .email import send_confirmation_email, send_password_reset_email
 from app.auth.decorators import email_verified_required
@@ -45,10 +46,15 @@ def register():
 
     if form.validate_on_submit():
 
+        # Remove expired, unverified accounts before checking
+        # whether the submitted email or username already exists.
+        cleanup_expired_unverified_users()
+
         # Prevent duplicate email
         if User.query.filter_by(
             email=form.email.data
         ).first():
+
             flash(
                 "Email already registered.",
                 "danger"
@@ -377,6 +383,17 @@ def resend_confirmation():
             url_for("auth.login")
         )
 
+    # Check original six-hour account expiry first
+    if delete_if_expired_unverified(user):
+        flash(
+            "Account expired. Please register again.",
+            "danger"
+        )
+
+        return redirect(
+            url_for("auth.register")
+        )
+
     # Cooldown: 60 seconds
     if (
         user.last_confirmation_sent
@@ -393,20 +410,15 @@ def resend_confirmation():
             url_for("auth.confirm_email")
         )
 
-    if delete_if_expired_unverified(user):
-        flash(
-            "Account expired. Please register again.",
-            "danger"
-        )
+    # Generate a new code that differs from the previous code
+    previous_code = user.email_confirm_code
 
-        return redirect(
-            url_for("auth.register")
-        )
+    new_code = str(random.randint(100000, 999999))
 
-    # Generate new code
-    user.email_confirm_code = str(
-        random.randint(100000, 999999)
-    )
+    while new_code == previous_code:
+        new_code = str(random.randint(100000, 999999))
+
+    user.email_confirm_code = new_code
 
     user.email_confirm_expires = (
         datetime.utcnow() + timedelta(minutes=10)

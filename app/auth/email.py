@@ -62,31 +62,31 @@ def _send_message(to_email: str, subject: str, html_content: str, text_content: 
         )
         raise
 
-
 # ---------------------------
 # 1) Existing emails
 # ---------------------------
 
 def send_confirmation_email(user) -> None:
     """
-    Sends email confirmation code + link.
+    Sends the six-digit email confirmation code.
     """
-    confirm_url = url_for("auth.confirm_email", code=user.email_confirm_code, _external=True)
 
     html_content = f"""
     <p>Hello {user.username},</p>
-    <p>Your confirmation code is:</p>
+    <p>Your email confirmation code is:</p>
     <h2>{user.email_confirm_code}</h2>
-    <p>Or click the link below:</p>
-    <p><a href="{confirm_url}">Confirm Email</a></p>
+    <p>Enter this code on the confirmation page.</p>
     <p>This code expires in 10 minutes.</p>
+    <p>If your code expires, you can request another one.</p>
     """
 
     text_content = (
         f"Hello {user.username},\n\n"
-        f"Your confirmation code is: {user.email_confirm_code}\n\n"
-        f"Confirm your email here: {confirm_url}\n\n"
-        f"This code expires in 10 minutes."
+        f"Your email confirmation code is: "
+        f"{user.email_confirm_code}\n\n"
+        f"Enter this code on the confirmation page.\n\n"
+        f"This code expires in 10 minutes.\n"
+        f"If your code expires, you can request another one."
     )
 
     _send_message(
@@ -95,7 +95,6 @@ def send_confirmation_email(user) -> None:
         html_content=html_content,
         text_content=text_content,
     )
-
 
 def send_password_reset_email(user) -> None:
     """
