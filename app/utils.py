@@ -9,7 +9,15 @@ import secrets
 from functools import wraps
 
 from flask_login import current_user
-from sqlalchemy import or_
+from sqlalchemy import (
+     or_,
+    inspect as sqlalchemy_inspect,
+    MetaData,
+    Table,
+    select,
+    exists,
+    delete,
+)
 
 from . import db
 from app.models import User
@@ -96,24 +104,116 @@ def is_expired_unverified_account(user, now=None):
     return now >= expiry_time
 
 
+
+def _get_user_deletion_safety_conditions():
+    """
+    Inspect the actual database foreign keys and return SQL
+    conditions ensuring that a user has no dependent records.
+
+    This uses database inspection rather than relying solely
+    on imported SQLAlchemy model classes.
+
+    If inspection fails, deletion must fail safely.
+    """
+    inspector = sqlalchemy_inspect(db.engine)
+    metadata = MetaData()
+    conditions = []
+
+    for table_name in inspector.get_table_names():
+
+        if table_name == User.__tablename__:
+            continue
+
+        foreign_keys = inspector.get_foreign_keys(table_name)
+
+        for foreign_key in foreign_keys:
+
+            if foreign_key.get("referred_table") != User.__tablename__:
+                continue
+
+            local_columns = foreign_key.get("constrained_columns") or []
+            remote_columns = foreign_key.get("referred_columns") or []
+
+            if not local_columns or len(local_columns) != len(remote_columns):
+                raise RuntimeError(
+                    f"Could not safely inspect foreign key in {table_name}."
+                )
+
+            if table_name in metadata.tables:
+                dependent_table = metadata.tables[table_name]
+            else:
+                dependent_table = Table(
+                    table_name,
+                    metadata,
+                    autoload_with=db.engine
+                )
+
+            relationship_conditions = []
+
+            for local_column, remote_column in zip(
+                local_columns,
+                remote_columns
+            ):
+                relationship_conditions.append(
+                    dependent_table.c[local_column]
+                    == User.__table__.c[remote_column]
+                )
+
+            dependent_record_exists = exists(
+                select(1)
+                .select_from(dependent_table)
+                .where(*relationship_conditions)
+            )
+
+            conditions.append(~dependent_record_exists)
+
+    return conditions
+
+
 def delete_if_expired_unverified(user):
     """
-    Delete one expired, unverified account.
+    Delete one expired, unverified account only if it has
+    no dependent records.
 
     Returns:
         True  - account was successfully deleted.
-        False - account is verified or has not expired.
+        False - account is not expired or has dependent records.
 
     Raises an exception if database deletion fails.
     """
     if not is_expired_unverified_account(user):
         return False
 
+    expiry_hours = current_app.config.get(
+        "EMAIL_VERIFICATION_EXPIRY_HOURS",
+        6
+    )
+
+    cutoff_time = datetime.utcnow() - timedelta(
+        hours=expiry_hours
+    )
+
     try:
-        db.session.delete(user)
+        safety_conditions = _get_user_deletion_safety_conditions()
+
+        result = db.session.execute(
+            delete(User).where(
+                User.id == user.id,
+                or_(
+                    User.is_email_verified.is_(False),
+                    User.is_email_verified.is_(None)
+                ),
+                User.created_at.isnot(None),
+                User.created_at <= cutoff_time,
+                *safety_conditions
+            ).execution_options(synchronize_session=False)
+        )
+
+        deleted = result.rowcount > 0
+
         db.session.commit()
 
-        return True
+        return deleted
 
     except Exception:
         db.session.rollback()
@@ -124,16 +224,19 @@ def delete_if_expired_unverified(user):
 
         raise
 
+
 def cleanup_expired_unverified_users():
     """
-    Delete all expired unverified accounts.
+    Efficiently delete expired, unverified accounts that have
+    no dependent database records.
 
-    This function is intended to run during registration,
-    before checking duplicate email addresses and usernames.
+    Uses a direct database DELETE statement rather than ORM
+    session.delete(), avoiding relationship-loading overhead.
 
-    All deletions are performed in one transaction.
-    If any database operation fails, the transaction
-    is rolled back.
+    Verified accounts and accounts with missing created_at
+    are never deleted.
+
+    All eligible deletions are performed in one transaction.
     """
     expiry_hours = current_app.config.get(
         "EMAIL_VERIFICATION_EXPIRY_HOURS",
@@ -145,24 +248,31 @@ def cleanup_expired_unverified_users():
     )
 
     try:
-        expired_users = User.query.filter(
-            or_(
-                User.is_email_verified.is_(False),
-                User.is_email_verified.is_(None)
-            ),
-            User.created_at.isnot(None),
-            User.created_at <= cutoff_time
-        ).all()
+        safety_conditions = _get_user_deletion_safety_conditions()
 
-        if not expired_users:
-            return 0
+        result = db.session.execute(
+            delete(User).where(
+                or_(
+                    User.is_email_verified.is_(False),
+                    User.is_email_verified.is_(None)
+                ),
+                User.created_at.isnot(None),
+                User.created_at <= cutoff_time,
+                *safety_conditions
+            ).execution_options(synchronize_session=False)
+        )
 
-        for user in expired_users:
-            db.session.delete(user)
+        deleted_count = result.rowcount or 0
 
         db.session.commit()
 
-        return len(expired_users)
+        current_app.logger.info(
+            "Expired registration cleanup completed. "
+            "Deleted %s accounts.",
+            deleted_count
+        )
+
+        return deleted_count
 
     except Exception:
         db.session.rollback()
@@ -172,6 +282,7 @@ def cleanup_expired_unverified_users():
         )
 
         raise
+
 
 def generate_unique_referral_code(length=8):
     chars = string.ascii_uppercase + string.digits
