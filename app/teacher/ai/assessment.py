@@ -1,15 +1,24 @@
+
 """
 AI Assessment Question Generator
 
 Generates structured assessment questions using the configured
 OpenRouter model.
 
-This module only generates and validates AI content.
-It does not save questions to the database.
+Features:
+- Generates questions in batches of 10.
+- Supports requests of up to 100 questions.
+- Automatically retries failed or incorrectly sized batches.
+- Detects duplicate questions.
+- Ensures the exact requested question count.
+- Validates question structure before returning results.
+
+This module does not save questions to the database.
 """
 
 import json
 import os
+import re
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -33,6 +42,9 @@ EXPECTED_QUESTION_KEYS = {
     "marks",
     "explanation",
 }
+
+BATCH_SIZE = 10
+MAX_RETRIES = 3
 
 
 def _get_client():
@@ -64,12 +76,7 @@ def _get_model():
 
 
 def _parse_json_response(content):
-    """
-    Parse JSON returned by the AI.
-
-    Handles both plain JSON and JSON wrapped in
-    a markdown code fence.
-    """
+    """Parse plain JSON or JSON wrapped in markdown fences."""
 
     if not content:
         raise AssessmentAIError(
@@ -99,9 +106,7 @@ def _parse_json_response(content):
 
 
 def _validate_questions(data):
-    """
-    Validate the structure returned by the AI.
-    """
+    """Validate and normalize generated questions."""
 
     if not isinstance(data, dict):
         raise AssessmentAIError(
@@ -125,8 +130,7 @@ def _validate_questions(data):
             )
 
         missing_keys = (
-            EXPECTED_QUESTION_KEYS
-            - set(question.keys())
+            EXPECTED_QUESTION_KEYS - set(question.keys())
         )
 
         if missing_keys:
@@ -159,6 +163,7 @@ def _validate_questions(data):
 
         try:
             marks = int(question.get("marks", 1))
+
         except (TypeError, ValueError) as exc:
             raise AssessmentAIError(
                 f"Question {index} has invalid marks."
@@ -198,6 +203,16 @@ def _validate_questions(data):
     return validated_questions
 
 
+def _normalize_question(text):
+    """Normalize question text for duplicate detection."""
+
+    text = str(text or "").lower().strip()
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"[^\w\s]", "", text)
+
+    return text
+
+
 def _build_system_prompt():
     return """
 You are a Nigerian secondary-school assessment question generator.
@@ -228,8 +243,9 @@ Follow these rules:
 8. Every question must have a positive integer mark value.
 9. Provide a concise explanation or marking guidance where useful.
 10. Do not include question numbers in question_text.
-11. Return JSON only.
-12. Do not wrap the JSON in markdown.
+11. Generate distinct questions without repetition.
+12. Return JSON only.
+13. Do not wrap the JSON in markdown.
 
 Required response structure:
 
@@ -260,6 +276,7 @@ def _build_user_prompt(
     difficulty,
     examination_relevance=None,
     additional_instructions=None,
+    previous_questions=None,
 ):
     prompt = f"""
 Generate exactly {number_of_questions} assessment questions.
@@ -296,13 +313,162 @@ Additional Teacher Instructions:
 {additional_instructions}
 """
 
-    prompt += """
+    if previous_questions:
+        prompt += """
 
-Return exactly the requested number of questions.
+IMPORTANT: The following questions have already been generated.
+Do not repeat them or create close paraphrases of them.
+
+Previously generated questions:
+"""
+
+        for index, previous in enumerate(
+            previous_questions, start=1
+        ):
+            prompt += f"\n{index}. {previous}"
+
+    prompt += f"""
+
+Return exactly {number_of_questions} questions.
+Do not return {number_of_questions + 1} questions.
+Do not return fewer than {number_of_questions} questions.
+
 Return JSON only.
 """
 
     return prompt.strip()
+
+
+def _generate_single_batch(
+    client,
+    model,
+    batch_number,
+    total_batches,
+    batch_size,
+    subject,
+    class_name,
+    topic,
+    question_type,
+    difficulty,
+    examination_relevance,
+    additional_instructions,
+    previous_questions,
+):
+    """
+    Generate one batch with automatic retries.
+
+    A batch is accepted only when:
+    - JSON is valid.
+    - All question structures are valid.
+    - The exact requested number is returned.
+    - No exact duplicate question exists.
+    """
+
+    last_error = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+
+        try:
+            retry_instructions = additional_instructions or ""
+
+            if attempt > 1:
+                retry_instructions += (
+                    "\n\nIMPORTANT RETRY INSTRUCTIONS: "
+                    "Your previous response was unsuccessful. "
+                    "Follow the required JSON structure exactly "
+                    "and return the precise number of questions."
+                )
+
+            prompt = _build_user_prompt(
+                subject=subject,
+                class_name=class_name,
+                topic=topic,
+                number_of_questions=batch_size,
+                question_type=question_type,
+                difficulty=difficulty,
+                examination_relevance=examination_relevance,
+                additional_instructions=retry_instructions,
+                previous_questions=previous_questions,
+            )
+
+            print(
+                f"Generating batch {batch_number}/{total_batches} "
+                f"(attempt {attempt}/{MAX_RETRIES})..."
+            )
+
+            response = client.chat.completions.create(
+                model=model,
+                temperature=0.2,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": _build_system_prompt(),
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
+            )
+
+            content = response.choices[0].message.content
+
+            data = _parse_json_response(content)
+
+            questions = _validate_questions(data)
+
+            if len(questions) != batch_size:
+                raise AssessmentAIError(
+                    f"Expected {batch_size} questions but "
+                    f"received {len(questions)}."
+                )
+
+            existing = {
+                _normalize_question(q)
+                for q in previous_questions
+            }
+
+            current = set()
+
+            for question in questions:
+                normalized = _normalize_question(
+                    question["question_text"]
+                )
+
+                if normalized in existing or normalized in current:
+                    raise AssessmentAIError(
+                        "Duplicate question detected. "
+                        "The batch must contain unique questions."
+                    )
+
+                current.add(normalized)
+
+            print(
+                f"Batch {batch_number}/{total_batches} "
+                f"generated successfully."
+            )
+
+            return questions
+
+        except AssessmentAIError as exc:
+            last_error = exc
+
+            print(
+                f"Batch {batch_number} failed: {exc}"
+            )
+
+        except Exception as exc:
+            last_error = exc
+
+            print(
+                f"Batch {batch_number} API error: {exc}"
+            )
+
+    raise AssessmentAIError(
+        f"Could not generate batch {batch_number} "
+        f"after {MAX_RETRIES} attempts. "
+        f"Last error: {last_error}"
+    )
 
 
 def generate_assessment_questions(
@@ -316,16 +482,18 @@ def generate_assessment_questions(
     additional_instructions=None,
 ):
     """
-    Generate assessment questions using the configured AI model.
+    Generate assessment questions using OpenRouter.
+
+    Questions are generated in batches of 10.
 
     Returns:
-        list[dict]: Validated question dictionaries.
+        list[dict]: Exactly the requested number of validated
+                    question dictionaries.
     """
 
     try:
-        number_of_questions = int(
-            number_of_questions
-        )
+        number_of_questions = int(number_of_questions)
+
     except (TypeError, ValueError) as exc:
         raise AssessmentAIError(
             "Number of questions must be a valid integer."
@@ -349,51 +517,53 @@ def generate_assessment_questions(
     client = _get_client()
     model = _get_model()
 
-    response = client.chat.completions.create(
-        model=model,
-        temperature=0.2,
-        messages=[
-            {
-                "role": "system",
-                "content": _build_system_prompt(),
-            },
-            {
-                "role": "user",
-                "content": _build_user_prompt(
-                    subject=subject,
-                    class_name=class_name,
-                    topic=topic,
-                    number_of_questions=number_of_questions,
-                    question_type=question_type,
-                    difficulty=difficulty,
-                    examination_relevance=(
-                        examination_relevance
-                    ),
-                    additional_instructions=(
-                        additional_instructions
-                    ),
-                ),
-            },
-        ],
-    )
+    all_questions = []
 
-    try:
-        content = response.choices[0].message.content
+    total_batches = (
+        number_of_questions + BATCH_SIZE - 1
+    ) // BATCH_SIZE
 
-    except (AttributeError, IndexError) as exc:
-        raise AssessmentAIError(
-            "The AI response did not contain usable content."
-        ) from exc
+    for batch_index in range(total_batches):
 
-    data = _parse_json_response(content)
+        remaining = number_of_questions - len(all_questions)
 
-    questions = _validate_questions(data)
-
-    if len(questions) != number_of_questions:
-        raise AssessmentAIError(
-            "The AI returned "
-            f"{len(questions)} questions instead of "
-            f"{number_of_questions}."
+        current_batch_size = min(
+            BATCH_SIZE,
+            remaining,
         )
 
-    return questions
+        previous_questions = [
+            question["question_text"]
+            for question in all_questions
+        ]
+
+        batch_questions = _generate_single_batch(
+            client=client,
+            model=model,
+            batch_number=batch_index + 1,
+            total_batches=total_batches,
+            batch_size=current_batch_size,
+            subject=subject,
+            class_name=class_name,
+            topic=topic,
+            question_type=question_type,
+            difficulty=difficulty,
+            examination_relevance=examination_relevance,
+            additional_instructions=additional_instructions,
+            previous_questions=previous_questions,
+        )
+
+        all_questions.extend(batch_questions)
+
+    if len(all_questions) != number_of_questions:
+        raise AssessmentAIError(
+            f"Generation incomplete. Expected "
+            f"{number_of_questions}, received {len(all_questions)}."
+        )
+
+    print(
+        f"Successfully generated exactly "
+        f"{len(all_questions)} questions."
+    )
+
+    return all_questions
