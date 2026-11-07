@@ -253,6 +253,7 @@
                                             ) }}"
                                             class="d-inline"
                                         >
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                                             <button
                                                 type="submit"
@@ -276,6 +277,7 @@
                                                 'Are you sure you want to publish this assessment? Students will be able to access it according to its availability dates.'
                                             );"
                                         >
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                                             <button
                                                 type="submit"
