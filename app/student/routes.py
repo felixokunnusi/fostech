@@ -975,6 +975,7 @@ def submit_assessment(attempt_id):
 )
 @login_required
 def assessment_result(attempt_id):
+    """Display the student's score and question-by-question review."""
     if not student_has_access():
         flash(
             "You do not have access to the Student workspace.",
@@ -1003,8 +1004,120 @@ def assessment_result(attempt_id):
             )
         )
 
+    assessment = attempt.assessment
+    answers_by_question = {
+        answer.question_id: answer for answer in attempt.answers
+    }
+
+    option_fields = (
+        ("A", "option_a"),
+        ("B", "option_b"),
+        ("C", "option_c"),
+        ("D", "option_d"),
+    )
+
+    review_items = []
+    correct_count = incorrect_count = unanswered_count = pending_count = 0
+
+    for question in assessment.questions:
+        answer = answers_by_question.get(question.id)
+        submitted_text = (
+            answer.answer_text.strip()
+            if answer and answer.answer_text
+            else ""
+        )
+
+        options = [
+            {"letter": letter, "text": getattr(question, field)}
+            for letter, field in option_fields
+            if getattr(question, field)
+        ]
+
+        selected_option = None
+        correct_option = None
+        correct_text = (question.correct_answer or "").strip()
+
+        if question.question_type == "mcq":
+            for option in options:
+                if submitted_text and submitted_text.casefold() in (
+                    option["letter"].casefold(),
+                    option["text"].strip().casefold(),
+                ):
+                    selected_option = option
+                    break
+
+            for option in options:
+                if correct_text and correct_text.casefold() in (
+                    option["letter"].casefold(),
+                    option["text"].strip().casefold(),
+                ):
+                    correct_option = option
+                    break
+
+            correct_display = (
+                f'{correct_option["letter"]}. {correct_option["text"]}'
+                if correct_option else (correct_text or "Not provided")
+            )
+
+            if not submitted_text:
+                status = "unanswered"
+                is_correct = False
+                unanswered_count += 1
+            else:
+                is_correct = (
+                    answer.is_correct
+                    if answer and answer.is_correct is not None
+                    else bool(
+                        selected_option and correct_option
+                        and selected_option["letter"] == correct_option["letter"]
+                    )
+                )
+                if is_correct:
+                    status = "correct"
+                    correct_count += 1
+                else:
+                    status = "incorrect"
+                    incorrect_count += 1
+        else:
+            is_correct = (
+                answer.is_correct
+                if answer and answer.is_correct is not None
+                else None
+            )
+            correct_display = correct_text or None
+
+            if not submitted_text:
+                status = "unanswered"
+                unanswered_count += 1
+            elif is_correct is None:
+                status = "pending"
+                pending_count += 1
+            elif is_correct:
+                status = "correct"
+                correct_count += 1
+            else:
+                status = "incorrect"
+                incorrect_count += 1
+
+        review_items.append({
+            "question": question,
+            "answer": answer,
+            "submitted_text": submitted_text,
+            "options": options,
+            "selected_option": selected_option,
+            "correct_option": correct_option,
+            "correct_answer_display": correct_display,
+            "is_correct": is_correct,
+            "status": status,
+        })
+
     return render_template(
         "student/assessment_result.html",
         attempt=attempt,
-        assessment=attempt.assessment,
+        assessment=assessment,
+        review_items=review_items,
+        correct_count=correct_count,
+        incorrect_count=incorrect_count,
+        unanswered_count=unanswered_count,
+        pending_count=pending_count,
     )

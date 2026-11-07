@@ -1,82 +1,278 @@
 {% extends "base.html" %}
 
-{% block title %}
-    Assessment Result
-{% endblock %}
+{% block title %}Assessment Result - {{ assessment.title }}{% endblock %}
 
 {% block content %}
+<style>
+    .result-stat {
+        height: 100%; padding: 1rem; border: 1px solid var(--bs-border-color);
+        border-radius: .8rem; background: var(--bs-body-bg);
+    }
+    .review-question {
+        border: 1px solid var(--bs-border-color); border-radius: .85rem;
+        overflow: hidden;
+    }
+    .review-question-header {
+        background: var(--bs-tertiary-bg); padding: 1rem 1.25rem;
+    }
+    .review-question-body { padding: 1.25rem; }
+    .answer-option {
+        display: flex; align-items: flex-start; gap: .65rem;
+        padding: .85rem 1rem; margin-bottom: .65rem;
+        border: 1px solid var(--bs-border-color); border-radius: .65rem;
+        background: var(--bs-body-bg);
+    }
+    .answer-option.is-correct {
+        background: #e8f6ec; border-color: #75c58b; color: #155c2b;
+    }
+    .answer-option.is-wrong {
+        background: #fdebec; border-color: #e69a9f; color: #842029;
+    }
+    .answer-option-letter { font-weight: 700; min-width: 1.5rem; }
+    .answer-indicator {
+        margin-left: auto; flex-shrink: 0; font-size: .8rem; font-weight: 600;
+    }
+    .answer-panel {
+        border-radius: .7rem; padding: 1rem; height: 100%;
+    }
+    .answer-panel.correct {
+        background: #e8f6ec; border: 1px solid #75c58b; color: #155c2b;
+    }
+    .answer-panel.wrong {
+        background: #fdebec; border: 1px solid #e69a9f; color: #842029;
+    }
+    .answer-panel.neutral {
+        background: var(--bs-tertiary-bg); border: 1px solid var(--bs-border-color);
+    }
+    .explanation-panel {
+        background: var(--bs-info-bg-subtle); border: 1px solid var(--bs-info-border-subtle);
+        border-radius: .7rem; padding: 1rem;
+    }
+    .review-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .question-number {
+        min-width: 2rem; height: 2rem; display: inline-flex;
+        align-items: center; justify-content: center; border-radius: 50%;
+        background: var(--bs-secondary-bg); font-weight: 700;
+    }
+    @media (max-width: 575.98px) {
+        .review-question-body { padding: 1rem; }
+        .answer-indicator { font-size: .72rem; }
+    }
+</style>
 
 <div class="container py-4">
 
-    <div class="card shadow-sm">
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body text-center py-4 py-md-5">
+            <div class="display-5 mb-2">🎉</div>
+            <h1 class="h3 mb-2">Assessment Submitted</h1>
+            <p class="text-muted mb-4">{{ assessment.title }}</p>
 
-        <div class="card-body text-center py-5">
-
-            <div class="display-5 mb-3">
-                🎉
+            <div class="row justify-content-center g-3">
+                <div class="col-6 col-md-3">
+                    <div class="result-stat">
+                        <div class="small text-muted mb-1">Your Score</div>
+                        <div class="fs-2 fw-bold">
+                            {{ attempt.score if attempt.score is not none else "—" }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="result-stat">
+                        <div class="small text-muted mb-1">Total Marks</div>
+                        <div class="fs-2 fw-bold">{{ attempt.total_marks }}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="result-stat">
+                        <div class="small text-muted mb-1">Correct</div>
+                        <div class="fs-2 fw-bold text-success">{{ correct_count }}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="result-stat">
+                        <div class="small text-muted mb-1">Incorrect</div>
+                        <div class="fs-2 fw-bold text-danger">{{ incorrect_count }}</div>
+                    </div>
+                </div>
             </div>
 
-            <h2 class="mb-2">
-                Assessment Submitted
-            </h2>
-
-            <p class="text-muted mb-4">
-                {{ assessment.title }}
-            </p>
-
-            <div class="row justify-content-center">
-
-                <div class="col-md-4 mb-3">
-
-                    <div class="border rounded p-3">
-
-                        <div class="text-muted">
-                            Score
-                        </div>
-
-                        <h3 class="mb-0">
-                            {{ attempt.score }}
-                        </h3>
-
-                    </div>
-
-                </div>
-
-                <div class="col-md-4 mb-3">
-
-                    <div class="border rounded p-3">
-
-                        <div class="text-muted">
-                            Total Marks
-                        </div>
-
-                        <h3 class="mb-0">
-                            {{ attempt.total_marks }}
-                        </h3>
-
-                    </div>
-
-                </div>
-
+            {% if unanswered_count or pending_count %}
+            <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+                {% if unanswered_count %}
+                <span class="badge bg-secondary">{{ unanswered_count }} unanswered</span>
+                {% endif %}
+                {% if pending_count %}
+                <span class="badge bg-warning text-dark">
+                    {{ pending_count }} awaiting teacher review
+                </span>
+                {% endif %}
             </div>
+            {% endif %}
 
-            <p class="text-muted mt-3">
-                Objective questions have been automatically graded.
-                Questions requiring manual marking will be reviewed
-                by your teacher.
+            <p class="text-muted small mt-4 mb-0">
+                Review each question, compare your answer with the correct answer,
+                and read the explanation.
             </p>
-
-            <a
-                href="{{ url_for('student.dashboard') }}"
-                class="btn btn-primary mt-3"
-            >
-                Back to Student Dashboard
-            </a>
-
         </div>
-
     </div>
 
-</div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h2 class="h4 mb-1">Question-by-Question Review</h2>
+            <p class="text-muted small mb-0">
+                {{ review_items|length }} question(s) in this assessment
+            </p>
+        </div>
+        <a href="{{ url_for('student.history') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-clock-history me-1"></i> My History
+        </a>
+    </div>
 
+    {% if review_items %}
+        {% for item in review_items %}
+        <section class="review-question shadow-sm mb-4">
+            <div class="review-question-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="question-number">{{ item.question.question_number }}</span>
+                    <strong>Question {{ item.question.question_number }}</strong>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary">
+                        {{ item.question.marks }} mark{% if item.question.marks != 1 %}s{% endif %}
+                    </span>
+                    {% if item.status == "correct" %}
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle me-1"></i>Correct
+                        </span>
+                    {% elif item.status == "incorrect" %}
+                        <span class="badge bg-danger">
+                            <i class="bi bi-x-circle me-1"></i>Incorrect
+                        </span>
+                    {% elif item.status == "unanswered" %}
+                        <span class="badge bg-secondary">Unanswered</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">Awaiting teacher review</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="review-question-body">
+                <div class="review-text fw-semibold mb-4">
+                    {{ item.question.question_text }}
+                </div>
+
+                {% if item.question.question_type == "mcq" %}
+                    <h3 class="h6 mb-3">Answer options</h3>
+
+                    {% for option in item.options %}
+                        {% set option_is_correct = (
+                            item.correct_option and option.letter == item.correct_option.letter
+                        ) %}
+                        {% set option_was_selected = (
+                            item.selected_option and option.letter == item.selected_option.letter
+                        ) %}
+                        <div class="answer-option
+                            {% if option_is_correct %}is-correct
+                            {% elif option_was_selected and not item.is_correct %}is-wrong
+                            {% endif %}">
+                            <span class="answer-option-letter">{{ option.letter }}.</span>
+                            <span class="review-text flex-grow-1">{{ option.text }}</span>
+                            {% if option_is_correct %}
+                                <span class="answer-indicator">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Correct answer
+                                </span>
+                            {% elif option_was_selected and not item.is_correct %}
+                                <span class="answer-indicator">
+                                    <i class="bi bi-x-circle-fill me-1"></i>Your answer
+                                </span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <div class="answer-panel
+                                {% if item.status == 'correct' %}correct
+                                {% elif item.status == 'incorrect' %}wrong
+                                {% else %}neutral{% endif %}">
+                                <div class="small fw-semibold mb-2">Your selected answer</div>
+                                {% if item.selected_option %}
+                                    <div class="fw-semibold review-text">
+                                        {{ item.selected_option.letter }}. {{ item.selected_option.text }}
+                                    </div>
+                                {% elif item.submitted_text %}
+                                    <div class="review-text">{{ item.submitted_text }}</div>
+                                {% else %}
+                                    <span class="text-muted">No answer provided</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="answer-panel correct">
+                                <div class="small fw-semibold mb-2">Correct answer</div>
+                                <div class="fw-semibold review-text">
+                                    {{ item.correct_answer_display }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="answer-panel neutral mb-3">
+                        <div class="small fw-semibold mb-2">Your submitted answer</div>
+                        {% if item.submitted_text %}
+                            <div class="review-text">{{ item.submitted_text }}</div>
+                        {% else %}
+                            <span class="text-muted">No answer provided</span>
+                        {% endif %}
+                    </div>
+
+                    {% if item.correct_answer_display %}
+                    <div class="answer-panel correct mb-3">
+                        <div class="small fw-semibold mb-2">Reference answer</div>
+                        <div class="review-text">{{ item.correct_answer_display }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if item.status == "pending" %}
+                    <div class="alert alert-warning mb-0">
+                        This written answer requires teacher marking.
+                        Your final result may change after grading.
+                    </div>
+                    {% endif %}
+
+                    {% if item.answer and item.answer.teacher_feedback %}
+                    <div class="explanation-panel mt-3">
+                        <div class="fw-semibold mb-2">Teacher's feedback</div>
+                        <div class="review-text">{{ item.answer.teacher_feedback }}</div>
+                    </div>
+                    {% endif %}
+                {% endif %}
+
+                {% if item.question.explanation %}
+                <div class="explanation-panel mt-3">
+                    <div class="fw-semibold mb-2">
+                        <i class="bi bi-lightbulb me-1"></i> Explanation
+                    </div>
+                    <div class="review-text">{{ item.question.explanation }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">
+            No question details are available for this assessment.
+        </div>
+    {% endif %}
+
+    <div class="text-center mt-4 mb-5">
+        <a href="{{ url_for('student.history') }}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-clock-history me-1"></i> Back to My History
+        </a>
+        <a href="{{ url_for('student.dashboard') }}" class="btn btn-primary">
+            <i class="bi bi-house me-1"></i> Student Dashboard
+        </a>
+    </div>
+</div>
 {% endblock %}
