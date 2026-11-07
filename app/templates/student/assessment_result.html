@@ -190,33 +190,13 @@
                         </div>
                     {% endfor %}
 
-                    <div class="row g-3 mt-2">
-                        <div class="col-md-6">
-                            <div class="answer-panel
-                                {% if item.status == 'correct' %}correct
-                                {% elif item.status == 'incorrect' %}wrong
-                                {% else %}neutral{% endif %}">
-                                <div class="small fw-semibold mb-2">Your selected answer</div>
-                                {% if item.selected_option %}
-                                    <div class="fw-semibold review-text">
-                                        {{ item.selected_option.letter }}. {{ item.selected_option.text }}
-                                    </div>
-                                {% elif item.submitted_text %}
-                                    <div class="review-text">{{ item.submitted_text }}</div>
-                                {% else %}
-                                    <span class="text-muted">No answer provided</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="answer-panel correct">
-                                <div class="small fw-semibold mb-2">Correct answer</div>
-                                <div class="fw-semibold review-text">
-                                    {{ item.correct_answer_display }}
-                                </div>
-                            </div>
-                        </div>
+                    {% if not item.correct_option and item.correct_answer_display %}
+                    <div class="answer-panel correct mt-3">
+                        <div class="small fw-semibold mb-1">Correct answer</div>
+                        <div class="review-text">{{ item.correct_answer_display }}</div>
                     </div>
+                    {% endif %}
+
                 {% else %}
                     <div class="answer-panel neutral mb-3">
                         <div class="small fw-semibold mb-2">Your submitted answer</div>
