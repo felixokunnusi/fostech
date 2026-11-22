@@ -1,81 +1,159 @@
-
 {% extends "base.html" %}
 
 {% block title %}Complete Your Profile{% endblock %}
 
 {% block content %}
+<style>
+    .fostech-profile-page {
+        min-height: 75vh;
+        padding: 3.5rem 1rem;
+        background: radial-gradient(circle at top left, #e8f2ff 0, transparent 38%),
+                    linear-gradient(135deg, #f5f8ff 0%, #f8fafc 55%, #eef4ff 100%);
+    }
+    .fostech-profile-card {
+        max-width: 540px;
+        margin: 0 auto;
+        overflow: hidden;
+        border: 1px solid rgba(226, 232, 240, .85);
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 24px 65px rgba(30, 64, 120, .10);
+    }
+    .fostech-profile-top {
+        padding: 2.25rem 2.25rem 1rem;
+        text-align: center;
+    }
+    .fostech-profile-icon {
+        width: 76px;
+        height: 76px;
+        margin: 0 auto 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 22px;
+        color: #2563eb;
+        background: linear-gradient(145deg, #eaf2ff, #f1edff);
+    }
+    .fostech-profile-icon svg { width: 38px; height: 38px; }
+    .fostech-profile-top h1 {
+        margin: 0 0 .65rem;
+        color: #172554;
+        font-size: clamp(1.5rem, 4vw, 1.9rem);
+        font-weight: 750;
+        letter-spacing: -.035em;
+    }
+    .fostech-profile-top p {
+        max-width: 390px;
+        margin: 0 auto;
+        color: #64748b;
+        line-height: 1.65;
+    }
+    .fostech-profile-form { padding: 1.5rem 2.25rem 2.25rem; }
+    .fostech-profile-form .form-label {
+        color: #334155;
+        font-weight: 650;
+        margin-bottom: .5rem;
+    }
+    .fostech-profile-form .form-control {
+        min-height: 52px;
+        padding: .8rem 1rem;
+        border: 1px solid #dbe4f0;
+        border-radius: 13px;
+        background: #fbfdff;
+        color: #0f172a;
+        transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .fostech-profile-form .form-control:focus {
+        border-color: #60a5fa;
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, .13);
+    }
+    .fostech-profile-form .form-control::placeholder { color: #94a3b8; }
+    .fostech-profile-form .profile-field { margin-bottom: 1.25rem; }
+    .fostech-profile-form .btn-primary {
+        min-height: 52px;
+        border: 0;
+        border-radius: 13px;
+        font-weight: 700;
+        letter-spacing: .01em;
+        background: linear-gradient(135deg, #2563eb, #4f46e5);
+        box-shadow: 0 10px 22px rgba(37, 99, 235, .22);
+        transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .fostech-profile-form .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 13px 26px rgba(37, 99, 235, .28);
+    }
+    .fostech-profile-note {
+        margin-top: 1.25rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: .45rem;
+        color: #94a3b8;
+        font-size: .85rem;
+    }
+    @media (max-width: 576px) {
+        .fostech-profile-page { padding: 1.5rem .75rem; }
+        .fostech-profile-top { padding: 1.75rem 1.25rem .75rem; }
+        .fostech-profile-form { padding: 1.25rem 1.25rem 1.75rem; }
+        .fostech-profile-card { border-radius: 20px; }
+    }
+</style>
 
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-7 col-lg-6">
 
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h4 class="mb-0">Complete Your Profile</h4>
-                </div>
-
-                <div class="card-body">
-
-                    <p class="text-muted">
-                        Please provide your correct names before continuing
-                        to your dashboard.
-                    </p>
-
-                    <form method="POST">
-                        {{ form.hidden_tag() }}
-
-                        <div class="mb-3">
-                            {{ form.first_name.label(class="form-label") }}
-                            {{ form.first_name(
-                                class="form-control",
-                                placeholder="Enter your first name"
-                            ) }}
-
-                            {% for error in form.first_name.errors %}
-                                <div class="text-danger small mt-1">
-                                    {{ error }}
-                                </div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="mb-3">
-                            {{ form.surname.label(class="form-label") }}
-                            {{ form.surname(
-                                class="form-control",
-                                placeholder="Enter your surname"
-                            ) }}
-
-                            {% for error in form.surname.errors %}
-                                <div class="text-danger small mt-1">
-                                    {{ error }}
-                                </div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="mb-3">
-                            {{ form.other_name.label(class="form-label") }}
-                            {{ form.other_name(
-                                class="form-control",
-                                placeholder="Enter other name (optional)"
-                            ) }}
-
-                            {% for error in form.other_name.errors %}
-                                <div class="text-danger small mt-1">
-                                    {{ error }}
-                                </div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="d-grid">
-                            {{ form.submit(class="btn btn-primary") }}
-                        </div>
-                    </form>
-
-                </div>
+<div class="fostech-profile-page">
+    <div class="fostech-profile-card">
+        <div class="fostech-profile-top">
+            <div class="fostech-profile-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8" r="3.5"></circle>
+                    <path d="M5 20v-1.2a5.8 5.8 0 0 1 5.8-5.8h2.4a5.8 5.8 0 0 1 5.8 5.8V20"></path>
+                    <path d="m16.8 5.2 1.2 1.2 2.4-2.4"></path>
+                </svg>
             </div>
+            <h1>Complete Your Profile</h1>
+            <p>Let's get to know you. Confirm your name details to continue to your FOSTech dashboard.</p>
+        </div>
 
+
+        <div class="fostech-profile-form">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+
+                <div class="profile-field">
+                    {{ form.first_name.label(class="form-label") }}
+                    {{ form.first_name(class="form-control", placeholder="Enter your first name", autocomplete="given-name") }}
+                    {% for error in form.first_name.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="profile-field">
+                    {{ form.surname.label(class="form-label") }}
+                    {{ form.surname(class="form-control", placeholder="Enter your surname", autocomplete="family-name") }}
+                    {% for error in form.surname.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="profile-field">
+                    {{ form.other_name.label(class="form-label") }}
+                    {{ form.other_name(class="form-control", placeholder="Enter other name (optional)", autocomplete="additional-name") }}
+                    {% for error in form.other_name.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="d-grid mt-4">
+                    {{ form.submit(class="btn btn-primary", value="Continue to Dashboard") }}
+                </div>
+            </form>
+            <div class="fostech-profile-note">
+                <span aria-hidden="true">&#128274;</span>
+                Your profile information is used to personalize your learning experience.
+            </div>
         </div>
     </div>
 </div>
-
 {% endblock %}

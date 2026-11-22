@@ -50,13 +50,26 @@ def register():
         # whether the submitted email or username already exists.
         cleanup_expired_unverified_users()
 
-        # Prevent duplicate email
-        if User.query.filter_by(
+        # Recover existing accounts instead of stranding unverified users.
+        existing_email_user = User.query.filter_by(
             email=form.email.data
-        ).first():
+        ).first()
+
+
+        if existing_email_user:
+            if not existing_email_user.is_email_verified:
+                # Let the user continue verification using the email they entered.
+                session["verify_email"] = existing_email_user.email
+                flash(
+                    "This email already has an account awaiting verification. "
+                    "Continue by entering your verification code.",
+                    "info"
+                )
+                return redirect(url_for("auth.confirm_email"))
+
 
             flash(
-                "Email already registered.",
+                "Email already registered. Please log in.",
                 "danger"
             )
             return render_template(
@@ -273,194 +286,135 @@ def logout():
 
 
 # --------------------------------------------------------------
-# Confirmation route
+# Confirmation route (session-independent)
 # --------------------------------------------------------------
 @auth_bp.route(
     "/confirm-email",
     methods=["GET", "POST"]
 )
 def confirm_email():
-
-    email = session.get("verify_email")
-
-    if not email:
-        return redirect(
-            url_for("auth.login")
-        )
-
-    user = User.query.filter_by(
-        email=email
-    ).first()
-
-    if not user:
-        flash(
-            "Account not found.",
-            "danger"
-        )
-        return redirect(
-            url_for("auth.register")
-        )
-
-    if delete_if_expired_unverified(user):
-        session.pop(
-            "verify_email",
-            None
-        )
-
-        flash(
-            "Verification time expired. Please register again.",
-            "danger"
-        )
-
-        return redirect(
-            url_for("auth.register")
-        )
-
     form = ConfirmEmailForm()
 
+    # Session email is a convenience only, not a requirement.
+    if request.method == "GET":
+        remembered_email = session.get("verify_email", "")
+        if remembered_email:
+            form.email.data = remembered_email
+
     if form.validate_on_submit():
+        email = (form.email.data or "").strip().lower()
+        user = User.query.filter_by(email=email).first()
+
+        if not user:
+            flash("We couldn't find an account with that email.", "danger")
+            return render_template("auth/confirm_email.html", form=form)
+
+        if user.is_email_verified:
+            session.pop("verify_email", None)
+            flash("This email is already verified. Please log in.", "info")
+            return redirect(url_for("auth.login"))
+
+        if delete_if_expired_unverified(user):
+            session.pop("verify_email", None)
+            flash("Your registration has expired. Please register again.", "danger")
+            return redirect(url_for("auth.register"))
 
         if (
-            user.email_confirm_code != form.code.data
+            not user.email_confirm_code
+            or not user.email_confirm_expires
+            or user.email_confirm_code != form.code.data
             or user.email_confirm_expires < datetime.utcnow()
         ):
-            flash(
-                "Invalid or expired code.",
-                "danger"
-            )
-
-            return redirect(
-                url_for("auth.confirm_email")
-            )
+            flash("Invalid or expired verification code.", "danger")
+            form.email.data = email
+            return render_template("auth/confirm_email.html", form=form)
 
         # Mark email verified
         user.is_email_verified = True
         user.email_confirm_code = None
         user.email_confirm_expires = None
 
-        # Generate referral code
+        # Generate referral code if missing
         if not user.referral_code:
-            user.referral_code = (
-                generate_unique_referral_code()
-            )
+            user.referral_code = generate_unique_referral_code()
 
         db.session.commit()
 
-        session.pop(
-            "verify_email",
-            None
-        )
+        session.pop("verify_email", None)
 
-        flash(
-            "Email verified successfully! You can now log in.",
-            "success"
-        )
+        flash("Email verified successfully! You can now log in.", "success")
+        return redirect(url_for("auth.login"))
 
-        return redirect(
-            url_for("auth.login")
-        )
+    return render_template("auth/confirm_email.html", form=form)
 
-    return render_template(
-        "auth/confirm_email.html",
-        form=form
+
+# --------------------------------------------------------------
+# Resend confirmation (session-independent)
+# --------------------------------------------------------------
+@auth_bp.route(
+    "/resend-confirmation",
+    methods=["GET", "POST"]
+)
+def resend_confirmation():
+    # GET remains compatible with existing links. POST is preferred from the
+    # verification page, where the email is explicitly supplied.
+    email = (
+        request.form.get("email")
+        if request.method == "POST"
+        else request.args.get("email") or session.get("verify_email")
     )
 
+    if not email:
+        flash("Enter your email address on the verification page to resend a code.", "info")
+        return redirect(url_for("auth.confirm_email"))
 
-# --------------------------------------------------------------
-# Resend confirmation
-# --------------------------------------------------------------
-@auth_bp.route("/resend-confirmation")
-def resend_confirmation():
-
-    email = session.get("verify_email")
-
-    user = User.query.filter_by(
-        email=email
-    ).first()
+    email = email.strip().lower()
+    user = User.query.filter_by(email=email).first()
 
     if not user or user.is_email_verified:
-        return redirect(
-            url_for("auth.login")
-        )
+        flash("If the account is eligible, a confirmation code can be sent.", "info")
+        return redirect(url_for("auth.confirm_email"))
 
-    # Check original six-hour account expiry first
     if delete_if_expired_unverified(user):
-        flash(
-            "Account expired. Please register again.",
-            "danger"
-        )
-
-        return redirect(
-            url_for("auth.register")
-        )
+        session.pop("verify_email", None)
+        flash("Your registration has expired. Please register again.", "danger")
+        return redirect(url_for("auth.register"))
 
     # Cooldown: 60 seconds
     if (
         user.last_confirmation_sent
-        and datetime.utcnow()
-        - user.last_confirmation_sent
-        < timedelta(seconds=60)
+        and datetime.utcnow() - user.last_confirmation_sent < timedelta(seconds=60)
     ):
-        flash(
-            "Please wait before resending.",
-            "warning"
-        )
+        session["verify_email"] = user.email
+        flash("Please wait 60 seconds before requesting another code.", "warning")
+        return redirect(url_for("auth.confirm_email"))
 
-        return redirect(
-            url_for("auth.confirm_email")
-        )
-
-    # Generate a new code that differs from the previous code
+    # Generate a fresh code different from the previous one.
     previous_code = user.email_confirm_code
-
     new_code = str(random.randint(100000, 999999))
-
     while new_code == previous_code:
         new_code = str(random.randint(100000, 999999))
 
     user.email_confirm_code = new_code
-
-    user.email_confirm_expires = (
-        datetime.utcnow() + timedelta(minutes=10)
-    )
-
+    user.email_confirm_expires = datetime.utcnow() + timedelta(minutes=10)
     user.last_confirmation_sent = datetime.utcnow()
-
     db.session.commit()
 
-    # Safe email send
+    session["verify_email"] = user.email
+
     try:
         send_confirmation_email(user)
-
     except RuntimeError as e:
-        flash(
-            str(e),
-            "danger"
-        )
-
-        return redirect(
-            url_for("auth.confirm_email")
-        )
-
+        current_app.logger.exception("Confirmation email resend failed")
+        flash(str(e), "danger")
+        return redirect(url_for("auth.confirm_email"))
     except Exception:
-        flash(
-            "Unable to send email right now. "
-            "Please try again later.",
-            "danger"
-        )
+        current_app.logger.exception("Confirmation email resend failed")
+        flash("Unable to send email right now. Please try again later.", "danger")
+        return redirect(url_for("auth.confirm_email"))
 
-        return redirect(
-            url_for("auth.confirm_email")
-        )
-
-    flash(
-        "New confirmation code sent.",
-        "success"
-    )
-
-    return redirect(
-        url_for("auth.confirm_email")
-    )
+    flash("New confirmation code sent. Please check your email.", "success")
+    return redirect(url_for("auth.confirm_email"))
 
 
 # --------------------------------------------------------------

@@ -48,9 +48,14 @@ class LoginForm(FlaskForm):
 
 
 class ConfirmEmailForm(FlaskForm):
-    code = StringField(
-        "Confirmation Code",
-        validators=[DataRequired(), Length(6, 6)]
+    email = StringField(
+        'Email Address',
+        validators=[DataRequired(), Email()]
     )
 
-    submit = SubmitField("Verify Email")
+    code = StringField(
+        'Confirmation Code',
+        validators=[DataRequired(), Length(min=6, max=6)]
+    )
+
+    submit = SubmitField('Verify Email')

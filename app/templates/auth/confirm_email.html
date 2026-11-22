@@ -1,31 +1,172 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-5">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <h4 class="text-center mb-3">Verify Email</h4>
+<style>
+    .fostech-verify-page {
+        min-height: calc(100vh - 100px);
+        padding: 2.5rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 15% 15%, rgba(99, 102, 241, .10), transparent 30%),
+                    radial-gradient(circle at 90% 85%, rgba(14, 165, 233, .10), transparent 32%),
+                    #f5f8ff;
+    }
+    .fostech-verify-card {
+        width: 100%;
+        max-width: 480px;
+        border: 1px solid rgba(226, 232, 240, .9);
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 22px 60px rgba(30, 64, 175, .10);
+        overflow: hidden;
+    }
+    .fostech-verify-card .card-body { padding: clamp(1.5rem, 5vw, 2.5rem); }
+    .fostech-verify-icon {
+        width: 76px; height: 76px;
+        display: grid; place-items: center;
+        margin: 0 auto 1.15rem;
+        border-radius: 22px;
+        background: linear-gradient(135deg, #e8f1ff, #eef2ff);
+        color: #315fce;
+    }
+    .fostech-verify-title { color: #172554; font-weight: 750; letter-spacing: -.03em; }
+    .fostech-verify-subtitle { color: #64748b; line-height: 1.65; }
+    .fostech-verify-card .form-label { color: #334155; font-weight: 600; margin-bottom: .5rem; }
+    .fostech-verify-card .form-control {
+        min-height: 52px;
+        border: 1px solid #dbe4f0;
+        border-radius: 12px;
+        background: #fbfdff;
+        padding: .8rem 1rem;
+        transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .fostech-verify-card .form-control:focus {
+        border-color: #6489ee;
+        background: #fff;
+        box-shadow: 0 0 0 .22rem rgba(79, 116, 230, .13);
+    }
+    .fostech-verify-code {
+        font-size: 1.45rem;
+        font-weight: 700;
+        letter-spacing: .35em;
+    }
+    .fostech-verify-primary {
+        min-height: 52px;
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #3467df, #5149cf);
+        font-weight: 700;
+        box-shadow: 0 8px 18px rgba(65, 92, 211, .20);
+        transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .fostech-verify-primary:hover { transform: translateY(-1px); box-shadow: 0 11px 22px rgba(65, 92, 211, .25); }
+    .fostech-verify-secondary {
+        min-height: 48px;
+        border-radius: 12px;
+        border-color: #dbe4f0;
+        color: #334155;
+        font-weight: 600;
+        background: #fff;
+    }
+    .fostech-verify-secondary:hover { background: #f7faff; border-color: #c6d5f3; }
+    .fostech-verify-divider { border-color: #edf1f7; opacity: 1; }
+    .fostech-verify-footnote { color: #64748b; font-size: .9rem; }
+    .fostech-verify-link { color: #315fce; font-weight: 600; text-decoration: none; }
+    .fostech-verify-link:hover { color: #2449a8; text-decoration: underline; }
+    @media (max-width: 575.98px) {
+        .fostech-verify-page { padding: 1rem .65rem; min-height: auto; }
+        .fostech-verify-card { border-radius: 20px; }
+        .fostech-verify-code { font-size: 1.2rem; letter-spacing: .25em; }
+    }
+</style>
 
-                <form method="POST">
-                    {{ form.hidden_tag() }}
 
-                    <div class="mb-3">
-                        {{ form.code.label(class="form-label") }}
-                        {{ form.code(class="form-control text-center") }}
-                    </div>
-
-                    <div class="d-grid">
-                        {{ form.submit(class="btn btn-primary") }}
-                    </div>
-                    
-                </form>
+<div class="fostech-verify-page">
+    <div class="fostech-verify-card">
+        <div class="card-body">
+            <div class="fostech-verify-icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="5" width="18" height="14" rx="3"></rect>
+                    <path d="m4 7 8 6 8-6"></path>
+                    <path d="m16.5 15.5 1.4 1.4 3-3"></path>
+                </svg>
             </div>
-            <p class="text-center mt-3">
-                Didn’t receive a code?
-                <a href="{{ url_for('auth.resend_confirmation') }}">Resend</a>
+
+
+            <h2 class="text-center fostech-verify-title mb-2">Verify your email</h2>
+            <p class="text-center fostech-verify-subtitle mb-4">
+                You're almost there! Enter your registered email and the 6-digit code sent to your inbox to activate your account.
             </p>
+
+
+            <form method="POST" action="{{ url_for('auth.confirm_email') }}">
+                {{ form.hidden_tag() }}
+
+                <div class="mb-3">
+                    {{ form.email.label(class="form-label") }}
+                    {{ form.email(class="form-control", placeholder="you@example.com", autocomplete="email", inputmode="email") }}
+                    {% for error in form.email.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+
+                <div class="mb-4">
+                    {{ form.code.label(class="form-label") }}
+                    {{ form.code(class="form-control fostech-verify-code text-center", placeholder="000000", inputmode="numeric", autocomplete="one-time-code", maxlength="6") }}
+                    {% for error in form.code.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                    <div class="form-text mt-2">Enter the 6-digit code. It expires after 10 minutes.</div>
+                </div>
+
+
+                <div class="d-grid">
+                    {{ form.submit(class="btn btn-primary fostech-verify-primary", value="Verify Email") }}
+                </div>
+            </form>
+
+
+            <div class="my-4">
+                <hr class="fostech-verify-divider">
+            </div>
+
+
+            <div class="text-center mb-3">
+                <div class="fw-semibold text-dark mb-1">Didn't receive your code?</div>
+                <div class="fostech-verify-footnote">Check your spam folder or request a new code below.</div>
+            </div>
+
+
+            <form method="POST" action="{{ url_for('auth.resend_confirmation') }}">
+                {{ form.csrf_token }}
+                <div class="mb-3">
+                    <label for="resend-email" class="form-label">Email for a new code</label>
+                    <input
+                        type="email"
+                        name="email"
+                        id="resend-email"
+                        class="form-control"
+                        placeholder="you@example.com"
+                        value="{{ form.email.data or '' }}"
+                        autocomplete="email"
+                        required
+                    >
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-outline-secondary fostech-verify-secondary">
+                        Resend verification code
+                    </button>
+                </div>
+            </form>
+
         </div>
     </div>
 </div>
+
+
+<p class="text-center mt-3 mb-4 fostech-verify-footnote">
+    Already verified? <a class="fostech-verify-link" href="{{ url_for('auth.login') }}">Log in to your account</a>
+</p>
 {% endblock %}
